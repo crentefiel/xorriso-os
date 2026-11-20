@@ -1,38 +1,37 @@
-# MiniCPM-V 4.7 1B — xorriso Alpha 0.8
+# MiniCPM-V 4.7 1B — Alpha 0.10 do xorriso
 
-**O modelo não está incluído na ISO.** O xorriso continua com tela vazia, console mínimo e nenhum disco persistente.
+O gerenciador `model` instala **sob demanda os pesos oficiais GGUF**, mas não instala nem executa o motor de inferência `llama.cpp` dentro do xorriso ainda. A ISO fica pequena porque nem os pesos nem o motor são embarcados.
 
-## Ponte para IA local no computador anfitrião
+## Arquivos oficiais
 
-A Alpha 0.8 permite que o Linux convidado se conecte por NAT ao **modelo executado no computador que hospeda o VirtualBox ou QEMU**. Não é inferência dentro da VM, mas não depende de uma API de nuvem depois que os pesos estejam em cache.
+Fonte: [openbmb/MiniCPM-V-4.7-1B-gguf](https://huggingface.co/openbmb/MiniCPM-V-4.7-1B-gguf) (licença Apache-2.0).
 
-Modelo oficial: https://huggingface.co/openbmb/MiniCPM-V-4.7-1B-gguf
-Motor: https://github.com/ggml-org/llama.cpp
+| Comando | Arquivo oficial | Tamanho aproximado |
+| --- | --- | --- |
+| `model install` | `MiniCPM-V-4_7-1B-Q4_K_M.gguf` | 672 MB |
+| `model vision` | `mmproj-model-f16.gguf` | 1,11 GB |
 
-**Anfitrião Linux:** instale ou compile uma versão atual do llama-server e, quando quiser rodar a IA, execute sh tools/run-minicpm-host-linux.sh. A primeira execução pode baixar os pesos GGUF Q4_K_M no cache do anfitrião. Eles não entram na ISO.
+Os SHA-256 verificados automaticamente pelo xorriso (conforme os metadados oficiais):
 
-**Anfitrião Windows:** instale uma versão atual de llama.cpp e, em um terminal no computador anfitrião:
+- Q4_K_M: `f18f594747e5317ab490cff9c06339c9cfb89acbe2f02ebc48a4e167bc23576d`.
+- Projetor: `fb9cc047a3cdad5317fd8433a4aeda2d22f00f02ca4bd93b34ad84165b25a900`.
 
-~~~powershell
-llama-server.exe -hf openbmb/MiniCPM-V-4.7-1B-gguf:Q4_K_M --host 127.0.0.1 --port 8080 --alias MiniCPM-V-4.7-1B
-~~~
+Se a origem mudar os arquivos, o download será rejeitado em vez de aceitar bytes diferentes. Não desative a checagem para contornar um erro.
 
-**Máquina virtual:** rede NAT, placa Intel PRO/1000 MT Desktop. Depois de F2:
+## Executar na máquina virtual
 
-~~~text
-net up
-local status
-api host
-api test
-ask Ola, MiniCPM!
-~~~
+1. Configure BIOS legado (EFI desligado), placa E1000 no VirtualBox NAT, RAM e um **segundo** disco ext4 rotulado `XORRISO_DATA`. Veja [STORAGE.md](STORAGE.md).
+2. Pressione F2 e execute `storage status`, `net up`, `model status`.
+3. Digite `model install` e responda **s** para baixar os pesos.
+4. Opcionalmente `model vision` para a capacidade de imagens.
+5. Use `model verify` para recalcular os hashes após download.
 
-O comando api host seleciona http://10.0.2.2:8080/v1, sem enviar chaves de API. Esse endereço é uma convenção de NAT para alcançar o computador anfitrião; pode exigir ajustes conforme a configuração de rede VirtualBox/QEMU. Em alguns ambientes um servidor que escuta apenas 127.0.0.1 no anfitrião não é acessível pelo NAT. Não exponha o servidor à internet sem firewall e autenticação.
+São aproximadamente 1,8 GB de arquivos para usar modelo e visão juntos; reserve pelo menos 3 GB livres, preferencialmente 6 GB. O modelo real precisará de mais RAM além do tamanho de arquivo. Em VM de apenas 1 GB, **não há garantia de inferência viável**.
 
-O comando api local seleciona http://127.0.0.1:8080/v1, que fica **dentro da VM**. Ainda não temos motor nem pesos do modelo dentro do xorriso.
+## Limite importante
 
-## Limitações e testes
+`model install` ainda **não torna o comando `ask` uma inferência dentro da VM**. O próximo marco é um motor `llama-server` verificado, executado por demanda dentro do Linux convidado, usando `/data/models`. A conexão `api local` já aponta a 127.0.0.1:8080 da própria VM, mas não inicia um servidor.
 
-O modelo MiniCPM real **não é executado nos testes de CI**. O workflow usa um servidor compatível com OpenAI **simulado** e valida DHCP e HTTP entre a VM e o host. Isso não comprova inferência real nem disponibilidade de recursos multimodais.
+Enquanto isso, `api host` pode conectar um servidor `llama.cpp` no computador anfitrião via NAT, conforme a documentação anterior; não confunda o anfitrião com o convidado.
 
-A inferência dentro do próprio xorriso requer disco persistente, runtime compilado e pesos baixados sob demanda, limites de RAM/armazenamento, validação dos downloads e testes adicionais.
+Os testes automatizados desta versão usam **pesos simulados minúsculos**, sem baixar ou executar o MiniCPM verdadeiro.

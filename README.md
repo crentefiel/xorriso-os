@@ -1,39 +1,34 @@
-# xorriso OS — Alpha 0.9 (desenvolvimento)
+# xorriso OS — Alpha 0.10 (candidato)
 
-**Sistema operacional Linux mínimo centrado em IA — protótipo experimental para máquina virtual.**
+**Linux mínimo experimental centrado em IA.** O xorriso inicia com a **tela preta totalmente vazia**: sem ícones, relógio, janelas ou barra. **F1** mostra o estado, **F2** abre o console e **Esc** volta à tela vazia.
 
-O xorriso inicia em uma **tela totalmente preta e vazia**, sem barra, menu, relógio, ícones ou janelas. **F1** mostra informações; **F2** abre o console; **Esc** retorna à tela vazia.
+## Funcionalidades
 
-## O que funciona
+- Inicialização Linux por GRUB/BIOS, rede DHCP, console ocultável.
+- APIs compatíveis com OpenAI: `api url`, `api model`, `api key`, `ask` (rede e chave do provedor são necessárias).
+- Agente experimental com ações limitadas e confirmação para escrever notas.
+- `storage status` / `storage mount`: volume ext4 opcional `XORRISO_DATA`, separado da ISO, para notas persistentes.
+- **Novo gerenciador de modelo:** `model status`, `model install`, `model vision`, `model verify`. Downloads somente sob confirmação do usuário, para `/data/models`, com hash SHA-256 oficial fixado. Sem disco persistente, não é possível instalar pesos.
 
-- Linux mínimo e GRUB para BIOS legado, initramfs e inicializador em C.
-- Rede DHCP manual: `net up`, `net status`.
-- APIs compatíveis com OpenAI por HTTPS: `api url`, `api model`, `api key`, `ask`.
-- Agente experimental `agent`, com ações limitadas e confirmação para gravar notas.
-- `api host`: conecta a VM ao MiniCPM executado separadamente no computador anfitrião via NAT. Não é inferência dentro da VM.
-- **Novo:** `storage status` e `storage mount` para armazenamento ext4 persistente opcional com rótulo `XORRISO_DATA`.
-- Quando o disco está montado, as notas do agente ficam em `/data/notes`, e `/data/models` fica preparada para futuros arquivos de IA.
+## Instalar os pesos oficiais do MiniCPM-V 4.7 1B
 
-## Como experimentar
-
-Baixe a ISO nos artefatos do workflow [Actions](https://github.com/crentefiel/xorriso-os/actions) após os testes passarem. Crie uma VM Linux 64-bit com BIOS legado, 1 GB de RAM ou mais, NAT e adaptador Intel PRO/1000 MT Desktop.
-
-Pressione F2 e experimente:
+Use uma VM com rede e um segundo disco ext4 rotulado `XORRISO_DATA`, com pelo menos 3 GB livres (6 GB recomendados). Configure a placa Intel PRO/1000 MT Desktop em NAT e use mais RAM para o futuro motor de inferência. Pressione F2:
 
 ```text
-help
 storage status
 net up
-api host
-api test
+model status
+model install
+model vision
+model verify
 ```
 
-Para criar um segundo disco ext4 sem substituir arquivos, siga [docs/STORAGE.md](docs/STORAGE.md). O volume é opcional; sem ele o xorriso continua com tela vazia e notas temporárias na RAM.
+O `model install` baixa o GGUF `Q4_K_M` (~672 MB); `model vision` baixa o projetor visual (~1,11 GB). Cada operação pede confirmação, verifica SHA-256 e somente depois coloca o arquivo no disco. A ISO não baixa nenhum modelo por conta própria. Leia [docs/MINICPM.md](docs/MINICPM.md) e [docs/STORAGE.md](docs/STORAGE.md).
 
-Para conversar com um modelo MiniCPM real no **computador anfitrião**, veja [docs/MINICPM.md](docs/MINICPM.md).
+**Importante:** o GGUF é apenas o arquivo do modelo. O executável `llama.cpp`/ `llama-server` e a inferência **dentro da VM ainda não foram integrados**. Para uma IA real atualmente, use `api host` com um servidor no anfitrião, ou configure sua API remota por HTTPS.
 
-## Verificações automáticas
+## Testes e download
 
-O GitHub Actions compila o /init, gera a ISO GRUB, testa o boot ISO/F2/Esc no QEMU e testa a rede com API simulada. Na Alpha 0.9, também testa escrita e leitura do mesmo disco ext4 em dois boots separados.
+O [GitHub Actions](https://github.com/crentefiel/xorriso-os/actions) compila o Linux, gera a ISO, testa seu boot pelo GRUB no QEMU, os atalhos F2/Esc, a rede com servidor simulado, a persistência ext4 entre dois boots e a lógica do gerenciador de modelo com arquivos de teste pequenos (sem baixar pesos reais).
 
-**Ainda não incluídos:** ambiente gráfico, modelo MiniCPM dentro do xorriso, instalador de programas, Ghidra/REA e criptografia de dados. A ISO não deve ser usada para dados sensíveis ou no computador principal.
+Esta é uma prova de conceito. **Não use na máquina principal nem armazene segredos.** Os dados no volume ext4 não são criptografados. O código próprio é MIT; bibliotecas de terceiros mantêm suas licenças. O nome xorriso também identifica um utilitário GNU não relacionado.
