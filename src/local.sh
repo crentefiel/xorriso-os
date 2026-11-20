@@ -1,7 +1,7 @@
 #!/bin/sh
 # MiniCPM is not included; it may run on the guest loopback or a trusted NAT host.
 PATH=/bin:/usr/bin:/sbin
-case "\${1:-status}" in
+case "${1:-status}" in
  status)
   echo 'MiniCPM nao esta embutido na ISO.'
   if curl -fsS --connect-timeout 2 --max-time 4 http://127.0.0.1:8080/health; then
