@@ -330,6 +330,61 @@ static void ci_persistent_test(void) {
  for(;;)pause();
 }
 
+
+/* CI: exercise two separate labeled SATA volumes across two Linux boots. */
+static int ci_file_has(const char *path,const char *expected) {
+ char content[128]={0};
+ int fd=open(path,O_RDONLY|O_CLOEXEC);
+ if(fd<0)return 0;
+ ssize_t n=read(fd,content,sizeof(content)-1);close(fd);
+ return n==(ssize_t)strlen(expected)&&!memcmp(content,expected,(size_t)n);
+}
+static void ci_dual_volume_test(void) {
+ char args[4096]={0};
+ int fd=open("/proc/cmdline",O_RDONLY|O_CLOEXEC);
+ if(fd<0)return;
+ ssize_t n=read(fd,args,sizeof(args)-1);close(fd);
+ if(n<=0)return;
+ int iswrite=strstr(args,"xorriso.ci=dual-write")!=NULL;
+ int isread=strstr(args,"xorriso.ci=dual-read")!=NULL;
+ if(!iswrite&&!isread)return;
+ int serial=open("/dev/ttyS0",O_RDWR|O_NOCTTY);
+ if(serial>=0) {
+  (void)dup2(serial,STDOUT_FILENO);(void)dup2(serial,STDERR_FILENO);
+  if(serial>STDERR_FILENO)close(serial);
+ }
+ if(ci_exec_script("/usr/lib/xorriso/storage.sh","mount")!=0) {
+  print("xorriso: dual volume FAIL (mount)\n");
+  for(;;)pause();
+ }
+ if(!ci_file_has("/data/models/ci-weight.txt","MODEL_STAYS\n")||
+    !ci_file_has("/runtime-data/runtime/llama-server","RUNTIME_SEPARATE\n")) {
+  print("xorriso: dual volume FAIL (contents)\n");
+  for(;;)pause();
+ }
+ int writecheck=open("/runtime-data/runtime/should-not-write",O_CREAT|O_WRONLY|O_CLOEXEC,0600);
+ if(writecheck>=0) {
+  close(writecheck);
+  print("xorriso: dual volume FAIL (runtime not readonly)\n");
+  for(;;)pause();
+ }
+ const char *note="/data/notes/ci-dual-note.txt";
+ if(iswrite) {
+  fd=open(note,O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC,0600);
+  if(fd<0||write(fd,"PERSIST_OK\n",11)!=11) {
+   print("xorriso: dual volume FAIL (write)\n");
+  }else{
+   (void)fsync(fd);
+   print("xorriso: dual volume write PASS\n");
+  }
+  if(fd>=0)close(fd);
+ }else{
+  if(ci_file_has(note,"PERSIST_OK\n"))print("xorriso: dual volume read PASS\n");
+  else print("xorriso: dual volume FAIL (reboot)\n");
+ }
+ for(;;)pause();
+}
+
 int main(void) {
  setup_fs();
  int bootlog=open("/dev/kmsg",O_WRONLY|O_CLOEXEC);
@@ -341,6 +396,7 @@ int main(void) {
  if(fd>=0){(void)write(fd,"0 0 0 0\n",8);close(fd);}
  (void)mkdir("/run/xorriso",0700);
  (void)ci_exec_script("/usr/lib/xorriso/storage.sh","boot");
+ ci_dual_volume_test();
  ci_persistent_test();
  ci_host_bridge_test();
  setup_tty();setenv("TERM","linux",1);clear_screen();

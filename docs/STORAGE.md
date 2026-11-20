@@ -52,7 +52,7 @@ Se aparecer **"Sem volume persistente. Notas continuam na RAM"**:
 1. **Desligue a VM completamente**, sem salvar o estado.
 2. Abra **Configurações → Armazenamento** no VirtualBox.
 3. Confirme que `xorriso-data-6GiB.vdi` ou `xorriso-ai-runtime-6GiB.vdi` está anexado como **disco rígido**, nunca como mídia óptica. Mantenha a ISO no leitor de CD.
-4. Não anexe os dois VDIs ao mesmo tempo: ambos usam o rótulo `XORRISO_DATA` e criariam ambiguidade. Faça backup se o VDI antigo contiver dados.
+4. Mantenha seu VDI `XORRISO_DATA` com modelos instalados. **Não anexe o VDI antigo de runtime de 6 GB** com o mesmo rótulo `XORRISO_DATA`. A nova versão usa VDI de runtime menor com rótulo diferente: `XORRISO_RUNTIME`. Faça backup antes de modificar armazenamento.
 5. Inicialize uma ISO que inclua os drivers **AHCI/SATA** (a correção é testada na versão posterior à Alpha 0.11).
 6. Abra F2 e digite:
    ```text
@@ -65,3 +65,33 @@ Se aparecer **"Sem volume persistente. Notas continuam na RAM"**:
 O volume fornecido pelo GitHub é um ext4 **diretamente no disco virtual inteiro**, sem tabela de partições. Isso é intencional: um `sda` (sem `sda1`) pode ser correto. **Nunca formate o disco da VM por tentativa e erro**; os dados podem ser perdidos.
 
 A verificação automática de persistência usa o mesmo arquivo de disco em dois boots do QEMU, agora tanto em controlador **IDE** quanto em controlador **AHCI/SATA**. Isso valida o funcionamento no QEMU; ainda é preciso testar a configuração específica do VirtualBox.
+
+## Novo: preservar os pesos do MiniCPM usando dois discos separados
+
+**Não substitua nem formate o VDI original.** Ele contém os pesos que já passaram por SHA-256.
+
+- XORRISO_DATA: VDI original (rw), continua montado em /data, com /data/models e /data/notes.
+- XORRISO_RUNTIME: VDI adicional de 256 MiB (ro), montado em /runtime-data, com /runtime/llama-server.
+
+Desligue a VM. No VirtualBox, mantenha o VDI original e adicione xorriso-llama-runtime-only-256MiB.vdi como OUTRO disco rígido SATA. A ISO continua no leitor de CD. Use a ISO gerada com suporte aos dois volumes.
+
+Depois de F2 execute:
+
+```text
+storage probe
+storage mount
+storage status
+model verify
+runtime status
+runtime start
+runtime log
+api local
+api test
+ask Ola, MiniCPM!
+```
+
+O runtime é montado somente para leitura e copiado para RAM após validação do SHA-256. O modelo continua no VDI original. **A inferência real no VirtualBox ainda necessita de teste.**
+
+Não utilize ao mesmo tempo o VDI antigo de runtime de 6 GiB (rótulo XORRISO_DATA) e o VDI original de modelos: isso duplicaria o rótulo.
+
+**Correção das instruções anteriores:** não troque seu disco de modelos pelo antigo VDI de runtime. Adicione o novo disco de runtime com rótulo XORRISO_RUNTIME.

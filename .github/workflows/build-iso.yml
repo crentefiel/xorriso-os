@@ -46,6 +46,8 @@ jobs:
         run: timeout 85s python3 src/test-qemu-host-bridge.py
       - name: Verify optional ext4 data survives two guest boots
         run: timeout 120s python3 src/test-qemu-persistence.py
+      - name: Verify existing model VDI plus separate read-only runtime VDI
+        run: timeout 145s python3 src/test-qemu-dual-disk.py
       - name: Boot actual GRUB ISO and verify F2 / Esc in QEMU
         run: timeout 95s python3 src/test-iso-qemu.py dist/xorriso-alpha-011-grub.iso
       - uses: actions/upload-artifact@v4
@@ -57,6 +59,7 @@ jobs:
             dist/qemu-boot.log
             dist/qemu-host-bridge.log
             dist/qemu-persistence-*.log
+            dist/qemu-dual-*.log
             dist/qemu-iso-*.log
             dist/qemu-iso-*.ppm
           retention-days: 14
