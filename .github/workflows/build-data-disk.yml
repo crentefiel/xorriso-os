@@ -1,0 +1,46 @@
+name: xorriso - Disco de dados VDI pronto para VirtualBox
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/build-data-disk.yml
+permissions:
+  contents: read
+jobs:
+  vdi:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install disk image tools
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends e2fsprogs qemu-utils util-linux
+      - name: Create labeled ext4 and convert to dynamically allocated VDI
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          truncate -s 6G dist/xorriso-data.raw
+          mkfs.ext4 -F -q -m 0 -L XORRISO_DATA dist/xorriso-data.raw
+          test "$(blkid -p -s LABEL -o value dist/xorriso-data.raw)" = "XORRISO_DATA"
+          qemu-img convert -f raw -O vdi dist/xorriso-data.raw dist/xorriso-data-6GiB.vdi
+          qemu-img info dist/xorriso-data-6GiB.vdi
+      - name: Verify ext4 filesystem survived VDI conversion
+        run: |
+          set -euo pipefail
+          qemu-img convert -f vdi -O raw -S 4k dist/xorriso-data-6GiB.vdi dist/xorriso-verify.raw
+          test "$(blkid -p -s LABEL -o value dist/xorriso-verify.raw)" = "XORRISO_DATA"
+          test "$(blkid -p -s TYPE -o value dist/xorriso-verify.raw)" = "ext4"
+          e2fsck -fn dist/xorriso-verify.raw
+          rm -f dist/xorriso-data.raw dist/xorriso-verify.raw
+          sha256sum dist/xorriso-data-6GiB.vdi > dist/SHA256SUMS-DATA
+          ls -lh dist/xorriso-data-6GiB.vdi
+          echo 'PASS: dynamic VDI, ext4, label XORRISO_DATA, filesystem integrity'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xorriso-data-6GiB-VDI
+          path: |
+            dist/xorriso-data-6GiB.vdi
+            dist/SHA256SUMS-DATA
+          retention-days: 14
+          if-no-files-found: error
