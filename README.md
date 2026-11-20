@@ -13,7 +13,7 @@ Protótipo Linux x86-64 mínimo centrado em IA. Ao iniciar, a tela é **totalmen
 
 ## Arquitetura da IA local
 
-**A ISO não contém `llama.cpp` nem pesos de IA.** Um workflow independente em [GitHub Actions](https://github.com/crentefiel/xorriso-os/actions) compila um `llama-server` x86-64 **CPU-only** a partir do commit fixado de llama.cpp e o incorpora em um disco VDI ext4 com rótulo `XORRISO_DATA`. Assim, o runtime é instalado separadamente, sem aumentar a ISO.
+**A ISO não contém `llama.cpp` nem pesos de IA.** Um workflow independente em [GitHub Actions](https://github.com/crentefiel/xorriso-os/actions) compila um `llama-server` x86-64 **CPU-only** a partir do commit fixado de llama.cpp e o incorpora em um segundo disco VDI ext4 com rótulo `XORRISO_RUNTIME`. Assim, o runtime é instalado separadamente, sem aumentar a ISO.
 
 O volume persistente é montado com `noexec`. Antes de iniciar o motor, o xorriso verifica o hash do servidor e o copia para a RAM executável em `/run/xorriso/llama`; os pesos são lidos no disco. O servidor é acessível **somente na VM, em 127.0.0.1:8080**.
 
@@ -21,14 +21,13 @@ O volume persistente é montado com `noexec`. Antes de iniciar o motor, o xorris
 
 1. Desligue a VM; configure Linux de 64 bits, EFI desativado, pelo menos 4 GB de RAM e adaptador E1000 em NAT.
 2. Baixe a ISO Alpha 0.11 e o VDI **com runtime** dos artefatos do GitHub Actions, depois que ambos os workflows passarem.
-3. Monte a ISO como CD. **Anexe o VDI de runtime como segundo disco**, não como CD; não anexe dois discos com o mesmo rótulo.
+3. Monte a ISO como CD. **Mantenha o VDI original `XORRISO_DATA` com seus modelos** e adicione o novo VDI `XORRISO_RUNTIME` como outro disco rígido SATA; nunca substitua nem formate o primeiro.
 4. Pressione F2 e digite:
 
 ```text
 storage status
 net up
 model status
-model install
 model verify
 runtime status
 runtime start
