@@ -24,6 +24,12 @@ if [ "${XORRISO_RUNTIME_TEST_MODE:-0}" = 1 ]; then
  SERVER="$RUN_DIR/llama-server"
  PIDFILE="$RUN_DIR/server.pid"
  LOGFILE="$RUN_DIR/server.log"
+else
+ # New setup: keep existing GGUF on /data, load the verified llama-server
+ # from a second read-only VDI labeled XORRISO_RUNTIME.
+ if grep -q ' /runtime-data ext4 ' /proc/mounts 2>/dev/null; then
+  RUNTIME=/runtime-data/runtime/llama-server
+ fi
 fi
 mounted() {
  [ "${XORRISO_RUNTIME_TEST_MODE:-0}" = 1 ] && return 0
@@ -51,7 +57,7 @@ case "${1:-status}" in
    echo "Sem disco persistente montado. Use storage mount."
    exit 1
   fi
-  if binary_valid; then echo "llama-server: instalado, SHA-256 aprovado."; else
+  if binary_valid; then echo "llama-server: instalado, SHA-256 aprovado ($RUNTIME)."; else
    echo "llama-server: ausente ou verificacao de integridade falhou."
   fi
   if [ -f "$MODEL" ]; then echo "MiniCPM GGUF: encontrado."; else echo "MiniCPM GGUF: ausente."; fi
@@ -63,7 +69,7 @@ case "${1:-status}" in
   ;;
  start)
   mounted || { echo 'Anexe disco persistente e execute storage mount.'; exit 2; }
-  binary_valid || { echo 'Runtime ausente ou SHA-256 incorreto. Execute a imagem VDI oficial com runtime.'; exit 3; }
+  binary_valid || { echo 'Runtime ausente ou SHA-256 incorreto. Anexe o VDI XORRISO_RUNTIME, execute storage mount e tente novamente.'; exit 3; }
   [ -f "$MODEL" ] || { echo 'MiniCPM ausente. Use net up e model install.'; exit 4; }
   if [ "${XORRISO_RUNTIME_TEST_MODE:-0}" != 1 ]; then
    /bin/sh /usr/lib/xorriso/model.sh verify >/dev/null || { echo 'Modelo GGUF nao passou na verificacao.'; exit 5; }
@@ -108,7 +114,7 @@ case "${1:-status}" in
  log) if [ -f "$LOGFILE" ]; then tail -n 25 "$LOGFILE"; else echo 'Sem log de runtime.'; fi ;;
  help)
   echo 'runtime status | runtime start | runtime stop | runtime log'
-  echo 'Executa llama-server verificado copiado do /data (noexec) para /run (tmpfs).'
+  echo 'Usa o VDI XORRISO_RUNTIME (somente leitura) e copia o binario verificado para /run.'
   echo 'Nao baixa modelo nem runtime automaticamente.'
   ;;
  *) echo 'Uso: runtime status | runtime start | runtime stop | runtime log'; exit 2 ;;
