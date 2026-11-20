@@ -40,6 +40,8 @@ jobs:
           tail -50 dist/qemu-boot.log
           grep -F 'xorriso: init reached successfully' dist/qemu-boot.log
           echo "QEMU exit code: $status"
+      - name: Boot actual GRUB ISO and verify F2 / Esc in QEMU
+        run: timeout 95s python3 src/test-iso-qemu.py dist/xorriso-alpha-07-grub.iso
       - uses: actions/upload-artifact@v4
         with:
           name: xorriso-alpha-07-grub
@@ -47,5 +49,7 @@ jobs:
             dist/xorriso-alpha-07-grub.iso
             dist/SHA256SUMS
             dist/qemu-boot.log
+            dist/qemu-iso-*.log
+            dist/qemu-iso-*.ppm
           retention-days: 14
           if-no-files-found: error
