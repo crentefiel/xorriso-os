@@ -13,14 +13,14 @@ KERNEL="$(find /boot -maxdepth 1 -type f -name 'vmlinuz-*-generic' | sort -V | t
 [[ -n "$KERNEL" && -f "$KERNEL" ]] || { echo 'Install linux-image-generic.' >&2; exit 3; }
 VERSION="${KERNEL##*/vmlinuz-}"
 echo "Building with kernel $VERSION"
-install -d "$ROOT"/{bin,dev,etc/ssl/certs,lib,lib64,proc,sys,run,tmp,usr/bin,usr/lib/xorriso,lib/xorriso/modules}
+install -d "$ROOT"/{bin,dev,etc/ssl/certs,lib,lib64,proc,sys,run,tmp,usr/bin,usr/lib/xorriso,lib/xorriso/modules,data}
 chmod 1777 "$ROOT/tmp"
 gcc -std=gnu11 -Os -static -s -Wall -Wextra -o "$ROOT/init" "$HERE/src/xorriso-init.c"
 install -m 755 "$(command -v busybox)" "$ROOT/bin/busybox"
-for app in sh ash ls cat mount dmesg uname ip ps free vi grep mkdir touch echo date route ifconfig udhcpc insmod ping awk sed sleep head tail rm chmod printf clear readlink basename; do
+for app in sh ash ls cat mount dmesg uname ip ps free vi grep mkdir touch echo date route ifconfig udhcpc insmod ping awk sed sleep head tail rm chmod printf clear readlink basename blkid df sync; do
   ln -sf busybox "$ROOT/bin/$app"
 done
-for file in ai-request.sh ai-agent.sh local.sh network.sh; do
+for file in ai-request.sh ai-agent.sh local.sh network.sh storage.sh; do
   install -m 755 "$HERE/src/$file" "$ROOT/usr/lib/xorriso/$file"
 done
 install -m 755 "$HERE/src/udhcpc.script" "$ROOT/etc/udhcpc.script"
@@ -42,7 +42,7 @@ for lib in /lib/x86_64-linux-gnu/libnss_dns.so.2 /lib/x86_64-linux-gnu/libnss_fi
   install -d "$ROOT$(dirname "$lib")"; cp -L "$lib" "$ROOT$lib"
 done
 MODULEDIR="/lib/modules/$VERSION"
-for mod in mii net_failover e1000 pcnet32 8139too virtio_net; do
+for mod in mii net_failover e1000 pcnet32 8139too virtio_net virtio virtio_ring virtio_pci_modern_dev virtio_pci_legacy_dev virtio_pci virtio_blk; do
   path="$(find "$MODULEDIR/kernel" -type f \( -name "$mod.ko" -o -name "$mod.ko.xz" -o -name "$mod.ko.zst" \) -print -quit 2>/dev/null || :)"
   [[ -n "$path" ]] || { echo "Module $mod unavailable"; continue; }
   case "$path" in
@@ -65,13 +65,13 @@ cat > "$STAGE/boot/grub/grub.cfg" <<'GRUB'
 set timeout=0
 set timeout_style=hidden
 set default=0
-menuentry 'xorriso Alpha 0.8 - Linux minimo' {
+menuentry 'xorriso Alpha 0.9 - Linux minimo' {
  linux /boot/vmlinuz console=tty0 quiet loglevel=0 vt.global_cursor_default=0 rdinit=/init
  initrd /boot/initramfs.cpio.gz
 }
 GRUB
-grub-mkrescue -o "$DIST/xorriso-alpha-08-grub.iso" "$STAGE"
+grub-mkrescue -o "$DIST/xorriso-alpha-09-grub.iso" "$STAGE"
 sudo cp "$KERNEL" "$DIST/vmlinuz"
 sudo chown "$(id -u):$(id -g)" "$DIST/vmlinuz"
-sha256sum "$DIST/xorriso-alpha-08-grub.iso" > "$DIST/SHA256SUMS"
-echo "Created $DIST/xorriso-alpha-08-grub.iso"
+sha256sum "$DIST/xorriso-alpha-09-grub.iso" > "$DIST/SHA256SUMS"
+echo "Created $DIST/xorriso-alpha-09-grub.iso"
