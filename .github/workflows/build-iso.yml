@@ -1,0 +1,51 @@
+name: xorriso Alpha 0.7 - Build and smoke test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  iso:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux, ISO tools and tests
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential linux-image-generic busybox-static grub-common grub-pc-bin grub2-common \
+            xorriso mtools cpio gzip zstd xz-utils curl jq ca-certificates qemu-system-x86 python3
+      - name: Test AI executor against mock APIs
+        run: |
+          bash src/test-ai.sh
+          python3 src/test-http-real.py
+      - name: Build ISO from source
+        run: bash build-from-source.sh
+      - name: Verify ISO format
+        run: |
+          test -s dist/xorriso-alpha-07-grub.iso
+          xorriso -indev dist/xorriso-alpha-07-grub.iso -report_el_torito plain
+      - name: Smoke test PID1 with QEMU
+        run: |
+          set +e
+          timeout 35s qemu-system-x86_64 -m 1024 -no-reboot -display none -serial stdio \
+            -kernel dist/vmlinuz -initrd dist/initramfs.cpio.gz \
+            -append 'console=ttyS0 loglevel=7 rdinit=/init' -nic none \
+            > dist/qemu-boot.log 2>&1
+          status=$?
+          set -e
+          tail -50 dist/qemu-boot.log
+          grep -F 'xorriso: init reached successfully' dist/qemu-boot.log
+          echo "QEMU exit code: $status"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xorriso-alpha-07-grub
+          path: |
+            dist/xorriso-alpha-07-grub.iso
+            dist/SHA256SUMS
+            dist/qemu-boot.log
+          retention-days: 14
+          if-no-files-found: error

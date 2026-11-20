@@ -1,0 +1,12 @@
+/dist/
+*.iso
+*.cpio
+*.cpio.gz
+*.o
+*.a
+*.pyc
+__pycache__/
+.env
+.env.*
+*.key
+secrets/
