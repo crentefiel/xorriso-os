@@ -31,7 +31,8 @@ mounted() {
 }
 binary_valid() {
  [ -f "$RUNTIME" ] || return 1
- [ "$RUNTIME_HASH" != "3e5f1cf566de425ee2d5f0864050f20a14031b37daebe2aa7d638de4389ec2e1" ] || return 1
+ case "$RUNTIME_HASH" in ''|*[!0-9a-f]*) return 1 ;; esac
+ [ "${#RUNTIME_HASH}" -eq 64 ] || return 1
  actual=$(sha256sum "$RUNTIME" | awk '{print $1}')
  [ "$actual" = "$RUNTIME_HASH" ]
 }
