@@ -1,5 +1,5 @@
 /*
- * xorriso Alpha 0.8 - Linux init minimo
+ * xorriso Alpha 0.9 - Linux init minimo
  * SPDX-License-Identifier: MIT
  * Plain Linux console is empty until user calls F1 or F2.
  */
@@ -56,7 +56,7 @@ static void setup_tty(void) {
 static void status(void) {
  struct utsname uts;struct sysinfo sys;
  clear_screen();
- print("xorriso alpha 0.8 - Linux minimo\r\n\r\n");
+ print("xorriso alpha 0.9 - Linux minimo\r\n\r\n");
  if(uname(&uts)==0) {print("Linux kernel: ");print(uts.release);crlf();}
  if(sysinfo(&sys)==0) {
   char buf[128];
@@ -69,7 +69,7 @@ static void status(void) {
 }
 static void console_header(void) {
  clear_screen();
- print("xorriso alpha 0.8 - console minimo\r\n");
+ print("xorriso alpha 0.9 - console minimo\r\n");
  print("help: comandos | ESC: tela vazia\r\n\r\n");
  is_console=1;
 }
@@ -213,7 +213,7 @@ static void cmd(char *s) {
  size_t n=strlen(s);
  while(n&&isspace((unsigned char)s[n-1]))s[--n]=0;
  if(!*s)return;
- if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent notes local ai desktop reboot poweroff\r\n");
+ if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent notes storage local ai desktop reboot poweroff\r\n");
  else if(!strcmp(s,"status")||!strcmp(s,"version")){status();is_console=1;}
  else if(!strcmp(s,"ls"))list_root();
  else if(!strcmp(s,"uptime")){
@@ -237,6 +237,8 @@ static void cmd(char *s) {
  else if(!strncmp(s,"agent ",6))run_script("/usr/lib/xorriso/ai-agent.sh",s+6);
  else if(!strcmp(s,"agent"))print("Uso: agent seu pedido\r\n");
  else if(!strcmp(s,"notes"))run_script("/usr/lib/xorriso/ai-agent.sh","--notes");
+ else if(!strcmp(s,"storage")||!strcmp(s,"storage status"))run_script("/usr/lib/xorriso/storage.sh","status");
+ else if(!strcmp(s,"storage mount"))run_script("/usr/lib/xorriso/storage.sh","mount");
  else if(!strncmp(s,"install",7))print("Instalacao automatica indisponivel nesta alpha.\r\n");
  else if(!strcmp(s,"reboot")){sync();reboot(LINUX_REBOOT_CMD_RESTART);}
  else if(!strcmp(s,"poweroff")){sync();reboot(LINUX_REBOOT_CMD_POWER_OFF);}
@@ -274,6 +276,46 @@ static void ci_host_bridge_test(void) {
  else print("xorriso: host api bridge FAIL\n");
  for(;;)pause();
 }
+static void ci_persistent_test(void) {
+ char args[4096]={0};
+ int f=open("/proc/cmdline",O_RDONLY|O_CLOEXEC);
+ if(f<0)return;
+ ssize_t n=read(f,args,sizeof(args)-1);close(f);
+ if(n<=0)return;
+ int iswrite=strstr(args,"xorriso.ci=persist-write")!=NULL;
+ int isread=strstr(args,"xorriso.ci=persist-read")!=NULL;
+ if(!iswrite&&!isread)return;
+ int serial=open("/dev/ttyS0",O_RDWR|O_NOCTTY);
+ if(serial>=0) {
+  (void)dup2(serial,STDOUT_FILENO);(void)dup2(serial,STDERR_FILENO);
+  if(serial>STDERR_FILENO)close(serial);
+ }
+ if(ci_exec_script("/usr/lib/xorriso/storage.sh","mount")!=0) {
+  print("xorriso: persistence FAIL (mount)\n");
+  for(;;)pause();
+ }
+ const char *path="/data/notes/xorriso-ci-note.txt";
+ if(iswrite) {
+  f=open(path,O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC,0600);
+  if(f>=0) {
+   const char *msg="hello-persist-0.9\n";
+   ssize_t len=(ssize_t)strlen(msg);
+   if(write(f,msg,(size_t)len)==len)print("xorriso: persistence write PASS\n");
+   else print("xorriso: persistence FAIL (write)\n");
+   (void)fsync(f);close(f);
+  }else print("xorriso: persistence FAIL (open)\n");
+ }else{
+  char buf[128]={0};
+  f=open(path,O_RDONLY|O_CLOEXEC);
+  if(f>=0) {
+   ssize_t len=read(f,buf,sizeof(buf)-1);close(f);
+   if(len>0&&!strcmp(buf,"hello-persist-0.9\n"))print("xorriso: persistence read PASS\n");
+   else print("xorriso: persistence FAIL (content)\n");
+  }else print("xorriso: persistence FAIL (missing)\n");
+ }
+ for(;;)pause();
+}
+
 int main(void) {
  setup_fs();
  int bootlog=open("/dev/kmsg",O_WRONLY|O_CLOEXEC);
@@ -284,6 +326,8 @@ int main(void) {
  int fd=open("/proc/sys/kernel/printk",O_WRONLY|O_CLOEXEC);
  if(fd>=0){(void)write(fd,"0 0 0 0\n",8);close(fd);}
  (void)mkdir("/run/xorriso",0700);
+ (void)ci_exec_script("/usr/lib/xorriso/storage.sh","boot");
+ ci_persistent_test();
  ci_host_bridge_test();
  setup_tty();setenv("TERM","linux",1);clear_screen();
  char line[MAX_CMD+1];size_t n=0;

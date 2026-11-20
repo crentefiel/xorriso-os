@@ -1,54 +1,39 @@
-# xorriso OS — Alpha 0.8
+# xorriso OS — Alpha 0.9 (desenvolvimento)
 
-**Sistema operacional Linux mínimo centrado em IA — protótipo experimental.**
+**Sistema operacional Linux mínimo centrado em IA — protótipo experimental para máquina virtual.**
 
-O xorriso inicia com a **tela preta totalmente vazia**, sem barra, menu, relógio, ícones ou janelas. F1 mostra informações, F2 abre o console e Esc volta à tela vazia.
+O xorriso inicia em uma **tela totalmente preta e vazia**, sem barra, menu, relógio, ícones ou janelas. **F1** mostra informações; **F2** abre o console; **Esc** retorna à tela vazia.
 
-## Funcionalidades
+## O que funciona
 
-- Kernel Linux, GRUB BIOS legado, initramfs e inicializador próprio em C.
-- Rede DHCP manual: comandos net up, net status, net down.
-- Cliente OpenAI compatível por HTTPS: api url, api model, api key, api test, ask.
-- Agente experimental: comando agent com ações restritas e autorização para criar notas temporárias.
-- **Novo: api host** usa HTTP no gateway NAT 10.0.2.2:8080 para conectar o MiniCPM executado no **computador anfitrião da VM**. Chaves de API são bloqueadas nesse HTTP sem criptografia.
-- api local aponta para 127.0.0.1 **da VM**, mas o modelo e o runtime ainda não estão instalados dentro dela.
+- Linux mínimo e GRUB para BIOS legado, initramfs e inicializador em C.
+- Rede DHCP manual: `net up`, `net status`.
+- APIs compatíveis com OpenAI por HTTPS: `api url`, `api model`, `api key`, `ask`.
+- Agente experimental `agent`, com ações limitadas e confirmação para gravar notas.
+- `api host`: conecta a VM ao MiniCPM executado separadamente no computador anfitrião via NAT. Não é inferência dentro da VM.
+- **Novo:** `storage status` e `storage mount` para armazenamento ext4 persistente opcional com rótulo `XORRISO_DATA`.
+- Quando o disco está montado, as notas do agente ficam em `/data/notes`, e `/data/models` fica preparada para futuros arquivos de IA.
 
-## Executar no VirtualBox
+## Como experimentar
 
-VM Linux 64 bits, 1 GiB ou mais de RAM, EFI desativado, NAT, placa Intel PRO/1000 MT Desktop. Baixe a ISO dos artefatos em [GitHub Actions](https://github.com/crentefiel/xorriso-os/actions).
+Baixe a ISO nos artefatos do workflow [Actions](https://github.com/crentefiel/xorriso-os/actions) após os testes passarem. Crie uma VM Linux 64-bit com BIOS legado, 1 GB de RAM ou mais, NAT e adaptador Intel PRO/1000 MT Desktop.
 
-No console F2, depois de iniciar o servidor MiniCPM no anfitrião:
+Pressione F2 e experimente:
 
-~~~text
+```text
+help
+storage status
 net up
-local status
 api host
 api test
-ask Ola, MiniCPM!
-~~~
+```
 
-Veja [docs/MINICPM.md](docs/MINICPM.md) e [tools/run-minicpm-host-linux.sh](tools/run-minicpm-host-linux.sh) para iniciar o servidor local no anfitrião. A ponte pode exigir ajustes na rede VirtualBox.
+Para criar um segundo disco ext4 sem substituir arquivos, siga [docs/STORAGE.md](docs/STORAGE.md). O volume é opcional; sem ele o xorriso continua com tela vazia e notas temporárias na RAM.
 
-Para conectar uma API externa por HTTPS:
+Para conversar com um modelo MiniCPM real no **computador anfitrião**, veja [docs/MINICPM.md](docs/MINICPM.md).
 
-~~~text
-api url https://provedor.example/v1
-api model IDENTIFICADOR
-api key
-api test
-ask Ola
-~~~
+## Verificações automáticas
 
-Não divulgue suas chaves de API. Notas e configuração ficam apenas em RAM.
+O GitHub Actions compila o /init, gera a ISO GRUB, testa o boot ISO/F2/Esc no QEMU e testa a rede com API simulada. Na Alpha 0.9, também testa escrita e leitura do mesmo disco ext4 em dois boots separados.
 
-## Construção e testes
-
-O GitHub Actions compila o inicializador, gera a ISO GRUB, testa o boot da própria ISO e os atalhos F2/Esc em QEMU. A Alpha 0.8 também testa a rede convidado→anfitrião contra **API simulada**, não inferência com MiniCPM verdadeiro.
-
-~~~bash
-bash src/test-ai.sh
-python3 src/test-http-real.py
-bash build-from-source.sh
-~~~
-
-**Ainda faltam:** desktop gráfico real, armazenamento persistente, MiniCPM rodando dentro do xorriso, instalação autônoma de programas, Ghidra e REA. Esta ISO é experimental, para testes em máquina virtual. Código novo sob MIT; componentes terceiros têm licenças próprias. O nome xorriso também é usado por um utilitário GNU diferente.
+**Ainda não incluídos:** ambiente gráfico, modelo MiniCPM dentro do xorriso, instalador de programas, Ghidra/REA e criptografia de dados. A ISO não deve ser usada para dados sensíveis ou no computador principal.
