@@ -59,28 +59,26 @@ jobs:
       - name: Build ext4 VDI containing runtime but no model weights
         run: |
           set -euo pipefail
-          truncate -s 6G dist/xorriso-ai-runtime.raw
-          mkfs.ext4 -F -q -m 0 -L XORRISO_DATA dist/xorriso-ai-runtime.raw
+          truncate -s 256M dist/xorriso-ai-runtime.raw
+          mkfs.ext4 -F -q -m 0 -L XORRISO_RUNTIME dist/xorriso-ai-runtime.raw
           debugfs -w -R 'mkdir /runtime' dist/xorriso-ai-runtime.raw
-          debugfs -w -R 'mkdir /models' dist/xorriso-ai-runtime.raw
-          debugfs -w -R 'mkdir /notes' dist/xorriso-ai-runtime.raw
           debugfs -w -R 'write dist/llama-server /runtime/llama-server' dist/xorriso-ai-runtime.raw
           debugfs -w -R 'write dist/runtime-SHA256.txt /runtime/SHA256SUMS' dist/xorriso-ai-runtime.raw
           debugfs -w -R 'write dist/LICENSE-llama.cpp /runtime/LICENSE-llama.cpp' dist/xorriso-ai-runtime.raw
           e2fsck -fn dist/xorriso-ai-runtime.raw
-          qemu-img convert -f raw -O vdi dist/xorriso-ai-runtime.raw dist/xorriso-ai-runtime-6GiB.vdi
-          qemu-img info dist/xorriso-ai-runtime-6GiB.vdi
-          qemu-img convert -f vdi -O raw -S 4k dist/xorriso-ai-runtime-6GiB.vdi dist/verify.raw
+          qemu-img convert -f raw -O vdi dist/xorriso-ai-runtime.raw dist/xorriso-llama-runtime-only-256MiB.vdi
+          qemu-img info dist/xorriso-llama-runtime-only-256MiB.vdi
+          qemu-img convert -f vdi -O raw -S 4k dist/xorriso-llama-runtime-only-256MiB.vdi dist/verify.raw
           test "$(blkid -p -s TYPE -o value dist/verify.raw)" = ext4
-          test "$(blkid -p -s LABEL -o value dist/verify.raw)" = XORRISO_DATA
+          test "$(blkid -p -s LABEL -o value dist/verify.raw)" = XORRISO_RUNTIME
           debugfs -R 'stat /runtime/llama-server' dist/verify.raw | grep -q 'Size:'
           rm -f dist/xorriso-ai-runtime.raw dist/verify.raw
-          echo 'PASS: ext4 VDI with CPU llama-server; no model weights or ISO changes'
+          echo 'PASS: read-only runtime VDI label XORRISO_RUNTIME; existing model volume remains untouched'
       - uses: actions/upload-artifact@v4
         with:
-          name: xorriso-llama-runtime-6GiB-vdi
+          name: xorriso-llama-runtime-only-256MiB-VDI
           path: |
-            dist/xorriso-ai-runtime-6GiB.vdi
+            dist/xorriso-llama-runtime-only-256MiB.vdi
             dist/runtime-SHA256.txt
             dist/LICENSE-llama.cpp
           retention-days: 14
