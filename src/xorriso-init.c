@@ -1,5 +1,5 @@
 /*
- * xorriso Alpha 0.9 - Linux init minimo
+ * xorriso Alpha 0.10 - Linux init minimo
  * SPDX-License-Identifier: MIT
  * Plain Linux console is empty until user calls F1 or F2.
  */
@@ -56,7 +56,7 @@ static void setup_tty(void) {
 static void status(void) {
  struct utsname uts;struct sysinfo sys;
  clear_screen();
- print("xorriso alpha 0.9 - Linux minimo\r\n\r\n");
+ print("xorriso alpha 0.10 - Linux minimo\r\n\r\n");
  if(uname(&uts)==0) {print("Linux kernel: ");print(uts.release);crlf();}
  if(sysinfo(&sys)==0) {
   char buf[128];
@@ -64,12 +64,12 @@ static void status(void) {
   snprintf(buf,sizeof(buf),"RAM: %llu MiB\r\n",mb);print(buf);
  }
  print("\r\nF2: console | ESC: area vazia\r\n");
- print("MiniCPM na VM nao instalado. APIs externas e host NAT opcionais.\r\n");
+ print("MiniCPM GGUF: model status | model install (runtime ainda ausente).\r\n");
  is_console=0;
 }
 static void console_header(void) {
  clear_screen();
- print("xorriso alpha 0.9 - console minimo\r\n");
+ print("xorriso alpha 0.10 - console minimo\r\n");
  print("help: comandos | ESC: tela vazia\r\n\r\n");
  is_console=1;
 }
@@ -213,7 +213,7 @@ static void cmd(char *s) {
  size_t n=strlen(s);
  while(n&&isspace((unsigned char)s[n-1]))s[--n]=0;
  if(!*s)return;
- if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent notes storage local ai desktop reboot poweroff\r\n");
+ if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent notes storage model local ai desktop reboot poweroff\r\n");
  else if(!strcmp(s,"status")||!strcmp(s,"version")){status();is_console=1;}
  else if(!strcmp(s,"ls"))list_root();
  else if(!strcmp(s,"uptime")){
@@ -237,9 +237,16 @@ static void cmd(char *s) {
  else if(!strncmp(s,"agent ",6))run_script("/usr/lib/xorriso/ai-agent.sh",s+6);
  else if(!strcmp(s,"agent"))print("Uso: agent seu pedido\r\n");
  else if(!strcmp(s,"notes"))run_script("/usr/lib/xorriso/ai-agent.sh","--notes");
+ else if(!strcmp(s,"model")||!strcmp(s,"model status"))run_script("/usr/lib/xorriso/model.sh","status");
+ else if(!strcmp(s,"model install"))run_script("/usr/lib/xorriso/model.sh","install");
+ else if(!strcmp(s,"model vision"))run_script("/usr/lib/xorriso/model.sh","vision");
+ else if(!strcmp(s,"model verify"))run_script("/usr/lib/xorriso/model.sh","verify");
+ else if(!strcmp(s,"model help"))run_script("/usr/lib/xorriso/model.sh","help");
+ else if(!strncmp(s,"model ",6))print("Uso: model status | model install | model vision | model verify\r\n");
  else if(!strcmp(s,"storage")||!strcmp(s,"storage status"))run_script("/usr/lib/xorriso/storage.sh","status");
  else if(!strcmp(s,"storage mount"))run_script("/usr/lib/xorriso/storage.sh","mount");
- else if(!strncmp(s,"install",7))print("Instalacao automatica indisponivel nesta alpha.\r\n");
+ else if(!strncmp(s,"storage ",8))print("Uso: storage status | storage mount\r\n");
+ else if(!strncmp(s,"install",7))print("Instalacao automatica de programas indisponivel nesta alpha.\r\n");
  else if(!strcmp(s,"reboot")){sync();reboot(LINUX_REBOOT_CMD_RESTART);}
  else if(!strcmp(s,"poweroff")){sync();reboot(LINUX_REBOOT_CMD_POWER_OFF);}
  else print("Comando desconhecido. Digite help.\r\n");

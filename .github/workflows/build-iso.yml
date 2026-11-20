@@ -1,4 +1,4 @@
-name: xorriso Alpha 0.9 - Build and smoke test
+name: xorriso Alpha 0.10 - Build and smoke test
 on:
   push:
     branches: [main]
@@ -21,13 +21,14 @@ jobs:
       - name: Test AI executor against mock APIs
         run: |
           bash src/test-ai.sh
+          bash src/test-model.sh
           python3 src/test-http-real.py
       - name: Build ISO from source
         run: bash build-from-source.sh
       - name: Verify ISO format
         run: |
-          test -s dist/xorriso-alpha-09-grub.iso
-          xorriso -indev dist/xorriso-alpha-09-grub.iso -report_el_torito plain
+          test -s dist/xorriso-alpha-010-grub.iso
+          xorriso -indev dist/xorriso-alpha-010-grub.iso -report_el_torito plain
       - name: Smoke test PID1 with QEMU
         run: |
           set +e
@@ -45,12 +46,12 @@ jobs:
       - name: Verify optional ext4 data survives two guest boots
         run: timeout 120s python3 src/test-qemu-persistence.py
       - name: Boot actual GRUB ISO and verify F2 / Esc in QEMU
-        run: timeout 95s python3 src/test-iso-qemu.py dist/xorriso-alpha-09-grub.iso
+        run: timeout 95s python3 src/test-iso-qemu.py dist/xorriso-alpha-010-grub.iso
       - uses: actions/upload-artifact@v4
         with:
-          name: xorriso-alpha-09-grub
+          name: xorriso-alpha-010-grub
           path: |
-            dist/xorriso-alpha-09-grub.iso
+            dist/xorriso-alpha-010-grub.iso
             dist/SHA256SUMS
             dist/qemu-boot.log
             dist/qemu-host-bridge.log
