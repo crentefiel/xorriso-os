@@ -9,15 +9,21 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "dist"
 DISK = OUT / "qemu-persistence.img"
 
-def once(stage):
-    log = OUT / ("qemu-persistence-" + stage + ".log")
+def once(stage, controller="ide"):
+    log = OUT / ("qemu-persistence-" + controller + "-" + stage + ".log")
     cmd = ["qemu-system-x86_64", "-m", "1024", "-smp", "1",
            "-no-reboot", "-display", "none", "-monitor", "none",
            "-serial", "file:" + str(log), "-nic", "none",
            "-kernel", str(OUT / "vmlinuz"),
            "-initrd", str(OUT / "initramfs.cpio.gz"),
-           "-append", "console=ttyS0 loglevel=1 rdinit=/init xorriso.ci=persist-" + stage,
-           "-drive", "file=" + str(DISK) + ",format=raw,if=ide"]
+           "-append", "console=ttyS0 loglevel=1 rdinit=/init xorriso.ci=persist-" + stage]
+    if controller == "sata":
+        # VirtualBox SATA/AHCI equivalent. BIOS/GRUB ISO tests run independently.
+        cmd += ["-drive", "file=" + str(DISK) + ",format=raw,if=none,id=persist",
+                "-device", "ich9-ahci,id=sata",
+                "-device", "ide-hd,drive=persist,bus=sata.0"]
+    else:
+        cmd += ["-drive", "file=" + str(DISK) + ",format=raw,if=ide"]
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         limit = time.monotonic() + 45
@@ -46,9 +52,14 @@ def main():
         DISK.unlink()
     subprocess.run(["truncate", "-s", "96M", str(DISK)], check=True)
     subprocess.run(["mkfs.ext4", "-F", "-q", "-L", "XORRISO_DATA", str(DISK)], check=True)
-    once("write")
-    once("read")
-    print("PASS: ext4 notes survived guest reboot without modifying other disks")
+    once("write", "ide")
+    once("read", "ide")
+    print("PASS: IDE ext4 data survives guest reboot")
+    # Reformat the TEST FILE (not any host disk) before verifying SATA/AHCI.
+    subprocess.run(["mkfs.ext4", "-F", "-q", "-L", "XORRISO_DATA", str(DISK)], check=True)
+    once("write", "sata")
+    once("read", "sata")
+    print("PASS: SATA/AHCI ext4 data survives guest reboot")
 
 if __name__ == "__main__":
     try:

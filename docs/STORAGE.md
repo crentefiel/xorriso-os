@@ -44,3 +44,24 @@ Os testes não formatam discos físicos, apenas um arquivo temporário criado pe
 ## Segurança
 
 O sistema permanece experimental, sem endurecimento completo. Dados persistentes não são criptografados. Não grave informações sensíveis. As chaves das APIs compatíveis com OpenAI continuam somente na memória volátil, sem serem copiadas para o disco.
+
+## Solução de problemas no VirtualBox (SATA/IDE)
+
+Se aparecer **"Sem volume persistente. Notas continuam na RAM"**:
+
+1. **Desligue a VM completamente**, sem salvar o estado.
+2. Abra **Configurações → Armazenamento** no VirtualBox.
+3. Confirme que `xorriso-data-6GiB.vdi` ou `xorriso-ai-runtime-6GiB.vdi` está anexado como **disco rígido**, nunca como mídia óptica. Mantenha a ISO no leitor de CD.
+4. Não anexe os dois VDIs ao mesmo tempo: ambos usam o rótulo `XORRISO_DATA` e criariam ambiguidade. Faça backup se o VDI antigo contiver dados.
+5. Inicialize uma ISO que inclua os drivers **AHCI/SATA** (a correção é testada na versão posterior à Alpha 0.11).
+6. Abra F2 e digite:
+   ```text
+   storage probe
+   storage mount
+   storage status
+   ```
+7. `storage probe` deve listar ao menos um disco SATA como `sda` ou `sdb` (ou um IDE equivalente). Se não listar, o kernel não está reconhecendo o controlador ou o disco não foi anexado. Se listar mas não montar, inspecione o rótulo e a formatação ext4.
+
+O volume fornecido pelo GitHub é um ext4 **diretamente no disco virtual inteiro**, sem tabela de partições. Isso é intencional: um `sda` (sem `sda1`) pode ser correto. **Nunca formate o disco da VM por tentativa e erro**; os dados podem ser perdidos.
+
+A verificação automática de persistência usa o mesmo arquivo de disco em dois boots do QEMU, agora tanto em controlador **IDE** quanto em controlador **AHCI/SATA**. Isso valida o funcionamento no QEMU; ainda é preciso testar a configuração específica do VirtualBox.

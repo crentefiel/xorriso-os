@@ -6,7 +6,7 @@ LABEL=XORRISO_DATA
 DEST=/data
 mounted() { grep -q " $DEST ext4 " /proc/mounts 2>/dev/null; }
 load_drivers() {
- for mod in virtio virtio_ring virtio_pci_modern_dev virtio_pci_legacy_dev virtio_pci virtio_blk scsi_mod scsi_common libata ata_piix sd_mod; do
+ for mod in scsi_common scsi_mod sd_mod libata libahci ahci ata_piix virtio virtio_ring virtio_pci_modern_dev virtio_pci_legacy_dev virtio_pci virtio_blk; do
   if [ -f "/lib/xorriso/modules/$mod.ko" ]; then
    insmod "/lib/xorriso/modules/$mod.ko" >/dev/null 2>&1 || :
   fi
@@ -61,6 +61,19 @@ case "${1:-status}" in
    blkid 2>/dev/null || :
    exit 1
   fi ;;
+ probe)
+  load_drivers
+  ensure_device_nodes
+  echo 'Dispositivos de bloco reconhecidos pelo kernel:'
+  cat /proc/partitions 2>/dev/null || :
+  echo 'Busca pelo volume ext4 rotulado XORRISO_DATA:'
+  if dev=$(locate_volume); then
+    echo "Encontrado: $dev"
+  else
+    echo 'Nao encontrado. Verifique se o VDI esta anexado como DISCO RIGIDO (nao como CD).'
+    echo 'Se usar controlador SATA, atualize para a ISO com driver AHCI.'
+  fi
+  ;;
  status)
   if mounted; then
    echo 'Volume persistente: /data'
@@ -70,6 +83,7 @@ case "${1:-status}" in
   else
    echo 'Sem volume persistente. Notas continuam na RAM.'
    echo 'Anexe disco ext4 separado rotulado XORRISO_DATA.'
+   echo 'Use storage probe para diagnosticar controladora e disco.'
   fi ;;
- *) echo 'Uso: storage status | storage mount'; exit 2 ;;
+ *) echo 'Uso: storage status | storage mount | storage probe'; exit 2 ;;
 esac
