@@ -10,11 +10,12 @@ BASE=$(getconf api_url); MODEL=$(getconf api_model); KEY=$(getconf api_key)
 case "$BASE" in
  https://*) : ;;
  http://127.0.0.1:*|http://localhost:*) : ;;
+ http://10.0.2.2:*) [ -z "$KEY" ] || { echo "API key bloqueada no HTTP do host virtual."; exit 2; } ;;
  *) echo 'Configure api url com HTTPS ou api local.'; exit 2 ;;
 esac
 [ -n "$MODEL" ] || { echo 'Configure api model ID.'; exit 2; }
 case "$BASE" in
- http://127.0.0.1:*|http://localhost:*) : ;;
+ http://127.0.0.1:*|http://localhost:*|http://10.0.2.2:*) : ;;
  *) [ -n "$KEY" ] || { echo 'Chave ausente. Use api key.'; exit 2; } ;;
 esac
 umask 077

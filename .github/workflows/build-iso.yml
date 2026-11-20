@@ -1,4 +1,4 @@
-name: xorriso Alpha 0.7 - Build and smoke test
+name: xorriso Alpha 0.8 - Build and smoke test
 on:
   push:
     branches: [main]
@@ -26,8 +26,8 @@ jobs:
         run: bash build-from-source.sh
       - name: Verify ISO format
         run: |
-          test -s dist/xorriso-alpha-07-grub.iso
-          xorriso -indev dist/xorriso-alpha-07-grub.iso -report_el_torito plain
+          test -s dist/xorriso-alpha-08-grub.iso
+          xorriso -indev dist/xorriso-alpha-08-grub.iso -report_el_torito plain
       - name: Smoke test PID1 with QEMU
         run: |
           set +e
@@ -40,15 +40,18 @@ jobs:
           tail -50 dist/qemu-boot.log
           grep -F 'xorriso: init reached successfully' dist/qemu-boot.log
           echo "QEMU exit code: $status"
+      - name: Test guest DHCP and MiniCPM host API bridge (simulated)
+        run: timeout 85s python3 src/test-qemu-host-bridge.py
       - name: Boot actual GRUB ISO and verify F2 / Esc in QEMU
-        run: timeout 95s python3 src/test-iso-qemu.py dist/xorriso-alpha-07-grub.iso
+        run: timeout 95s python3 src/test-iso-qemu.py dist/xorriso-alpha-08-grub.iso
       - uses: actions/upload-artifact@v4
         with:
-          name: xorriso-alpha-07-grub
+          name: xorriso-alpha-08-grub
           path: |
-            dist/xorriso-alpha-07-grub.iso
+            dist/xorriso-alpha-08-grub.iso
             dist/SHA256SUMS
             dist/qemu-boot.log
+            dist/qemu-host-bridge.log
             dist/qemu-iso-*.log
             dist/qemu-iso-*.ppm
           retention-days: 14

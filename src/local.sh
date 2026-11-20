@@ -1,17 +1,21 @@
 #!/bin/sh
-# Probe only: MiniCPM and llama.cpp are NOT packaged into Alpha 0.7.
+# MiniCPM is not included; it may run on the guest loopback or a trusted NAT host.
 PATH=/bin:/usr/bin:/sbin
 case "${1:-status}" in
  status)
-  echo 'MiniCPM local nao incluso nesta ISO. Procurando llama.cpp em 127.0.0.1:8080 ...'
+  echo 'MiniCPM nao esta embutido na ISO.'
   if curl -fsS --connect-timeout 2 --max-time 4 http://127.0.0.1:8080/health; then
-   echo; echo 'Servidor ativo. Use api local ; api test ; ask Ola'
+   echo; echo 'Servidor dentro da VM encontrado: use api local.'
+  elif curl -fsS --connect-timeout 2 --max-time 4 http://10.0.2.2:8080/health; then
+   echo; echo 'Servidor no computador anfitriao encontrado: use api host.'
   else
-   echo 'Servidor local indisponivel. Use local help.'
+   echo 'Nenhum servidor ativo. Use local help.'
   fi ;;
  help)
-  echo 'MiniCPM-V 4.7 1B GGUF: openbmb/MiniCPM-V-4.7-1B-gguf'
-  echo 'Instalacao futura: llama.cpp e pesos fora da ISO minima.'
-  echo 'api local usa localhost DENTRO da VM, nao localhost do host.' ;;
+  echo 'Modelo oficial: openbmb/MiniCPM-V-4.7-1B-gguf:Q4_K_M'
+  echo 'api host: servidor no host VirtualBox/QEMU NAT 10.0.2.2:8080 (SEM chave).'
+  echo 'api local: servidor dentro da VM 127.0.0.1:8080 (ainda nao embarcado).'
+  echo 'Veja docs/MINICPM.md no GitHub para iniciar o modelo no computador host.'
+  echo 'Inferencia dentro do xorriso requer armazenamento persistente.' ;;
  *) echo 'Uso: local status | local help' ;;
 esac

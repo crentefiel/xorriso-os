@@ -49,5 +49,16 @@ printf 'http://127.0.0.1:8080/v1' > "$T/conf/api_url"
 wrap 'Servidor local de teste.'
 sh "$ROOT/src/ai-request.sh" 'Teste local' > "$T/out"
 grep -q 'Servidor local de teste.' "$T/out"
+printf '%s' 'http://10.0.2.2:8080/v1' > "$T/conf/api_url"
+rm -f "$T/conf/api_key"
+wrap 'Resposta do host NAT simulado.'
+sh "$ROOT/src/ai-request.sh" 'Modelo no computador host' > "$T/out"
+grep -q 'Resposta do host NAT simulado.' "$T/out"
+printf 'SEGREDO-QUE-NAO-PODE-SAIR' > "$T/conf/api_key"
+if sh "$ROOT/src/ai-request.sh" 'Nao vaze chave' > "$T/out"; then exit 54; fi
+grep -q 'bloqueada' "$T/out"
+if sh "$ROOT/src/ai-agent.sh" 'Nao vaze chave' > "$T/out"; then exit 55; fi
+grep -q 'bloqueada' "$T/out"
+! grep -q 'SEGREDO-QUE-NAO-PODE-SAIR' "$T/curl.log"
 sh -n "$ROOT/src/ai-agent.sh" "$ROOT/src/ai-request.sh" "$ROOT/src/local.sh" "$ROOT/src/network.sh"
 echo 'PASSOU: chat, credenciais, JSON, acoes bloqueadas, notas e localhost.'
