@@ -1,34 +1,49 @@
-# xorriso OS — Alpha 0.10 (candidato)
+# xorriso OS — Alpha 0.11 (em desenvolvimento)
 
-**Linux mínimo experimental centrado em IA.** O xorriso inicia com a **tela preta totalmente vazia**: sem ícones, relógio, janelas ou barra. **F1** mostra o estado, **F2** abre o console e **Esc** volta à tela vazia.
+Protótipo Linux x86-64 mínimo centrado em IA. Ao iniciar, a tela é **totalmente preta e vazia** (sem barra, ícones, relógio, janelas ou desktop completo). **F1** informa o estado, **F2** mostra o console e **Esc** volta à tela vazia.
 
-## Funcionalidades
+## Componentes
 
-- Inicialização Linux por GRUB/BIOS, rede DHCP, console ocultável.
-- APIs compatíveis com OpenAI: `api url`, `api model`, `api key`, `ask` (rede e chave do provedor são necessárias).
-- Agente experimental com ações limitadas e confirmação para escrever notas.
-- `storage status` / `storage mount`: volume ext4 opcional `XORRISO_DATA`, separado da ISO, para notas persistentes.
-- **Novo gerenciador de modelo:** `model status`, `model install`, `model vision`, `model verify`. Downloads somente sob confirmação do usuário, para `/data/models`, com hash SHA-256 oficial fixado. Sem disco persistente, não é possível instalar pesos.
+- ISO Linux mínima com GRUB/BIOS legado, rede DHCP e ferramentas de console;
+- `api url`, `api model`, `api key`, `ask`: cliente OpenAI-compatível com HTTPS;
+- `agent`: conjunto limitado de ações autorizadas e confirmação para escrever notas;
+- `storage status`, `storage mount`: disco ext4 opcional `XORRISO_DATA`;
+- `model install`, `model vision`, `model verify`: baixa pesos oficiais MiniCPM com confirmação e SHA-256;
+- **Alpha 0.11:** `runtime status`, `runtime start`, `runtime stop`, `runtime log`: controle de um motor `llama-server` opcional, verificado por SHA-256, armazenado em um VDI de dados separado.
 
-## Instalar os pesos oficiais do MiniCPM-V 4.7 1B
+## Arquitetura da IA local
 
-Use uma VM com rede e um segundo disco ext4 rotulado `XORRISO_DATA`, com pelo menos 3 GB livres (6 GB recomendados). Configure a placa Intel PRO/1000 MT Desktop em NAT e use mais RAM para o futuro motor de inferência. Pressione F2:
+**A ISO não contém `llama.cpp` nem pesos de IA.** Um workflow independente em [GitHub Actions](https://github.com/crentefiel/xorriso-os/actions) compila um `llama-server` x86-64 **CPU-only** a partir do commit fixado de llama.cpp e o incorpora em um disco VDI ext4 com rótulo `XORRISO_DATA`. Assim, o runtime é instalado separadamente, sem aumentar a ISO.
+
+O volume persistente é montado com `noexec`. Antes de iniciar o motor, o xorriso verifica o hash do servidor e o copia para a RAM executável em `/run/xorriso/llama`; os pesos são lidos no disco. O servidor é acessível **somente na VM, em 127.0.0.1:8080**.
+
+### Uso previsto no VirtualBox
+
+1. Desligue a VM; configure Linux de 64 bits, EFI desativado, pelo menos 4 GB de RAM e adaptador E1000 em NAT.
+2. Baixe a ISO Alpha 0.11 e o VDI **com runtime** dos artefatos do GitHub Actions, depois que ambos os workflows passarem.
+3. Monte a ISO como CD. **Anexe o VDI de runtime como segundo disco**, não como CD; não anexe dois discos com o mesmo rótulo.
+4. Pressione F2 e digite:
 
 ```text
 storage status
 net up
 model status
 model install
-model vision
 model verify
+runtime status
+runtime start
+runtime log
+api local
+api test
+ask Ola, MiniCPM!
 ```
 
-O `model install` baixa o GGUF `Q4_K_M` (~672 MB); `model vision` baixa o projetor visual (~1,11 GB). Cada operação pede confirmação, verifica SHA-256 e somente depois coloca o arquivo no disco. A ISO não baixa nenhum modelo por conta própria. Leia [docs/MINICPM.md](docs/MINICPM.md) e [docs/STORAGE.md](docs/STORAGE.md).
+**Cuidado:** o download real e a inferência MiniCPM dentro da VM requerem testes adicionais. `runtime start` só funciona se o VDI contiver um servidor cujo SHA-256 corresponda ao hash fixado no código. Mesmo com download correto, pode não haver RAM ou CPU suficiente. O comando não promete sucesso se o modelo não carregar.
 
-**Importante:** o GGUF é apenas o arquivo do modelo. O executável `llama.cpp`/ `llama-server` e a inferência **dentro da VM ainda não foram integrados**. Para uma IA real atualmente, use `api host` com um servidor no anfitrião, ou configure sua API remota por HTTPS.
+Leia [docs/LOCAL-RUNTIME.md](docs/LOCAL-RUNTIME.md), [docs/STORAGE.md](docs/STORAGE.md) e [docs/MINICPM.md](docs/MINICPM.md).
 
-## Testes e download
+## Limitações
 
-O [GitHub Actions](https://github.com/crentefiel/xorriso-os/actions) compila o Linux, gera a ISO, testa seu boot pelo GRUB no QEMU, os atalhos F2/Esc, a rede com servidor simulado, a persistência ext4 entre dois boots e a lógica do gerenciador de modelo com arquivos de teste pequenos (sem baixar pesos reais).
+O xorriso permanece experimental: não é uma distribuição de uso diário, não tem instalador de aplicativos, desktop gráfico completo nem criptografia do armazenamento. O modelo MiniCPM não é baixado automaticamente. **Os testes não executam inferência real com os pesos do MiniCPM**; verificam separadamente o executável `llama-server`, o gerenciador do modelo, a conexão HTTP simulada, o boot GRUB/F2/Esc e a persistência ext4.
 
-Esta é uma prova de conceito. **Não use na máquina principal nem armazene segredos.** Os dados no volume ext4 não são criptografados. O código próprio é MIT; bibliotecas de terceiros mantêm suas licenças. O nome xorriso também identifica um utilitário GNU não relacionado.
+Código próprio sob MIT; componentes upstream seguem suas licenças. A palavra `xorriso` também nomeia um utilitário GNU de ISO, sem relação com este projeto.
