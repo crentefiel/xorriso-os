@@ -42,7 +42,7 @@ for lib in /lib/x86_64-linux-gnu/libnss_dns.so.2 /lib/x86_64-linux-gnu/libnss_fi
   install -d "$ROOT$(dirname "$lib")"; cp -L "$lib" "$ROOT$lib"
 done
 MODULEDIR="/lib/modules/$VERSION"
-for mod in mii net_failover e1000 pcnet32 8139too virtio_net virtio virtio_ring virtio_pci_modern_dev virtio_pci_legacy_dev virtio_pci virtio_blk; do
+for mod in mii net_failover e1000 pcnet32 8139too virtio_net virtio virtio_ring virtio_pci_modern_dev virtio_pci_legacy_dev virtio_pci virtio_blk scsi_mod scsi_common libata ata_piix sd_mod; do
   path="$(find "$MODULEDIR/kernel" -type f \( -name "$mod.ko" -o -name "$mod.ko.xz" -o -name "$mod.ko.zst" \) -print -quit 2>/dev/null || :)"
   [[ -n "$path" ]] || { echo "Module $mod unavailable"; continue; }
   case "$path" in
