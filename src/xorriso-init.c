@@ -1,5 +1,5 @@
 /*
- * xorriso Alpha 0.7 - Linux init minimo
+ * xorriso Alpha 0.8 - Linux init minimo
  * SPDX-License-Identifier: MIT
  * Plain Linux console is empty until user calls F1 or F2.
  */
@@ -56,7 +56,7 @@ static void setup_tty(void) {
 static void status(void) {
  struct utsname uts;struct sysinfo sys;
  clear_screen();
- print("xorriso alpha 0.7 - Linux minimo\r\n\r\n");
+ print("xorriso alpha 0.8 - Linux minimo\r\n\r\n");
  if(uname(&uts)==0) {print("Linux kernel: ");print(uts.release);crlf();}
  if(sysinfo(&sys)==0) {
   char buf[128];
@@ -64,12 +64,12 @@ static void status(void) {
   snprintf(buf,sizeof(buf),"RAM: %llu MiB\r\n",mb);print(buf);
  }
  print("\r\nF2: console | ESC: area vazia\r\n");
- print("MiniCPM local nao instalado. APIs externas opcionais.\r\n");
+ print("MiniCPM na VM nao instalado. APIs externas e host NAT opcionais.\r\n");
  is_console=0;
 }
 static void console_header(void) {
  clear_screen();
- print("xorriso alpha 0.7 - console minimo\r\n");
+ print("xorriso alpha 0.8 - console minimo\r\n");
  print("help: comandos | ESC: tela vazia\r\n\r\n");
  is_console=1;
 }
@@ -140,7 +140,16 @@ static void api_show(void) {
 }
 static void api_command(const char *args) {
  if(!*args||!strcmp(args,"help")){
-  print("api show | api local | api url https://host/v1 | api model ID | api key | api test\r\n");return;
+  print("api show | api local | api host | api url https://host/v1 | api model ID | api key | api test\r\n");return;
+ }
+ if(!strcmp(args,"host")) {
+  write_runtime("api_url","http://10.0.2.2:8080/v1");
+  write_runtime("api_model","MiniCPM-V-4.7-1B");
+  (void)unlink("/run/xorriso/api_key");
+  (void)unlink("/run/xorriso/api-auth-header");
+  print("MiniCPM no computador anfitriao (NAT): 10.0.2.2:8080.\r\n");
+  print("Nao e inferencia dentro da VM. Nao envie chaves por HTTP.\r\n");
+  return;
  }
  if(!strcmp(args,"local")) {
   write_runtime("api_url","http://127.0.0.1:8080/v1");
@@ -149,11 +158,18 @@ static void api_command(const char *args) {
   print("Servidor local selecionado. Instale e inicie llama.cpp separadamente.\r\n");return;
  }
  if(!strcmp(args,"show")){api_show();return;}
- if(!strcmp(args,"key")){api_key_entry();return;}
+ if(!strcmp(args,"key")){
+  char base[400];read_runtime("api_url",base,sizeof(base));
+  if(!strncmp(base,"http://10.0.2.2:",18)) {
+   print("Chave proibida no HTTP do host virtual. Use HTTPS.\r\n");
+   return;
+  }
+  api_key_entry();return;
+ }
  if(!strcmp(args,"test")){run_script("/usr/lib/xorriso/ai-request.sh","--test");return;}
  if(!strncmp(args,"url ",4)){
   const char *v=args+4;
-  if(strncmp(v,"https://",8)&&strncmp(v,"http://127.0.0.1:",17)&&strncmp(v,"http://localhost:",17)){
+  if(strncmp(v,"https://",8)&&strncmp(v,"http://127.0.0.1:",17)&&strncmp(v,"http://localhost:",17)&&strncmp(v,"http://10.0.2.2:",18)){
    print("Use HTTPS ou HTTP em localhost.\r\n");return;
   }
   if(strlen(v)>360||strchr(v,' ')||strchr(v,'?')||strchr(v,'#')){
@@ -208,7 +224,7 @@ static void cmd(char *s) {
  else if(!strcmp(s,"desktop")||!strcmp(s,"clear")){is_console=0;clear_screen();}
  else if(!strcmp(s,"ai")||!strcmp(s,"ai local")){
   print("MiniCPM-V 4.7 1B nao incluido nesta ISO.\r\n");
-  print("Use local status, api local ou configure uma API externa.\r\n");
+  print("Use local status, api host, api local ou configure uma API externa.\r\n");
  }
  else if(!strcmp(s,"local")||!strcmp(s,"local status"))run_script("/usr/lib/xorriso/local.sh","status");
  else if(!strcmp(s,"local help"))run_script("/usr/lib/xorriso/local.sh","help");
@@ -226,6 +242,38 @@ static void cmd(char *s) {
  else if(!strcmp(s,"poweroff")){sync();reboot(LINUX_REBOOT_CMD_POWER_OFF);}
  else print("Comando desconhecido. Digite help.\r\n");
 }
+/* CI-only guest test of NAT connectivity to a simulated OpenAI-compatible host API. */
+static int ci_exec_script(const char *path,const char *arg) {
+ pid_t child=fork();
+ if(child<0)return 127;
+ if(child==0) {
+  setenv("PATH","/bin:/usr/bin:/sbin",1);
+  execl("/bin/sh","sh",path,arg,(char *)NULL);_exit(127);
+ }
+ int status=0;
+ while(waitpid(child,&status,0)<0) {if(errno!=EINTR)return 127;}
+ return WIFEXITED(status)?WEXITSTATUS(status):127;
+}
+static void ci_host_bridge_test(void) {
+ char args[4096]={0};
+ int f=open("/proc/cmdline",O_RDONLY|O_CLOEXEC);
+ if(f<0)return;
+ ssize_t n=read(f,args,sizeof(args)-1);close(f);
+ if(n<=0||!strstr(args,"xorriso.ci=hostapi"))return;
+ int serial=open("/dev/ttyS0",O_RDWR|O_NOCTTY);
+ if(serial>=0) {
+  (void)dup2(serial,STDOUT_FILENO);(void)dup2(serial,STDERR_FILENO);
+  if(serial>STDERR_FILENO)close(serial);
+ }
+ print("xorriso CI: attempting DHCP and host-model API bridge\n");
+ write_runtime("api_url","http://10.0.2.2:8080/v1");
+ write_runtime("api_model","MiniCPM-V-4.7-1B");
+ int net=ci_exec_script("/usr/lib/xorriso/network.sh","up");
+ int api=net==0?ci_exec_script("/usr/lib/xorriso/ai-request.sh","Teste de rede do xorriso"):127;
+ if(net==0&&api==0)print("xorriso: host api bridge PASS\n");
+ else print("xorriso: host api bridge FAIL\n");
+ for(;;)pause();
+}
 int main(void) {
  setup_fs();
  int bootlog=open("/dev/kmsg",O_WRONLY|O_CLOEXEC);
@@ -236,6 +284,7 @@ int main(void) {
  int fd=open("/proc/sys/kernel/printk",O_WRONLY|O_CLOEXEC);
  if(fd>=0){(void)write(fd,"0 0 0 0\n",8);close(fd);}
  (void)mkdir("/run/xorriso",0700);
+ ci_host_bridge_test();
  setup_tty();setenv("TERM","linux",1);clear_screen();
  char line[MAX_CMD+1];size_t n=0;
  for(;;) {

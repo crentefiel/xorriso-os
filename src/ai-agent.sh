@@ -18,12 +18,13 @@ BASE=$(getconf api_url); MODEL=$(getconf api_model); KEY=$(getconf api_key)
 case "$BASE" in
  https://*) [ -n "$KEY" ] || { echo 'Use api key.'; exit 2; } ;;
  http://127.0.0.1:*|http://localhost:*) : ;;
+ http://10.0.2.2:*) [ -z "$KEY" ] || { echo "API key bloqueada no HTTP do host virtual."; exit 2; } ;;
  *) echo 'Configure api url ou api local.'; exit 2 ;;
 esac
 [ -n "$MODEL" ] || { echo 'Configure api model.'; exit 2; }
 umask 077
 mkdir -p "$CONF" "$NOTES"
-SYSTEM='Voce e um planejador do xorriso Alpha 0.7. Responda SOMENTE com um objeto JSON puro, sem markdown. Escolha uma acao de: status, net_status, list_notes, read_note, write_note, none. Para read_note e write_note use filename simples sem caminhos. Para write_note use content texto breve. Nunca gere scripts nem comandos de terminal. Se pedido nao for permitido, action none. Formato: {"action":"none","filename":"","content":"","message":"resposta em portugues"}.'
+SYSTEM='Voce e um planejador do xorriso Alpha 0.8. Responda SOMENTE com um objeto JSON puro, sem markdown. Escolha uma acao de: status, net_status, list_notes, read_note, write_note, none. Para read_note e write_note use filename simples sem caminhos. Para write_note use content texto breve. Nunca gere scripts nem comandos de terminal. Se pedido nao for permitido, action none. Formato: {"action":"none","filename":"","content":"","message":"resposta em portugues"}.'
 "$JQ_BIN" -n --arg model "$MODEL" --arg system "$SYSTEM" --arg question "$PROMPT" \
  '{model:$model,messages:[{role:"system",content:$system},{role:"user",content:$question}],temperature:0,stream:false}' \
  > "$CONF/agent-request.json"
