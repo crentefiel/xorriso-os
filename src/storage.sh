@@ -12,14 +12,29 @@ load_drivers() {
   fi
  done
 }
+ensure_device_nodes() {
+ # devtmpfs generally provides these; create missing nodes from kernel sysfs.
+ for entry in /sys/class/block/*; do
+  name=${entry##*/}
+  case "$name" in sd[a-z]|vd[a-z]|hd[a-z]|sd[a-z][0-9]*|vd[a-z][0-9]*) : ;; *) continue ;; esac
+  [ -b "/dev/$name" ] && continue
+  [ -r "$entry/dev" ] || continue
+  number=$(cat "$entry/dev")
+  major=${number%%:*}
+  minor=${number#*:}
+  mknod -m 600 "/dev/$name" b "$major" "$minor" 2>/dev/null || :
+ done
+}
 locate_volume() {
+ ensure_device_nodes
  for dev in /dev/vd[a-z] /dev/sd[a-z] /dev/hd[a-z] /dev/vd[a-z][0-9]* /dev/sd[a-z][0-9]*; do
   [ -b "$dev" ] || continue
-  # BusyBox blkid does not support the util-linux -s/-o flags.
-  metadata=$(blkid "$dev" 2>/dev/null || :)
-  case "$metadata" in
-   *'LABEL="XORRISO_DATA"'*) printf '%s\n' "$dev"; return 0 ;;
-  esac
+  # ext4 superblock starts at byte 1024: magic offset 56, label offset 120.
+  # BusyBox blkid is intentionally not used; it may omit LABEL.
+  magic=$(dd if="$dev" bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1 | tr -d '[:space:]')
+  [ "$magic" = "53ef" ] || continue
+  label=$(dd if="$dev" bs=1 skip=1144 count=12 2>/dev/null)
+  if [ "$label" = "$LABEL" ]; then printf '%s\n' "$dev"; return 0; fi
  done
  return 1
 }
