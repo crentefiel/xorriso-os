@@ -6,7 +6,7 @@ LABEL=XORRISO_DATA
 DEST=/data
 mounted() { grep -q " $DEST ext4 " /proc/mounts 2>/dev/null; }
 load_drivers() {
- for mod in virtio virtio_ring virtio_pci_modern_dev virtio_pci_legacy_dev virtio_pci virtio_blk; do
+ for mod in virtio virtio_ring virtio_pci_modern_dev virtio_pci_legacy_dev virtio_pci virtio_blk scsi_mod scsi_common libata ata_piix sd_mod; do
   if [ -f "/lib/xorriso/modules/$mod.ko" ]; then
    insmod "/lib/xorriso/modules/$mod.ko" >/dev/null 2>&1 || :
   fi
@@ -40,6 +40,10 @@ case "${1:-status}" in
    echo "Dados persistentes montados em /data (rotulo $LABEL)."
   else
    echo "Disco ext4 $LABEL nao encontrado. Nenhum disco foi formatado."
+   echo "Diagnostico de dispositivos:"
+   cat /proc/partitions 2>/dev/null || :
+   echo "Identificacoes blkid:"
+   blkid 2>/dev/null || :
    exit 1
   fi ;;
  status)
