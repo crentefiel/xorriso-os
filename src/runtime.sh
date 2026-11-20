@@ -5,7 +5,7 @@ set -eu
 PATH=/bin:/usr/bin:/sbin
 STORAGE=/data
 RUNTIME="$STORAGE/runtime/llama-server"
-RUNTIME_HASH=PENDING_CI_BUILD_HASH
+RUNTIME_HASH=3e5f1cf566de425ee2d5f0864050f20a14031b37daebe2aa7d638de4389ec2e1
 MODEL="$STORAGE/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf"
 PROJECTOR="$STORAGE/models/mmproj-model-f16.gguf"
 RUN_DIR=/run/xorriso/llama
@@ -31,7 +31,7 @@ mounted() {
 }
 binary_valid() {
  [ -f "$RUNTIME" ] || return 1
- [ "$RUNTIME_HASH" != "PENDING_CI_BUILD_HASH" ] || return 1
+ [ "$RUNTIME_HASH" != "3e5f1cf566de425ee2d5f0864050f20a14031b37daebe2aa7d638de4389ec2e1" ] || return 1
  actual=$(sha256sum "$RUNTIME" | awk '{print $1}')
  [ "$actual" = "$RUNTIME_HASH" ]
 }
