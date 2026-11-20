@@ -1,5 +1,5 @@
 /*
- * xorriso Alpha 0.10 - Linux init minimo
+ * xorriso Alpha 0.11 - Linux init minimo
  * SPDX-License-Identifier: MIT
  * Plain Linux console is empty until user calls F1 or F2.
  */
@@ -37,7 +37,7 @@ static void setup_fs(void) {
  (void)mount("proc","/proc","proc",MS_NOSUID|MS_NODEV|MS_NOEXEC,"");
  (void)mount("sysfs","/sys","sysfs",MS_NOSUID|MS_NODEV|MS_NOEXEC,"");
  (void)mount("devtmpfs","/dev","devtmpfs",MS_NOSUID,"mode=0755");
- (void)mount("tmpfs","/run","tmpfs",MS_NOSUID|MS_NODEV,"size=16M,mode=0755");
+ (void)mount("tmpfs","/run","tmpfs",MS_NOSUID|MS_NODEV,"size=160M,mode=0755");
  (void)mount("tmpfs","/tmp","tmpfs",MS_NOSUID|MS_NODEV,"size=32M,mode=1777");
 }
 static void setup_tty(void) {
@@ -56,7 +56,7 @@ static void setup_tty(void) {
 static void status(void) {
  struct utsname uts;struct sysinfo sys;
  clear_screen();
- print("xorriso alpha 0.10 - Linux minimo\r\n\r\n");
+ print("xorriso alpha 0.11 - Linux minimo\r\n\r\n");
  if(uname(&uts)==0) {print("Linux kernel: ");print(uts.release);crlf();}
  if(sysinfo(&sys)==0) {
   char buf[128];
@@ -64,12 +64,12 @@ static void status(void) {
   snprintf(buf,sizeof(buf),"RAM: %llu MiB\r\n",mb);print(buf);
  }
  print("\r\nF2: console | ESC: area vazia\r\n");
- print("MiniCPM GGUF: model status | model install (runtime ainda ausente).\r\n");
+ print("MiniCPM: model status | runtime status (motor opcional em VDI).\r\n");
  is_console=0;
 }
 static void console_header(void) {
  clear_screen();
- print("xorriso alpha 0.10 - console minimo\r\n");
+ print("xorriso alpha 0.11 - console minimo\r\n");
  print("help: comandos | ESC: tela vazia\r\n\r\n");
  is_console=1;
 }
@@ -213,7 +213,7 @@ static void cmd(char *s) {
  size_t n=strlen(s);
  while(n&&isspace((unsigned char)s[n-1]))s[--n]=0;
  if(!*s)return;
- if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent notes storage model local ai desktop reboot poweroff\r\n");
+ if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent notes storage model runtime local ai desktop reboot poweroff\r\n");
  else if(!strcmp(s,"status")||!strcmp(s,"version")){status();is_console=1;}
  else if(!strcmp(s,"ls"))list_root();
  else if(!strcmp(s,"uptime")){
@@ -237,6 +237,12 @@ static void cmd(char *s) {
  else if(!strncmp(s,"agent ",6))run_script("/usr/lib/xorriso/ai-agent.sh",s+6);
  else if(!strcmp(s,"agent"))print("Uso: agent seu pedido\r\n");
  else if(!strcmp(s,"notes"))run_script("/usr/lib/xorriso/ai-agent.sh","--notes");
+ else if(!strcmp(s,"runtime")||!strcmp(s,"runtime status"))run_script("/usr/lib/xorriso/runtime.sh","status");
+ else if(!strcmp(s,"runtime start"))run_script("/usr/lib/xorriso/runtime.sh","start");
+ else if(!strcmp(s,"runtime stop"))run_script("/usr/lib/xorriso/runtime.sh","stop");
+ else if(!strcmp(s,"runtime log"))run_script("/usr/lib/xorriso/runtime.sh","log");
+ else if(!strcmp(s,"runtime help"))run_script("/usr/lib/xorriso/runtime.sh","help");
+ else if(!strncmp(s,"runtime ",8))print("Uso: runtime status | runtime start | runtime stop | runtime log\r\n");
  else if(!strcmp(s,"model")||!strcmp(s,"model status"))run_script("/usr/lib/xorriso/model.sh","status");
  else if(!strcmp(s,"model install"))run_script("/usr/lib/xorriso/model.sh","install");
  else if(!strcmp(s,"model vision"))run_script("/usr/lib/xorriso/model.sh","vision");
