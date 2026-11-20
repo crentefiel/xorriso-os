@@ -63,6 +63,13 @@ case "${1:-status}" in
   if [ -f "$MODEL" ]; then echo "MiniCPM GGUF: encontrado."; else echo "MiniCPM GGUF: ausente."; fi
   if pid_ok; then
    echo "Servidor em execucao (PID $pid): $URL"
+   if [ "${XORRISO_RUNTIME_TEST_MODE:-0}" != 1 ]; then
+    if curl -fSs --connect-timeout 1 --max-time 3 "$URL/health" >/dev/null 2>&1; then
+     echo 'API local: pronta.'
+    else
+     echo 'API local: sem resposta (modelo carregando, rede local ou processo).'
+    fi
+   fi
   else
    echo "Servidor parado."
   fi
@@ -73,6 +80,12 @@ case "${1:-status}" in
   [ -f "$MODEL" ] || { echo 'MiniCPM ausente. Use net up e model install.'; exit 4; }
   if [ "${XORRISO_RUNTIME_TEST_MODE:-0}" != 1 ]; then
    /bin/sh /usr/lib/xorriso/model.sh verify >/dev/null || { echo 'Modelo GGUF nao passou na verificacao.'; exit 5; }
+  fi
+  if [ "${XORRISO_RUNTIME_TEST_MODE:-0}" != 1 ]; then
+   /bin/sh /usr/lib/xorriso/loopback.sh up || {
+    echo 'Loopback 127.0.0.1 indisponivel; servidor local nao iniciado.'
+    exit 6
+   }
   fi
   mkdir -p "$RUN_DIR"
   chmod 700 "$RUN_DIR"
@@ -98,7 +111,26 @@ case "${1:-status}" in
    exit 8
   fi
   echo "llama-server iniciado no xorriso. PID $pid."
-  echo 'O carregamento do modelo pode demorar; use runtime status e api local.'
+  if [ "${XORRISO_RUNTIME_TEST_MODE:-0}" != 1 ]; then
+   echo 'Aguardando o carregamento do modelo e a API local...'
+   count=0
+   while [ "$count" -lt 30 ]; do
+    if ! kill -0 "$pid" 2>/dev/null; then
+     echo 'Servidor terminou durante o carregamento.'
+     tail -n 12 "$LOGFILE" 2>/dev/null || :
+     rm -f "$PIDFILE"
+     exit 8
+    fi
+    if curl -fSs --connect-timeout 1 --max-time 2 "$URL/health" >/dev/null 2>&1; then
+     echo 'API local pronta: http://127.0.0.1:8080'
+     exit 0
+    fi
+    count=$((count+1))
+    sleep 2
+   done
+   echo 'O processo existe mas a API nao respondeu. Use runtime status e runtime log.'
+   exit 9
+  fi
   ;;
  stop)
   if ! pid_ok; then echo 'Servidor nao esta em execucao.'; exit 0; fi
