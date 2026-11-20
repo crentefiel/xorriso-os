@@ -17,7 +17,7 @@ install -d "$ROOT"/{bin,dev,etc/ssl/certs,lib,lib64,proc,sys,run,tmp,usr/bin,usr
 chmod 1777 "$ROOT/tmp"
 gcc -std=gnu11 -Os -static -s -Wall -Wextra -o "$ROOT/init" "$HERE/src/xorriso-init.c"
 install -m 755 "$(command -v busybox)" "$ROOT/bin/busybox"
-for app in sh ash ls cat mount dmesg uname ip ps free vi grep mkdir touch echo date route ifconfig udhcpc insmod ping awk sed sleep head tail rm chmod printf clear readlink basename blkid df sync; do
+for app in sh ash ls cat mount dmesg uname ip ps free vi grep mkdir touch echo date route ifconfig udhcpc insmod ping awk sed sleep head tail rm chmod printf clear readlink basename blkid df sync dd od tr mknod; do
   ln -sf busybox "$ROOT/bin/$app"
 done
 for file in ai-request.sh ai-agent.sh local.sh network.sh storage.sh; do
