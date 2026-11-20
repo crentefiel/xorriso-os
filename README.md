@@ -1,4 +1,4 @@
-# xorriso OS — Alpha 0.11 (em desenvolvimento)
+# xorriso OS — dois discos de IA opcionais
 
 Protótipo Linux x86-64 mínimo centrado em IA. Ao iniciar, a tela é **totalmente preta e vazia** (sem barra, ícones, relógio, janelas ou desktop completo). **F1** informa o estado, **F2** mostra o console e **Esc** volta à tela vazia.
 
@@ -47,3 +47,30 @@ Leia [docs/LOCAL-RUNTIME.md](docs/LOCAL-RUNTIME.md), [docs/STORAGE.md](docs/STOR
 O xorriso permanece experimental: não é uma distribuição de uso diário, não tem instalador de aplicativos, desktop gráfico completo nem criptografia do armazenamento. O modelo MiniCPM não é baixado automaticamente. **Os testes não executam inferência real com os pesos do MiniCPM**; verificam separadamente o executável `llama-server`, o gerenciador do modelo, a conexão HTTP simulada, o boot GRUB/F2/Esc e a persistência ext4.
 
 Código próprio sob MIT; componentes upstream seguem suas licenças. A palavra `xorriso` também nomeia um utilitário GNU de ISO, sem relação com este projeto.
+## Novo: preservar os pesos do MiniCPM usando dois discos separados
+
+**Não substitua nem formate o VDI original.** Ele contém os pesos que já passaram por SHA-256.
+
+- XORRISO_DATA: VDI original (rw), continua montado em /data, com /data/models e /data/notes.
+- XORRISO_RUNTIME: VDI adicional de 256 MiB (ro), montado em /runtime-data, com /runtime/llama-server.
+
+Desligue a VM. No VirtualBox, mantenha o VDI original e adicione xorriso-llama-runtime-only-256MiB.vdi como OUTRO disco rígido SATA. A ISO continua no leitor de CD. Use a ISO gerada com suporte aos dois volumes.
+
+Depois de F2 execute:
+
+```text
+storage probe
+storage mount
+storage status
+model verify
+runtime status
+runtime start
+runtime log
+api local
+api test
+ask Ola, MiniCPM!
+```
+
+O runtime é montado somente para leitura e copiado para RAM após validação do SHA-256. O modelo continua no VDI original. **A inferência real no VirtualBox ainda necessita de teste.**
+
+Não utilize ao mesmo tempo o VDI antigo de runtime de 6 GiB (rótulo XORRISO_DATA) e o VDI original de modelos: isso duplicaria o rótulo.
