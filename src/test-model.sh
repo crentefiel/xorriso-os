@@ -30,11 +30,11 @@ case "$url" in
  *mmproj-model-f16.gguf*) file=mmproj-model-f16.gguf ;;
  *) exit 7 ;;
 esac
-if [ "\${XORRISO_MOCK_DOWNLOAD_FAIL:-0}" = 1 ]; then
+if [ "${XORRISO_MOCK_DOWNLOAD_FAIL:-0}" = 1 ]; then
  printf 'incomplete' > "$out"
  exit 8
 fi
-if [ "\${XORRISO_MOCK_CORRUPT:-0}" = 1 ]; then
+if [ "${XORRISO_MOCK_CORRUPT:-0}" = 1 ]; then
  printf 'untrusted bytes' > "$out"
 else
  cp "$XORRISO_MODEL_TEST_FIXTURES/$file" "$out"
