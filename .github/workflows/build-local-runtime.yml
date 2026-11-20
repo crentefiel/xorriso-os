@@ -1,0 +1,87 @@
+name: xorriso - Build optional local llama.cpp runtime VDI
+on:
+  pull_request:
+    paths:
+      - .github/workflows/build-local-runtime.yml
+      - src/runtime.sh
+      - src/test-runtime.sh
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/build-local-runtime.yml
+      - src/runtime.sh
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install compiler, ext4, VDI and ELF tools
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            git build-essential cmake ninja-build pkg-config e2fsprogs qemu-utils binutils file ca-certificates
+      - name: Checkout audited upstream commit
+        run: |
+          set -euo pipefail
+          mkdir -p upstream
+          git -C upstream init -q
+          git -C upstream remote add origin https://github.com/ggml-org/llama.cpp.git
+          git -C upstream fetch --depth=1 origin b1b770d90d94cad9e9ea5b993bdbc383a522fb28
+          git -C upstream checkout -q --detach FETCH_HEAD
+          test "$(git -C upstream rev-parse HEAD)" = "b1b770d90d94cad9e9ea5b993bdbc383a522fb28"
+      - name: Build CPU-only standalone llama-server
+        run: |
+          set -euo pipefail
+          cmake -S upstream -B upstream/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++" \
+            -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF -DGGML_BLAS=OFF \
+            -DLLAMA_OPENSSL=OFF -DLLAMA_BUILD_UI=OFF \
+            -DLLAMA_USE_PREBUILT_UI=OFF \
+            -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF \
+            -DLLAMA_BUILD_SERVER=ON
+          cmake --build upstream/build --target llama-server --parallel 2
+          mkdir -p dist
+          cp upstream/build/bin/llama-server dist/llama-server
+          strip dist/llama-server
+          file dist/llama-server
+          if readelf -l dist/llama-server | grep -q INTERP; then
+            echo "ERROR: runtime requires a dynamic ELF loader"; exit 1
+          fi
+          dist/llama-server --version
+          sha256sum dist/llama-server | tee dist/runtime-SHA256.txt
+          cp upstream/LICENSE dist/LICENSE-llama.cpp
+      - name: Build ext4 VDI containing runtime but no model weights
+        run: |
+          set -euo pipefail
+          truncate -s 6G dist/xorriso-ai-runtime.raw
+          mkfs.ext4 -F -q -m 0 -L XORRISO_DATA dist/xorriso-ai-runtime.raw
+          debugfs -w -R 'mkdir /runtime' dist/xorriso-ai-runtime.raw
+          debugfs -w -R 'mkdir /models' dist/xorriso-ai-runtime.raw
+          debugfs -w -R 'mkdir /notes' dist/xorriso-ai-runtime.raw
+          debugfs -w -R 'write dist/llama-server /runtime/llama-server' dist/xorriso-ai-runtime.raw
+          debugfs -w -R 'write dist/runtime-SHA256.txt /runtime/SHA256SUMS' dist/xorriso-ai-runtime.raw
+          debugfs -w -R 'write dist/LICENSE-llama.cpp /runtime/LICENSE-llama.cpp' dist/xorriso-ai-runtime.raw
+          e2fsck -fn dist/xorriso-ai-runtime.raw
+          qemu-img convert -f raw -O vdi dist/xorriso-ai-runtime.raw dist/xorriso-ai-runtime-6GiB.vdi
+          qemu-img info dist/xorriso-ai-runtime-6GiB.vdi
+          qemu-img convert -f vdi -O raw -S 4k dist/xorriso-ai-runtime-6GiB.vdi dist/verify.raw
+          test "$(blkid -p -s TYPE -o value dist/verify.raw)" = ext4
+          test "$(blkid -p -s LABEL -o value dist/verify.raw)" = XORRISO_DATA
+          debugfs -R 'stat /runtime/llama-server' dist/verify.raw | grep -q 'Size:'
+          rm -f dist/xorriso-ai-runtime.raw dist/verify.raw
+          echo 'PASS: ext4 VDI with CPU llama-server; no model weights or ISO changes'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xorriso-llama-runtime-6GiB-vdi
+          path: |
+            dist/xorriso-ai-runtime-6GiB.vdi
+            dist/runtime-SHA256.txt
+            dist/LICENSE-llama.cpp
+          retention-days: 14
+          if-no-files-found: error
