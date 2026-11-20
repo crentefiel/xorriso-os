@@ -160,7 +160,7 @@ static void api_command(const char *args) {
  if(!strcmp(args,"show")){api_show();return;}
  if(!strcmp(args,"key")){
   char base[400];read_runtime("api_url",base,sizeof(base));
-  if(!strncmp(base,"http://10.0.2.2:",18)) {
+  if(!strncmp(base,"http://10.0.2.2:",16)) {
    print("Chave proibida no HTTP do host virtual. Use HTTPS.\r\n");
    return;
   }
@@ -169,7 +169,7 @@ static void api_command(const char *args) {
  if(!strcmp(args,"test")){run_script("/usr/lib/xorriso/ai-request.sh","--test");return;}
  if(!strncmp(args,"url ",4)){
   const char *v=args+4;
-  if(strncmp(v,"https://",8)&&strncmp(v,"http://127.0.0.1:",17)&&strncmp(v,"http://localhost:",17)&&strncmp(v,"http://10.0.2.2:",18)){
+  if(strncmp(v,"https://",8)&&strncmp(v,"http://127.0.0.1:",17)&&strncmp(v,"http://localhost:",17)&&strncmp(v,"http://10.0.2.2:",16)){
    print("Use HTTPS ou HTTP em localhost.\r\n");return;
   }
   if(strlen(v)>360||strchr(v,' ')||strchr(v,'?')||strchr(v,'#')){
