@@ -52,7 +52,7 @@ Se aparecer **"Sem volume persistente. Notas continuam na RAM"**:
 1. **Desligue a VM completamente**, sem salvar o estado.
 2. Abra **Configurações → Armazenamento** no VirtualBox.
 3. Confirme que `xorriso-data-6GiB.vdi` ou `xorriso-ai-runtime-6GiB.vdi` está anexado como **disco rígido**, nunca como mídia óptica. Mantenha a ISO no leitor de CD.
-4. Não anexe os dois VDIs ao mesmo tempo: ambos usam o rótulo `XORRISO_DATA` e criariam ambiguidade. Faça backup se o VDI antigo contiver dados.
+4. Mantenha seu VDI `XORRISO_DATA` com modelos instalados. **Não anexe o VDI antigo de runtime de 6 GB** com o mesmo rótulo `XORRISO_DATA`. A nova versão usa VDI de runtime menor com rótulo diferente: `XORRISO_RUNTIME`. Faça backup antes de modificar armazenamento.
 5. Inicialize uma ISO que inclua os drivers **AHCI/SATA** (a correção é testada na versão posterior à Alpha 0.11).
 6. Abra F2 e digite:
    ```text
