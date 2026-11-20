@@ -17,7 +17,7 @@ def once(stage):
            "-kernel", str(OUT / "vmlinuz"),
            "-initrd", str(OUT / "initramfs.cpio.gz"),
            "-append", "console=ttyS0 loglevel=1 rdinit=/init xorriso.ci=persist-" + stage,
-           "-drive", "file=" + str(DISK) + ",format=raw,if=virtio"]
+           "-drive", "file=" + str(DISK) + ",format=raw,if=ide"]
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         limit = time.monotonic() + 45
