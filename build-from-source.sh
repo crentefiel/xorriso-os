@@ -13,7 +13,7 @@ KERNEL="$(find /boot -maxdepth 1 -type f -name 'vmlinuz-*-generic' | sort -V | t
 [[ -n "$KERNEL" && -f "$KERNEL" ]] || { echo 'Install linux-image-generic.' >&2; exit 3; }
 VERSION="${KERNEL##*/vmlinuz-}"
 echo "Building with kernel $VERSION"
-install -d "$ROOT"/{bin,dev,etc/ssl/certs,lib,lib64,proc,sys,run,tmp,usr/bin,usr/lib/xorriso,lib/xorriso/modules,data}
+install -d "$ROOT"/{bin,dev,etc/ssl/certs,lib,lib64,proc,sys,run,tmp,usr/bin,usr/lib/xorriso,lib/xorriso/modules,data,runtime-data}
 chmod 1777 "$ROOT/tmp"
 gcc -std=gnu11 -Os -static -s -Wall -Wextra -o "$ROOT/init" "$HERE/src/xorriso-init.c"
 install -m 755 "$(command -v busybox)" "$ROOT/bin/busybox"
