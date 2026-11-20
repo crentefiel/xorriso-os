@@ -58,7 +58,8 @@ for dev in 'tty0 4 0' 'tty 5 0' 'zero 1 5' 'random 1 8' 'urandom 1 9'; do
   sudo mknod -m 666 "$ROOT/dev/$name" c "$major" "$minor"
 done
 (cd "$ROOT"; find . -print0 | sort -z | cpio --null -o -H newc --quiet | gzip -9 > "$DIST/initramfs.cpio.gz")
-cp "$KERNEL" "$STAGE/boot/vmlinuz"
+sudo cp "$KERNEL" "$STAGE/boot/vmlinuz"
+sudo chown "$(id -u):$(id -g)" "$STAGE/boot/vmlinuz"
 cp "$DIST/initramfs.cpio.gz" "$STAGE/boot/initramfs.cpio.gz"
 cat > "$STAGE/boot/grub/grub.cfg" <<'GRUB'
 set timeout=0
@@ -70,6 +71,7 @@ menuentry 'xorriso Alpha 0.7 - Linux minimo' {
 }
 GRUB
 grub-mkrescue -o "$DIST/xorriso-alpha-07-grub.iso" "$STAGE"
-cp "$KERNEL" "$DIST/vmlinuz"
+sudo cp "$KERNEL" "$DIST/vmlinuz"
+sudo chown "$(id -u):$(id -g)" "$DIST/vmlinuz"
 sha256sum "$DIST/xorriso-alpha-07-grub.iso" > "$DIST/SHA256SUMS"
 echo "Created $DIST/xorriso-alpha-07-grub.iso"
