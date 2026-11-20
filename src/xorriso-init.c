@@ -13,6 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mount.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <sys/reboot.h>
 #include <sys/sysinfo.h>
 #include <sys/types.h>
@@ -385,6 +388,48 @@ static void ci_dual_volume_test(void) {
  for(;;)pause();
 }
 
+
+/* CI: real guest TCP connection from 127.0.0.1 to 127.0.0.1 after initramfs boot. */
+static void ci_loopback_tcp_test(void) {
+ char bootargs[4096]={0};
+ int f=open("/proc/cmdline",O_RDONLY|O_CLOEXEC);
+ if(f<0)return;
+ ssize_t n=read(f,bootargs,sizeof(bootargs)-1);close(f);
+ if(n<=0||!strstr(bootargs,"xorriso.ci=loopback"))return;
+ int serial=open("/dev/ttyS0",O_RDWR|O_NOCTTY);
+ if(serial>=0) {
+  (void)dup2(serial,STDOUT_FILENO);(void)dup2(serial,STDERR_FILENO);
+  if(serial>STDERR_FILENO)close(serial);
+ }
+ int server=-1,client=-1,peer=-1;
+ struct sockaddr_in addr={0};
+ socklen_t size=sizeof(addr);
+ addr.sin_family=AF_INET;
+ addr.sin_addr.s_addr=htonl(INADDR_LOOPBACK);
+ addr.sin_port=htons(0);
+ server=socket(AF_INET,SOCK_STREAM,0);
+ client=socket(AF_INET,SOCK_STREAM,0);
+ if(server<0||client<0)goto fail;
+ if(bind(server,(struct sockaddr*)&addr,sizeof(addr))<0)goto fail;
+ if(listen(server,1)<0)goto fail;
+ if(getsockname(server,(struct sockaddr*)&addr,&size)<0)goto fail;
+ if(connect(client,(struct sockaddr*)&addr,sizeof(addr))<0)goto fail;
+ peer=accept(server,NULL,NULL);
+ if(peer<0)goto fail;
+ if(write(client,"ping",4)!=4)goto fail;
+ char msg[5]={0};
+ if(read(peer,msg,4)!=4||memcmp(msg,"ping",4))goto fail;
+ print("xorriso: loopback TCP PASS\n");
+ goto done;
+ fail:
+ print("xorriso: loopback TCP FAIL\n");
+ done:
+ if(peer>=0)close(peer);
+ if(client>=0)close(client);
+ if(server>=0)close(server);
+ for(;;)pause();
+}
+
 int main(void) {
  setup_fs();
  int bootlog=open("/dev/kmsg",O_WRONLY|O_CLOEXEC);
@@ -395,6 +440,8 @@ int main(void) {
  int fd=open("/proc/sys/kernel/printk",O_WRONLY|O_CLOEXEC);
  if(fd>=0){(void)write(fd,"0 0 0 0\n",8);close(fd);}
  (void)mkdir("/run/xorriso",0700);
+ (void)ci_exec_script("/usr/lib/xorriso/loopback.sh","up");
+ ci_loopback_tcp_test();
  (void)ci_exec_script("/usr/lib/xorriso/storage.sh","boot");
  ci_dual_volume_test();
  ci_persistent_test();

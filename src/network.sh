@@ -7,7 +7,7 @@ case "${1:-}" in
   for mod in mii net_failover e1000 pcnet32 8139too virtio_net; do
    [ -r "/lib/xorriso/modules/$mod.ko" ] && insmod "/lib/xorriso/modules/$mod.ko" 2>/dev/null || :
   done
-  ip link set lo up 2>/dev/null || :
+  /bin/sh /usr/lib/xorriso/loopback.sh up || { echo 'Falha na interface local lo.'; exit 1; }
   found=0
   for iface in /sys/class/net/*; do
    iface=${iface##*/}
