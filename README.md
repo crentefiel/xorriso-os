@@ -1,55 +1,54 @@
-# xorriso OS — Linux minimalista centrado em IA
+# xorriso OS — Alpha 0.8
 
-> **Alpha 0.7: protótipo experimental.** Ainda não é um sistema operacional completo.
+**Sistema operacional Linux mínimo centrado em IA — protótipo experimental.**
 
-O xorriso inicia com a tela **totalmente vazia**: sem barra de tarefas, menu, relógio, ícones ou aplicativos gráficos. **F1** mostra status, **F2** abre o console e **Esc** limpa a tela. A base é Linux + initramfs e um `/init` próprio em C.
+O xorriso inicia com a **tela preta totalmente vazia**, sem barra, menu, relógio, ícones ou janelas. F1 mostra informações, F2 abre o console e Esc volta à tela vazia.
 
-## Funcionalidades atuais
+## Funcionalidades
 
-- Inicialização mínima Linux x86_64 em BIOS legado por GRUB.
-- Rede DHCP manual (`net up`, `net status`) para o adaptador Intel E1000 no VirtualBox.
-- API externa compatível com OpenAI (`api url`, `api model`, `api key`, `ask`).
-- Agente experimental (`agent`) com ações de lista fechada e confirmação antes de escrever uma nota temporária.
-- Conector para futuro servidor local `llama.cpp` (`api local`, `local status`).
+- Kernel Linux, GRUB BIOS legado, initramfs e inicializador próprio em C.
+- Rede DHCP manual: comandos net up, net status, net down.
+- Cliente OpenAI compatível por HTTPS: api url, api model, api key, api test, ask.
+- Agente experimental: comando agent com ações restritas e autorização para criar notas temporárias.
+- **Novo: api host** usa HTTP no gateway NAT 10.0.2.2:8080 para conectar o MiniCPM executado no **computador anfitrião da VM**. Chaves de API são bloqueadas nesse HTTP sem criptografia.
+- api local aponta para 127.0.0.1 **da VM**, mas o modelo e o runtime ainda não estão instalados dentro dela.
 
-**Não incluído:** pesos do MiniCPM-V 4.7 1B, motor de inferência, ambiente gráfico, persistência em disco, instalador de aplicativos, Ghidra, REA. A IA não tem execução irrestrita de shell; a ISO é apenas para máquina virtual.
+## Executar no VirtualBox
 
-## ISO automática no GitHub
+VM Linux 64 bits, 1 GiB ou mais de RAM, EFI desativado, NAT, placa Intel PRO/1000 MT Desktop. Baixe a ISO dos artefatos em [GitHub Actions](https://github.com/crentefiel/xorriso-os/actions).
 
-Vá até **Actions → xorriso Alpha 0.7 - Build and smoke test**. O workflow compila o `/init` a partir do código-fonte, prepara o initramfs com os utilitários necessários e empacota uma ISO BIOS com GRUB. O arquivo `xorriso-alpha-07-grub.iso` será um **artifact** do workflow se todos os passos passarem.
+No console F2, depois de iniciar o servidor MiniCPM no anfitrião:
 
-Requisitos da compilação: Ubuntu 24.04, `linux-image-generic`, BusyBox estático, GRUB e ferramentas indicadas em `.github/workflows/build-iso.yml`. Para compilar numa máquina Ubuntu com essas dependências:
+~~~text
+net up
+local status
+api host
+api test
+ask Ola, MiniCPM!
+~~~
 
-```bash
+Veja [docs/MINICPM.md](docs/MINICPM.md) e [tools/run-minicpm-host-linux.sh](tools/run-minicpm-host-linux.sh) para iniciar o servidor local no anfitrião. A ponte pode exigir ajustes na rede VirtualBox.
+
+Para conectar uma API externa por HTTPS:
+
+~~~text
+api url https://provedor.example/v1
+api model IDENTIFICADOR
+api key
+api test
+ask Ola
+~~~
+
+Não divulgue suas chaves de API. Notas e configuração ficam apenas em RAM.
+
+## Construção e testes
+
+O GitHub Actions compila o inicializador, gera a ISO GRUB, testa o boot da própria ISO e os atalhos F2/Esc em QEMU. A Alpha 0.8 também testa a rede convidado→anfitrião contra **API simulada**, não inferência com MiniCPM verdadeiro.
+
+~~~bash
 bash src/test-ai.sh
 python3 src/test-http-real.py
 bash build-from-source.sh
-```
+~~~
 
-No VirtualBox: Linux 64-bit, **EFI desativado**, RAM >= 1 GiB, adaptador de rede Intel PRO/1000 MT Desktop em NAT.
-
-Depois de F2:
-
-```text
-help
-net up
-net status
-api url https://seu-provedor.example/v1
-api model IDENTIFICADOR_DO_MODELO
-api key
-api test
-ask Ola, voce esta funcionando?
-agent crie uma nota chamada ideias.txt com o texto Meu projeto
-```
-
-Não publique sua chave de API em issues, logs ou vídeos. A chave configurada pelo console fica somente na RAM. Notas temporárias também desaparecem ao reiniciar.
-
-## MiniCPM-V 4.7 1B
-
-O modelo local **não está incluído** nesta fase para preservar a ISO mínima. Veja [docs/MINICPM.md](docs/MINICPM.md). A intenção é baixar o runtime e pesos GGUF somente quando o usuário solicitar, em armazenamento persistente futuro.
-
-## Validação e limites
-
-Os testes de agente usam APIs **simuladas**. O workflow inclui um teste de inicialização direta do kernel no QEMU e tenta localizar o marcador emitido pelo `/init`. Um build do ISO ou um smoke test não substitui o teste de inicialização da própria ISO no VirtualBox; validar o boot completo e os comandos na ISO ainda é necessário.
-
-O código deste repositório é licenciado sob MIT, conforme `LICENSE`. Linux/BusyBox e bibliotecas de terceiros retêm suas próprias licenças e obrigações. O nome **xorriso** também pertence a um utilitário GNU de processamento de ISO, não relacionado a este projeto.
+**Ainda faltam:** desktop gráfico real, armazenamento persistente, MiniCPM rodando dentro do xorriso, instalação autônoma de programas, Ghidra e REA. Esta ISO é experimental, para testes em máquina virtual. Código novo sob MIT; componentes terceiros têm licenças próprias. O nome xorriso também é usado por um utilitário GNU diferente.
