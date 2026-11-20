@@ -15,8 +15,11 @@ load_drivers() {
 locate_volume() {
  for dev in /dev/vd[a-z] /dev/sd[a-z] /dev/hd[a-z] /dev/vd[a-z][0-9]* /dev/sd[a-z][0-9]*; do
   [ -b "$dev" ] || continue
-  label=$(blkid -s LABEL -o value "$dev" 2>/dev/null || :)
-  if [ "$label" = "$LABEL" ]; then printf '%s\n' "$dev"; return 0; fi
+  # BusyBox blkid does not support the util-linux -s/-o flags.
+  metadata=$(blkid "$dev" 2>/dev/null || :)
+  case "$metadata" in
+   *'LABEL="XORRISO_DATA"'*) printf '%s\n' "$dev"; return 0 ;;
+  esac
  done
  return 1
 }
