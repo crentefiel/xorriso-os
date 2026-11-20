@@ -1,0 +1,259 @@
+/*
+ * xorriso Alpha 0.7 - Linux init minimo
+ * SPDX-License-Identifier: MIT
+ * Plain Linux console is empty until user calls F1 or F2.
+ */
+#define _GNU_SOURCE
+#include <errno.h>
+#include <fcntl.h>
+#include <linux/reboot.h>
+#include <poll.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mount.h>
+#include <sys/reboot.h>
+#include <sys/sysinfo.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/utsname.h>
+#include <sys/wait.h>
+#include <termios.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <dirent.h>
+
+#define MAX_CMD 767
+static struct termios original, raw;
+static int tty_fd = -1;
+static int is_console = 0;
+
+static void print(const char *s) { if(s) (void)write(STDOUT_FILENO,s,strlen(s)); }
+static void crlf(void) { print("\r\n"); }
+static void clear_screen(void) { print("\033[0m\033[2J\033[H\033[?25l"); }
+
+static void setup_fs(void) {
+ (void)mount("proc","/proc","proc",MS_NOSUID|MS_NODEV|MS_NOEXEC,"");
+ (void)mount("sysfs","/sys","sysfs",MS_NOSUID|MS_NODEV|MS_NOEXEC,"");
+ (void)mount("devtmpfs","/dev","devtmpfs",MS_NOSUID,"mode=0755");
+ (void)mount("tmpfs","/run","tmpfs",MS_NOSUID|MS_NODEV,"size=16M,mode=0755");
+ (void)mount("tmpfs","/tmp","tmpfs",MS_NOSUID|MS_NODEV,"size=32M,mode=1777");
+}
+static void setup_tty(void) {
+ int fd=open("/dev/tty0",O_RDWR|O_NOCTTY);
+ if(fd<0) fd=open("/dev/console",O_RDWR|O_NOCTTY);
+ if(fd>=0) {
+  (void)dup2(fd,STDIN_FILENO);(void)dup2(fd,STDOUT_FILENO);(void)dup2(fd,STDERR_FILENO);
+  if(fd>STDERR_FILENO)close(fd);
+ }
+ tty_fd=STDIN_FILENO;
+ if(tcgetattr(tty_fd,&original)==0) {
+  raw=original;cfmakeraw(&raw);raw.c_oflag|=OPOST;
+  (void)tcsetattr(tty_fd,TCSANOW,&raw);
+ }
+}
+static void status(void) {
+ struct utsname uts;struct sysinfo sys;
+ clear_screen();
+ print("xorriso alpha 0.7 - Linux minimo\r\n\r\n");
+ if(uname(&uts)==0) {print("Linux kernel: ");print(uts.release);crlf();}
+ if(sysinfo(&sys)==0) {
+  char buf[128];
+  unsigned long long mb=((unsigned long long)sys.totalram*sys.mem_unit)/(1024*1024);
+  snprintf(buf,sizeof(buf),"RAM: %llu MiB\r\n",mb);print(buf);
+ }
+ print("\r\nF2: console | ESC: area vazia\r\n");
+ print("MiniCPM local nao instalado. APIs externas opcionais.\r\n");
+ is_console=0;
+}
+static void console_header(void) {
+ clear_screen();
+ print("xorriso alpha 0.7 - console minimo\r\n");
+ print("help: comandos | ESC: tela vazia\r\n\r\n");
+ is_console=1;
+}
+static int read_key(void) {
+ unsigned char ch;
+ if(read(STDIN_FILENO,&ch,1)!=1) return -1;
+ if(ch!=27) return (int)ch;
+ char seq[10]={0};int n=0;
+ while(n<9) {
+  struct pollfd p={.fd=STDIN_FILENO,.events=POLLIN};
+  if(poll(&p,1,75)<=0)break;
+  if(read(STDIN_FILENO,&seq[n],1)!=1)break;
+  n++;
+  if(seq[n-1]=='~'||seq[n-1]=='A'||seq[n-1]=='B'||seq[n-1]=='P'||seq[n-1]=='Q')break;
+ }
+ if(!strcmp(seq,"[[A")||!strcmp(seq,"OP")||!strcmp(seq,"[11~"))return 0x1001;
+ if(!strcmp(seq,"[[B")||!strcmp(seq,"OQ")||!strcmp(seq,"[12~"))return 0x1002;
+ return 27;
+}
+static void write_runtime(const char *name,const char *data) {
+ char path[128];snprintf(path,sizeof(path),"/run/xorriso/%s",name);
+ int fd=open(path,O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC,0600);
+ if(fd<0){print("Erro ao salvar configuracao na RAM.\r\n");return;}
+ (void)write(fd,data,strlen(data));close(fd);
+}
+static void read_runtime(const char *name,char *dst,size_t cap) {
+ char path[128];snprintf(path,sizeof(path),"/run/xorriso/%s",name);
+ int fd=open(path,O_RDONLY|O_CLOEXEC);dst[0]=0;
+ if(fd<0)return;
+ ssize_t n=read(fd,dst,cap-1);
+ if(n>0){dst[n]=0;dst[strcspn(dst,"\r\n")]=0;}close(fd);
+}
+static void run_script(const char *script,const char *argument) {
+ print("\033[?25h\r\n");
+ (void)tcsetattr(tty_fd,TCSANOW,&original);
+ pid_t pid=fork();
+ if(pid==0) {
+  setenv("PATH","/bin:/usr/bin:/sbin",1);setenv("TERM","linux",1);
+  execl("/bin/sh","sh",script,argument?argument:"",(char*)NULL);_exit(127);
+ }
+ if(pid>0) {int st=0;while(waitpid(pid,&st,0)<0&&errno==EINTR){}}
+ (void)tcsetattr(tty_fd,TCSANOW,&raw);crlf();
+}
+static void api_key_entry(void) {
+ char secret[512];size_t n=0;int key;
+ print("Chave de API (nao exibida): ");
+ while((key=read_key())!=-2) {
+  if(key<0)continue;
+  if(key=='\n'||key=='\r')break;
+  if(key==27){n=0;break;}
+  if(key==127||key=='\b'){if(n)n--;continue;}
+  if(key>31&&key<127&&n<sizeof(secret)-1)secret[n++]=(char)key;
+ }
+ secret[n]=0;crlf();
+ if(n){write_runtime("api_key",secret);print("Chave temporaria armazenada na RAM.\r\n");}
+ else print("Chave nao alterada.\r\n");
+ memset(secret,0,sizeof(secret));
+}
+static void api_show(void) {
+ char url[512],model[256],key[512];
+ read_runtime("api_url",url,sizeof(url));
+ read_runtime("api_model",model,sizeof(model));
+ read_runtime("api_key",key,sizeof(key));
+ print("URL: ");print(*url?url:"(ausente)");crlf();
+ print("Modelo: ");print(*model?model:"(ausente)");crlf();
+ print("Chave: ");print(*key?"configurada (oculta)":"ausente");crlf();
+ memset(key,0,sizeof(key));
+}
+static void api_command(const char *args) {
+ if(!*args||!strcmp(args,"help")){
+  print("api show | api local | api url https://host/v1 | api model ID | api key | api test\r\n");return;
+ }
+ if(!strcmp(args,"local")) {
+  write_runtime("api_url","http://127.0.0.1:8080/v1");
+  write_runtime("api_model","MiniCPM-V-4.7-1B");
+  (void)unlink("/run/xorriso/api_key");
+  print("Servidor local selecionado. Instale e inicie llama.cpp separadamente.\r\n");return;
+ }
+ if(!strcmp(args,"show")){api_show();return;}
+ if(!strcmp(args,"key")){api_key_entry();return;}
+ if(!strcmp(args,"test")){run_script("/usr/lib/xorriso/ai-request.sh","--test");return;}
+ if(!strncmp(args,"url ",4)){
+  const char *v=args+4;
+  if(strncmp(v,"https://",8)&&strncmp(v,"http://127.0.0.1:",17)&&strncmp(v,"http://localhost:",17)){
+   print("Use HTTPS ou HTTP em localhost.\r\n");return;
+  }
+  if(strlen(v)>360||strchr(v,' ')||strchr(v,'?')||strchr(v,'#')){
+   print("URL invalida.\r\n");return;
+  }
+  char tmp[400];snprintf(tmp,sizeof(tmp),"%s",v);
+  size_t n=strlen(tmp);while(n&&tmp[n-1]=='/')tmp[--n]=0;
+  write_runtime("api_url",tmp);print("URL definida.\r\n");return;
+ }
+ if(!strncmp(args,"model ",6)){
+  const char *v=args+6;
+  if(!*v||strlen(v)>190){print("Modelo invalido.\r\n");return;}
+  write_runtime("api_model",v);print("Modelo definido.\r\n");return;
+ }
+ print("Comando de API desconhecido.\r\n");
+}
+static void shell(void) {
+ print("\033[?25h\r\nAbrindo BusyBox shell (exit para voltar).\r\n");
+ (void)tcsetattr(tty_fd,TCSANOW,&original);
+ pid_t pid=fork();
+ if(pid==0) {
+  setenv("PATH","/bin:/usr/bin:/sbin",1);setenv("TERM","linux",1);
+  execl("/bin/sh","sh","-i",(char*)NULL);_exit(127);
+ }
+ if(pid>0)while(waitpid(pid,NULL,0)<0&&errno==EINTR){}
+ (void)tcsetattr(tty_fd,TCSANOW,&raw);
+ console_header();
+}
+static void list_root(void) {
+ DIR *d=opendir("/");
+ if(!d){print("Falha em /\r\n");return;}
+ struct dirent *e;
+ while((e=readdir(d))!=NULL) {
+  if(!strcmp(e->d_name,".")||!strcmp(e->d_name,".."))continue;
+  print(e->d_name);print("  ");
+ }
+ crlf();closedir(d);
+}
+static void cmd(char *s) {
+ while(isspace((unsigned char)*s))s++;
+ size_t n=strlen(s);
+ while(n&&isspace((unsigned char)s[n-1]))s[--n]=0;
+ if(!*s)return;
+ if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent notes local ai desktop reboot poweroff\r\n");
+ else if(!strcmp(s,"status")||!strcmp(s,"version")){status();is_console=1;}
+ else if(!strcmp(s,"ls"))list_root();
+ else if(!strcmp(s,"uptime")){
+  struct sysinfo si;char b[128];
+  if(!sysinfo(&si)){snprintf(b,sizeof(b),"Uptime: %ld s\r\n",si.uptime);print(b);}
+ }
+ else if(!strcmp(s,"shell"))shell();
+ else if(!strcmp(s,"desktop")||!strcmp(s,"clear")){is_console=0;clear_screen();}
+ else if(!strcmp(s,"ai")||!strcmp(s,"ai local")){
+  print("MiniCPM-V 4.7 1B nao incluido nesta ISO.\r\n");
+  print("Use local status, api local ou configure uma API externa.\r\n");
+ }
+ else if(!strcmp(s,"local")||!strcmp(s,"local status"))run_script("/usr/lib/xorriso/local.sh","status");
+ else if(!strcmp(s,"local help"))run_script("/usr/lib/xorriso/local.sh","help");
+ else if(!strcmp(s,"net")||!strcmp(s,"net status"))run_script("/usr/lib/xorriso/network.sh","status");
+ else if(!strcmp(s,"net up"))run_script("/usr/lib/xorriso/network.sh","up");
+ else if(!strcmp(s,"net down"))run_script("/usr/lib/xorriso/network.sh","down");
+ else if(!strncmp(s,"api",3)&&(s[3]==' '||!s[3]))api_command(s[3]==' '?s+4:"");
+ else if(!strncmp(s,"ask ",4))run_script("/usr/lib/xorriso/ai-request.sh",s+4);
+ else if(!strcmp(s,"ask"))print("Uso: ask sua pergunta\r\n");
+ else if(!strncmp(s,"agent ",6))run_script("/usr/lib/xorriso/ai-agent.sh",s+6);
+ else if(!strcmp(s,"agent"))print("Uso: agent seu pedido\r\n");
+ else if(!strcmp(s,"notes"))run_script("/usr/lib/xorriso/ai-agent.sh","--notes");
+ else if(!strncmp(s,"install",7))print("Instalacao automatica indisponivel nesta alpha.\r\n");
+ else if(!strcmp(s,"reboot")){sync();reboot(LINUX_REBOOT_CMD_RESTART);}
+ else if(!strcmp(s,"poweroff")){sync();reboot(LINUX_REBOOT_CMD_POWER_OFF);}
+ else print("Comando desconhecido. Digite help.\r\n");
+}
+int main(void) {
+ setup_fs();
+ int bootlog=open("/dev/kmsg",O_WRONLY|O_CLOEXEC);
+ if(bootlog>=0){
+  const char *marker="<6>xorriso: init reached successfully\n";
+  (void)write(bootlog,marker,strlen(marker));close(bootlog);
+ }
+ int fd=open("/proc/sys/kernel/printk",O_WRONLY|O_CLOEXEC);
+ if(fd>=0){(void)write(fd,"0 0 0 0\n",8);close(fd);}
+ (void)mkdir("/run/xorriso",0700);
+ setup_tty();setenv("TERM","linux",1);clear_screen();
+ char line[MAX_CMD+1];size_t n=0;
+ for(;;) {
+  if(is_console)print("\033[?25hxorriso> ");
+  for(;;) {
+   int key=read_key();
+   if(key<0){usleep(25000);continue;}
+   if(key==0x1001){status();n=0;break;}
+   if(key==0x1002){console_header();n=0;break;}
+   if(key==27){is_console=0;clear_screen();n=0;break;}
+   if(!is_console)continue;
+   if(key=='\r'||key=='\n'){
+    line[n]=0;crlf();cmd(line);n=0;break;
+   }
+   if(key==127||key=='\b'){if(n){n--;print("\b \b");}}
+   else if(key>=32&&key<=255&&n<MAX_CMD){
+    line[n++]=(char)key;unsigned char z=key;(void)write(STDOUT_FILENO,&z,1);
+   }
+  }
+ }
+}
