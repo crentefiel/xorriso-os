@@ -22,6 +22,11 @@ jobs:
         run: python3 -m py_compile tools/check-native-desktop.py
       - name: Require actual native desktop, not an HTML-only prototype
         run: python3 tools/check-native-desktop.py
+      - name: Test root approval, cancellation, expiry and real command execution
+        run: |
+          command -v busybox >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq busybox-static; }
+          sh -n src/root-exec.sh src/chat-actions.sh
+          bash src/test-root-exec.sh
       - name: Compile graphical PID1 wrapper and native desktop
         run: |
           gcc -std=gnu11 -Wall -Wextra -Werror -static -o /tmp/xorriso-gui-init src/xorriso-gui-init.c
