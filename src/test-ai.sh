@@ -50,12 +50,12 @@ if sh "$ROOT/src/ai-agent.sh" 'grave um arquivo' > "$T/out"; then exit 52; fi
 [ ! -f "$T/escape" ]
 # A newline must invalidate the ENTIRE filename (grep -E used to match only
 # a valid first line, silently permitting a control character in the path).
-wrap '{"action":"write_note","filename":"valida.txt\\nEVIL","content":"x","message":""}'
+wrap '{"action":"write_note","filename":"valida.txt\nEVIL","content":"x","message":""}'
 if printf 's\n' | sh "$ROOT/src/ai-agent.sh" 'nota maliciosa' > "$T/out"; then
  echo 'Multiline note filename accepted'; exit 60
 fi
 [ ! -e "$T/notes/valida.txt" ]
-wrap '{"action":"read_note","filename":"valida.txt\\nEVIL","content":"","message":""}'
+wrap '{"action":"read_note","filename":"valida.txt\nEVIL","content":"","message":""}'
 if sh "$ROOT/src/ai-agent.sh" 'ler nota maliciosa' > "$T/out"; then
  echo 'Multiline read filename accepted'; exit 61
 fi
