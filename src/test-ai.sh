@@ -109,4 +109,23 @@ if sh "$ROOT/src/ai-agent.sh" 'Nao vaze chave' > "$T/out"; then exit 55; fi
 grep -q 'bloqueada' "$T/out"
 ! grep -q 'SEGREDO-QUE-NAO-PODE-SAIR' "$T/curl.log"
 sh -n "$ROOT/src/ai-agent.sh" "$ROOT/src/ai-request.sh" "$ROOT/src/local.sh" "$ROOT/src/network.sh"
+# Root broker: read-only actions run, unknown root commands are blocked.
+export XORRISO_ADMIN_TEST_MODE=1
+export XORRISO_ADMIN_TEST_NETWORK="$T/bin/admin-network"
+export XORRISO_ADMIN_TEST_STORAGE="$T/bin/admin-storage"
+printf '#!/bin/sh\nprintf "network %s\\n" "$1" >> "$XORRISO_TEST_LOG"\n' > "$T/bin/admin-network"
+printf '#!/bin/sh\nprintf "storage %s\\n" "$1" >> "$XORRISO_TEST_LOG"\n' > "$T/bin/admin-storage"
+chmod +x "$T/bin/admin-network" "$T/bin/admin-storage"
+export XORRISO_ADMIN_BIN="$ROOT/src/admin-actions.sh"
+sh "$XORRISO_ADMIN_BIN" capabilities > "$T/out"
+grep -q 'storage_mount' "$T/out"
+if sh "$XORRISO_ADMIN_BIN" 'rm -rf /' > "$T/out" 2>&1; then exit 62; fi
+wrap '{"action":"network_up","filename":"","content":"","message":""}'
+printf 'n\n' | sh "$ROOT/src/ai-agent.sh" 'ative a rede' > "$T/out" || :
+if grep -q 'network up' "$T/curl.log"; then exit 63; fi
+printf 's\n' | sh "$ROOT/src/ai-agent.sh" 'ative a rede' > "$T/out"
+grep -q 'network up' "$T/curl.log"
+wrap '{"action":"capabilities","filename":"","content":"","message":""}'
+sh "$ROOT/src/ai-agent.sh" 'quais recursos?' > "$T/out"
+grep -q 'Comandos autorizados' "$T/out"
 echo 'PASSOU: chat com memoria RAM, recuperacao fiel, limpeza, credenciais, JSON, acoes bloqueadas, notas e localhost.'
