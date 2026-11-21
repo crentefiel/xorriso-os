@@ -67,7 +67,7 @@ static void status(void) {
   unsigned long long mb=((unsigned long long)sys.totalram*sys.mem_unit)/(1024*1024);
   snprintf(buf,sizeof(buf),"RAM: %llu MiB\r\n",mb);print(buf);
  }
- print("\r\nF2: console | ESC: area vazia\r\n");
+ print("\r\nF2: console | F3: conversa | ESC: area vazia\r\n");
  print("MiniCPM: model status | runtime status (motor opcional em VDI).\r\n");
  is_console=0;is_chat=0;
 }
@@ -295,7 +295,7 @@ static void cmd(char *s) {
  else if(!strcmp(s,"storage")||!strcmp(s,"storage status"))run_script("/usr/lib/xorriso/storage.sh","status");
  else if(!strcmp(s,"storage mount"))run_script("/usr/lib/xorriso/storage.sh","mount");
  else if(!strcmp(s,"storage probe"))run_script("/usr/lib/xorriso/storage.sh","probe");
- else if(!strncmp(s,"storage ",8))print("Uso: storage status | storage mount\r\n");
+ else if(!strncmp(s,"storage ",8))print("Uso: storage status | storage mount | storage probe\r\n");
  else if(!strncmp(s,"install",7))print("Instalacao automatica de programas indisponivel nesta alpha.\r\n");
  else if(!strcmp(s,"reboot")){sync();reboot(LINUX_REBOOT_CMD_RESTART);}
  else if(!strcmp(s,"poweroff")){sync();reboot(LINUX_REBOOT_CMD_POWER_OFF);}
