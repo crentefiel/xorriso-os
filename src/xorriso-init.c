@@ -1,5 +1,5 @@
 /*
- * xorriso Alpha 0.14 - Linux init minimo
+ * xorriso Alpha 0.15 - Linux init minimo
  * SPDX-License-Identifier: MIT
  * Plain Linux console is empty until user calls F1 or F2.
  */
@@ -60,7 +60,7 @@ static void setup_tty(void) {
 static void status(void) {
  struct utsname uts;struct sysinfo sys;
  clear_screen();
- print("xorriso alpha 0.14 - Linux minimo\r\n\r\n");
+ print("xorriso alpha 0.15 - Linux minimo\r\n\r\n");
  if(uname(&uts)==0) {print("Linux kernel: ");print(uts.release);crlf();}
  if(sysinfo(&sys)==0) {
   char buf[128];
@@ -73,7 +73,7 @@ static void status(void) {
 }
 static void console_header(void) {
  clear_screen();
- print("xorriso alpha 0.14 - console minimo\r\n");
+ print("xorriso alpha 0.15 - console minimo\r\n");
  print("help: comandos | ESC: tela vazia\r\n\r\n");
  is_console=1;is_chat=0;
 }
@@ -211,12 +211,15 @@ static void chat_screen(void) {
  clear_screen();
  is_console=0;is_chat=1;
  print("\033[?25h");
- print("xorriso  |  CONVERSA COM IA LOCAL\r\n");
+ print("xorriso  |  IA PESSOAL\r\n");
  print("------------------------------------------------------------\r\n");
  print("F2 console  |  Esc tela vazia  |  F3 abrir conversa\r\n");
  print("Enter envia  |  /clear limpa  |  /last anterior\r\n");
  print("/status mostra historico  |  /exit fecha\r\n");
  print("Historico temporario em RAM. Nenhum texto sera salvo no VDI.\r\n");
+ char state[192];read_runtime("boot-status",state,sizeof(state));
+ print("IA local: ");print(*state?state:"preparando");crlf();
+ print("Digite o que deseja. Microfone sera integrado em versao futura.\r\n");
  print("------------------------------------------------------------\r\n\r\n");
 }
 static void chat_input(char *s) {
@@ -228,9 +231,20 @@ static void chat_input(char *s) {
  if(!strcmp(s,"/clear")) {run_script("/usr/lib/xorriso/ai-request.sh","--clear");return;}
  if(!strcmp(s,"/last")) {run_script("/usr/lib/xorriso/ai-request.sh","--history-last");return;}
  if(!strcmp(s,"/status")) {run_script("/usr/lib/xorriso/ai-request.sh","--history-status");return;}
+ if(!strcmp(s,"/ready")) {run_script("/usr/lib/xorriso/ai-boot.sh","status");return;}
  if(s[0]=='/') {
-  print("Comandos: /last /status /clear /exit\r\n");
+  print("Comandos: /last /status /clear /ready /exit\r\n");
   return;
+ }
+ if(!strncasecmp(s,"crie uma pasta chamada ",strlen("crie uma pasta chamada "))||
+    !strncasecmp(s,"criar uma pasta chamada ",strlen("criar uma pasta chamada "))||
+    !strncasecmp(s,"quero criar uma pasta chamada ",strlen("quero criar uma pasta chamada "))||
+    !strncasecmp(s,"crie a pasta ",strlen("crie a pasta "))||
+    !strcasecmp(s,"liste minhas pastas")||
+    !strcasecmp(s,"mostre minhas pastas")) {
+   print("Acao do xorriso:\r\n");
+   run_script("/usr/lib/xorriso/actions.sh",s);
+   return;
  }
  print("IA xorriso:");
  run_script("/usr/lib/xorriso/ai-request.sh",s);
@@ -251,7 +265,7 @@ static void cmd(char *s) {
  size_t n=strlen(s);
  while(n&&isspace((unsigned char)s[n-1]))s[--n]=0;
  if(!*s)return;
- if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent notes storage model runtime chat local ai desktop reboot poweroff (F3: conversa)\r\n");
+ if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent action notes storage model runtime chat local ai desktop reboot poweroff (F3: conversa)\r\n");
  else if(!strcmp(s,"status")||!strcmp(s,"version")){status();is_console=1;}
  else if(!strcmp(s,"ls"))list_root();
  else if(!strcmp(s,"uptime")){
@@ -260,9 +274,10 @@ static void cmd(char *s) {
  }
  else if(!strcmp(s,"shell"))shell();
  else if(!strcmp(s,"desktop")||!strcmp(s,"clear")){is_console=0;is_chat=0;clear_screen();}
+ else if(!strcmp(s,"ai status"))run_script("/usr/lib/xorriso/ai-boot.sh","status");
  else if(!strcmp(s,"ai")||!strcmp(s,"ai local")){
-  print("MiniCPM-V 4.7 1B nao incluido nesta ISO.\r\n");
-  print("Use local status, api host, api local ou configure uma API externa.\r\n");
+  print("MiniCPM automatico: ai status | runtime status.\r\n");
+  print("Motor e pesos ficam em VDIs externos.\r\n");
  }
  else if(!strcmp(s,"local")||!strcmp(s,"local status"))run_script("/usr/lib/xorriso/local.sh","status");
  else if(!strcmp(s,"local help"))run_script("/usr/lib/xorriso/local.sh","help");
@@ -277,6 +292,7 @@ static void cmd(char *s) {
  else if(!strncmp(s,"chat ",5))print("Uso: chat open | chat status | chat last | chat clear\r\n");
  else if(!strncmp(s,"ask ",4))run_script("/usr/lib/xorriso/ai-request.sh",s+4);
  else if(!strcmp(s,"ask"))print("Uso: ask sua pergunta\r\n");
+ else if(!strncmp(s,"action ",7))run_script("/usr/lib/xorriso/actions.sh",s+7);
  else if(!strncmp(s,"agent ",6))run_script("/usr/lib/xorriso/ai-agent.sh",s+6);
  else if(!strcmp(s,"agent"))print("Uso: agent seu pedido\r\n");
  else if(!strcmp(s,"notes"))run_script("/usr/lib/xorriso/ai-agent.sh","--notes");
@@ -470,6 +486,23 @@ static void ci_loopback_tcp_test(void) {
  for(;;)pause();
 }
 
+
+/* Start local model loading in the background: no terminal commands visible. */
+static void start_local_ai_background(void) {
+ pid_t p=fork();
+ if(p==0) {
+  int fd=open("/dev/null",O_RDWR|O_CLOEXEC);
+  if(fd>=0) {
+   (void)dup2(fd,STDIN_FILENO);(void)dup2(fd,STDOUT_FILENO);
+   (void)dup2(fd,STDERR_FILENO);
+   if(fd>STDERR_FILENO)close(fd);
+  }
+  setenv("PATH","/bin:/usr/bin:/sbin",1);
+  execl("/bin/sh","sh","/usr/lib/xorriso/ai-boot.sh","start",(char*)NULL);
+  _exit(127);
+ }
+}
+
 int main(void) {
  setup_fs();
  int bootlog=open("/dev/kmsg",O_WRONLY|O_CLOEXEC);
@@ -487,6 +520,8 @@ int main(void) {
  ci_persistent_test();
  ci_host_bridge_test();
  setup_tty();setenv("TERM","linux",1);clear_screen();
+ start_local_ai_background();
+ chat_screen();
  char line[MAX_CMD+1];size_t n=0;
  for(;;) {
   if(is_console)print("\033[?25hxorriso> ");
