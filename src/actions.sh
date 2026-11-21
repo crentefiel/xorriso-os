@@ -84,6 +84,55 @@ list_folders() {
   printf '%s\n' "${entry##*/}"
  done
 }
+# New files are created only inside the user document directory.
+# Contents are passed as an argument, never evaluated as shell code.
+create_file() {
+ name=$1
+ content=$2
+ valid_name "$name" || return 3
+ [ "${#content}" -le 4096 ] || {
+  echo 'Conteudo excede 4096 bytes.'; return 3;
+ }
+ ensure_root || return 3
+ target="$ROOT/$name"
+ if [ -e "$target" ] || [ -L "$target" ]; then
+  echo 'Ja existe um arquivo ou pasta com este nome; nada foi sobrescrito.'
+  return 3
+ fi
+ # noclobber rejects replacement even if another regular file appeared.
+ if (set -C; umask 077; printf '%s' "$content" > "$target") &&
+   [ -f "$target" ] && [ ! -L "$target" ]; then
+  echo "Arquivo criado e verificado: $target"
+ else
+  echo 'Nao foi possivel criar o arquivo.'
+  return 3
+ fi
+}
+read_file() {
+ name=$1
+ valid_name "$name" || return 3
+ ensure_root || return 3
+ target="$ROOT/$name"
+ if [ ! -f "$target" ] || [ -L "$target" ]; then
+  echo 'Arquivo nao encontrado ou acesso nao permitido.'
+  return 3
+ fi
+ size=$(wc -c < "$target") || return 3
+ [ "$size" -le 4096 ] || {
+  echo 'Arquivo maior que o limite de leitura atual de 4096 bytes.'; return 3;
+ }
+ printf 'Conteudo do arquivo %s:\n' "$target"
+ cat "$target"
+ printf '\n'
+}
+list_files() {
+ ensure_root || return 3
+ echo "Arquivos em $ROOT:"
+ for entry in "$ROOT"/*; do
+  [ -f "$entry" ] && [ ! -L "$entry" ] || continue
+  printf '%s\n' "${entry##*/}"
+ done
+}
 prompt=${1:-}
 case "$prompt" in
  --list|[Ll]iste\ minhas\ pastas*|[Mm]ostre\ minhas\ pastas*)
@@ -92,6 +141,12 @@ case "$prompt" in
   create_folder "${prompt#--create:}" ;;
  --check:*)
   check_folder "${prompt#--check:}" ;;
+ --write:*)
+  create_file "${prompt#--write:}" "${2-}" ;;
+ --read:*)
+  read_file "${prompt#--read:}" ;;
+ --files)
+  list_files ;;
  [Cc]rie\ uma\ pasta\ chamada\ *|[Cc]riar\ uma\ pasta\ chamada\ *|[Qq]uero\ criar\ uma\ pasta\ chamada\ *)
   create_folder "${prompt#*chamada }" ;;
  [Cc]rie\ a\ pasta\ *)
