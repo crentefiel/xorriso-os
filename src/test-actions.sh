@@ -120,7 +120,15 @@ grep -q 'Fotos de Natal' "$T/out"
 
 # The model writes real shell source as a file; another model decision proposes
 # running that NEW program. Approval is still mandatory.
-mock_plan create_file 'programa-ia.sh' '' 
+PROGRAM_CODE=$(printf '#!/bin/sh\nprintf "resultado real"\n')
+mock_plan create_file 'programa-ia.sh' '' "$PROGRAM_CODE"
+sh "$ROOT/src/chat-actions.sh" 'Crie um programa em shell chamado programa-ia.sh' > "$T/out"
+test -f "$XORRISO_ACTION_TEST_ROOT/programa-ia.sh"
+grep -q 'Arquivo criado e verificado' "$T/out"
+test "$(cat "$T/run/last-file")" = 'programa-ia.sh'
+mock_plan propose_command '' '' '' "sh '$XORRISO_ACTION_TEST_ROOT/programa-ia.sh' > '$T/exec-ok'"
+sh "$ROOT/src/chat-actions.sh" 'Execute o programa que voce acabou de criar' > "$T/out"
+jq -e '.messages[0].content | contains("programa-ia.sh")' "$T/run/agent-request.json" >/dev/null
 grep -q 'NAO executou' "$T/out"
 test ! -e "$T/exec-ok"
 TOKEN="$(cat "$T/run/root-pending/token")"
