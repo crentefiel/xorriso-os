@@ -33,10 +33,14 @@ sh "$ROOT/src/ai-request.sh" 'Segunda mensagem' > "$T/out"
 jq -e '.messages|length==3 and .[0].content=="Ola" and .[1].content=="Resposta simulada da IA." and .[2].content=="Segunda mensagem"' "$T/conf/api-request.json" >/dev/null
 sh "$ROOT/src/ai-request.sh" --history-status > "$T/out"
 grep -q '2' "$T/out"
+sh "$ROOT/src/ai-request.sh" --history-last > "$T/out"
+grep -Fq 'Ultima pergunta registrada: Segunda mensagem' "$T/out"
 sh "$ROOT/src/ai-request.sh" --clear > "$T/out"
 sh "$ROOT/src/ai-request.sh" --history-status > "$T/out"
 grep -q '0' "$T/out"
 [ ! -f "$T/conf/chat-history.json" ]
+sh "$ROOT/src/ai-request.sh" --history-last > "$T/out"
+grep -Fq 'Nenhuma pergunta registrada' "$T/out"
 
 wrap '{"action":"exec","filename":"","content":"rm -rf /","message":""}'
 if sh "$ROOT/src/ai-agent.sh" 'execute qualquer comando' > "$T/out"; then exit 51; fi
@@ -60,6 +64,13 @@ printf 'http://127.0.0.1:8080/v1' > "$T/conf/api_url"
 wrap 'Servidor local de teste.'
 sh "$ROOT/src/ai-request.sh" 'Teste local' > "$T/out"
 grep -q 'Servidor local de teste.' "$T/out"
+before=$(wc -l < "$T/curl.log")
+sh "$ROOT/src/ai-request.sh" 'Qual foi minha pergunta anterior?' > "$T/out"
+grep -Fq 'Consulta ao historico local: Sua pergunta anterior foi: Teste local' "$T/out"
+after=$(wc -l < "$T/curl.log")
+[ "$before" -eq "$after" ] || { echo 'Recall used curl unexpectedly'; exit 57; }
+sh "$ROOT/src/ai-request.sh" --history-last > "$T/out"
+grep -Fq 'Ultima pergunta registrada: Qual foi minha pergunta anterior?' "$T/out"
 printf '%s' 'http://10.0.2.2:8080/v1' > "$T/conf/api_url"
 rm -f "$T/conf/api_key"
 wrap 'Resposta do host NAT simulado.'
@@ -72,4 +83,4 @@ if sh "$ROOT/src/ai-agent.sh" 'Nao vaze chave' > "$T/out"; then exit 55; fi
 grep -q 'bloqueada' "$T/out"
 ! grep -q 'SEGREDO-QUE-NAO-PODE-SAIR' "$T/curl.log"
 sh -n "$ROOT/src/ai-agent.sh" "$ROOT/src/ai-request.sh" "$ROOT/src/local.sh" "$ROOT/src/network.sh"
-echo 'PASSOU: chat com memoria RAM, limpeza, credenciais, JSON, acoes bloqueadas, notas e localhost.'
+echo 'PASSOU: chat com memoria RAM, recuperacao fiel, limpeza, credenciais, JSON, acoes bloqueadas, notas e localhost.'

@@ -1,5 +1,5 @@
 /*
- * xorriso Alpha 0.12 - Linux init minimo
+ * xorriso Alpha 0.13 - Linux init minimo
  * SPDX-License-Identifier: MIT
  * Plain Linux console is empty until user calls F1 or F2.
  */
@@ -59,7 +59,7 @@ static void setup_tty(void) {
 static void status(void) {
  struct utsname uts;struct sysinfo sys;
  clear_screen();
- print("xorriso alpha 0.12 - Linux minimo\r\n\r\n");
+ print("xorriso alpha 0.13 - Linux minimo\r\n\r\n");
  if(uname(&uts)==0) {print("Linux kernel: ");print(uts.release);crlf();}
  if(sysinfo(&sys)==0) {
   char buf[128];
@@ -72,7 +72,7 @@ static void status(void) {
 }
 static void console_header(void) {
  clear_screen();
- print("xorriso alpha 0.12 - console minimo\r\n");
+ print("xorriso alpha 0.13 - console minimo\r\n");
  print("help: comandos | ESC: tela vazia\r\n\r\n");
  is_console=1;
 }
@@ -238,8 +238,9 @@ static void cmd(char *s) {
  else if(!strcmp(s,"net down"))run_script("/usr/lib/xorriso/network.sh","down");
  else if(!strncmp(s,"api",3)&&(s[3]==' '||!s[3]))api_command(s[3]==' '?s+4:"");
  else if(!strcmp(s,"chat")||!strcmp(s,"chat status"))run_script("/usr/lib/xorriso/ai-request.sh","--history-status");
+ else if(!strcmp(s,"chat last"))run_script("/usr/lib/xorriso/ai-request.sh","--history-last");
  else if(!strcmp(s,"chat clear"))run_script("/usr/lib/xorriso/ai-request.sh","--clear");
- else if(!strncmp(s,"chat ",5))print("Uso: chat status | chat clear\r\n");
+ else if(!strncmp(s,"chat ",5))print("Uso: chat status | chat last | chat clear\r\n");
  else if(!strncmp(s,"ask ",4))run_script("/usr/lib/xorriso/ai-request.sh",s+4);
  else if(!strcmp(s,"ask"))print("Uso: ask sua pergunta\r\n");
  else if(!strncmp(s,"agent ",6))run_script("/usr/lib/xorriso/ai-agent.sh",s+6);

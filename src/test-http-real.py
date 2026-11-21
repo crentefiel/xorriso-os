@@ -44,9 +44,15 @@ try:
         assert Handler.requests[-1]['messages'][1]['content']=='Ola'
         assert Handler.requests[-1]['messages'][2]['content']=='Ola do servidor local!'
         assert '2' in run(['sh',str(ROOT/'src/ai-request.sh'),'--history-status'])
+        assert 'Ultima pergunta registrada: Voce lembra?' in run(['sh',str(ROOT/'src/ai-request.sh'),'--history-last'])
+        requests_before=len(Handler.requests)
+        recalled=run(['sh',str(ROOT/'src/ai-request.sh'),'Qual foi minha pergunta anterior?'])
+        assert 'Sua pergunta anterior foi: Voce lembra?' in recalled
+        assert len(Handler.requests)==requests_before, 'History recall must not depend on LLM'
+        assert '3' in run(['sh',str(ROOT/'src/ai-request.sh'),'--history-status'])
         assert 'MiniCPM-V-4.7-1B' in run(['sh',str(ROOT/'src/ai-request.sh'),'--test'])
         run(['sh',str(ROOT/'src/ai-agent.sh'),'criar uma nota de teste'],'s\n')
         assert (n/'teste.txt').read_text().strip()=='Ola do agente'
-        print('PASSOU: HTTP local, prompt PT-BR, historico RAM, modelos e nota autorizada.')
+        print('PASSOU: HTTP local, prompt PT-BR, recuperacao fiel, historico RAM, modelos e nota autorizada.')
 finally:
     serv.shutdown();serv.server_close()
