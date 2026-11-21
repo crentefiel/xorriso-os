@@ -218,6 +218,7 @@ static void chat_screen(void) {
  print("------------------------------------------------------------\r\n");
  print("F2 console  |  Esc tela vazia  |  F3 abrir conversa\r\n");
  print("Enter envia  |  /clear limpa  |  /last anterior\r\n");
+ print("/admin pedido  |  IA planeja acoes autorizadas de root\r\n");
  print("/status mostra historico  |  /exit fecha\r\n");
  print("Historico temporario em RAM. Nenhum texto sera salvo no VDI.\r\n");
  char state[192];read_runtime("boot-status",state,sizeof(state));
@@ -237,8 +238,13 @@ static void chat_input(char *s) {
  if(!strcmp(s,"/last")) {run_script("/usr/lib/xorriso/ai-request.sh","--history-last");return;}
  if(!strcmp(s,"/status")) {run_script("/usr/lib/xorriso/ai-request.sh","--history-status");return;}
  if(!strcmp(s,"/ready")) {run_script("/usr/lib/xorriso/ai-boot.sh","status");return;}
+ if(!strncmp(s,"/admin ",7) && s[7]) {
+  print("Agente administrativo (acoes verificadas):\r\n");
+  run_script("/usr/lib/xorriso/ai-agent.sh",s+7);
+  return;
+ }
  if(s[0]=='/') {
-  print("Comandos: /last /status /clear /ready /exit\r\n");
+  print("Comandos: /admin pedido /last /status /clear /ready /exit\r\n");
   return;
  }
  if(!strncasecmp(s,"crie uma pasta chamada ",strlen("crie uma pasta chamada "))||
@@ -300,6 +306,7 @@ static void cmd(char *s) {
  else if(!strncmp(s,"action ",7))run_script("/usr/lib/xorriso/actions.sh",s+7);
  else if(!strncmp(s,"agent ",6))run_script("/usr/lib/xorriso/ai-agent.sh",s+6);
  else if(!strcmp(s,"agent"))print("Uso: agent seu pedido\r\n");
+ else if(!strcmp(s,"admin help"))run_script("/usr/lib/xorriso/admin-actions.sh","capabilities");
  else if(!strcmp(s,"notes"))run_script("/usr/lib/xorriso/ai-agent.sh","--notes");
  else if(!strcmp(s,"runtime")||!strcmp(s,"runtime status"))run_script("/usr/lib/xorriso/runtime.sh","status");
  else if(!strcmp(s,"runtime start"))run_script("/usr/lib/xorriso/runtime.sh","start");
