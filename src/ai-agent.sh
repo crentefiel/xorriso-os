@@ -12,6 +12,7 @@ else
 fi
 CURL_BIN=${XORRISO_CURL_BIN:-curl}
 JQ_BIN=${XORRISO_JQ_BIN:-jq}
+ACTION_BIN=${XORRISO_ACTION_BIN:-/usr/lib/xorriso/actions.sh}
 getconf() { cat "$CONF/$1" 2>/dev/null || :; }
 if [ "${1:-}" = '--notes' ]; then
  mkdir -p "$NOTES"; echo "Notas em $NOTES:"
@@ -30,7 +31,7 @@ esac
 [ -n "$MODEL" ] || { echo 'Configure api model.'; exit 2; }
 umask 077
 mkdir -p "$CONF" "$NOTES"
-SYSTEM='Voce e um planejador do xorriso Alpha 0.9. Responda SOMENTE com um objeto JSON puro, sem markdown. Escolha uma acao de: status, net_status, list_notes, read_note, write_note, none. Para read_note e write_note use filename simples sem caminhos. Para write_note use content texto breve. Nunca gere scripts nem comandos de terminal. Se pedido nao for permitido, action none. Formato: {"action":"none","filename":"","content":"","message":"resposta em portugues"}.'
+SYSTEM='Voce e um planejador do xorriso Alpha 0.9. Responda SOMENTE com um objeto JSON puro, sem markdown. Escolha uma acao de: status, net_status, list_notes, read_note, write_note, create_folder, list_folders, none. Para read_note, write_note e create_folder use filename simples, sem barras nem caminhos. Para criar pasta, escolha create_folder com filename e para listar pastas list_folders. Para write_note use content texto breve. Nunca gere scripts nem comandos de terminal. Se pedido nao for permitido, action none. Formato: {"action":"none","filename":"","content":"","message":"resposta em portugues"}.'
 "$JQ_BIN" -n --arg model "$MODEL" --arg system "$SYSTEM" --arg question "$PROMPT" \
  '{model:$model,messages:[{role:"system",content:$system},{role:"user",content:$question}],temperature:0,stream:false}' \
  > "$CONF/agent-request.json"
@@ -66,6 +67,12 @@ case "$ACTION" in
   ip -4 addr show;ip route show;echo 'Somente leitura.' ;;
  list_notes)
   echo 'Notas:';ls -1 "$NOTES";echo 'Somente leitura.' ;;
+ create_folder)
+  echo "Pedido de criacao da pasta: $FILENAME"
+  /bin/sh "$ACTION_BIN" "--create:$FILENAME" ;;
+ list_folders)
+  /bin/sh "$ACTION_BIN" --list ;;
+
  read_note|write_note)
   case "$FILENAME" in ''|.|..|.*) echo 'Nome invalido.'; exit 3 ;; esac
   if [ "${#FILENAME}" -gt 64 ] || ! printf '%s' "$FILENAME" | grep -Eq '^[a-zA-Z0-9_-][a-zA-Z0-9_.-]*$'; then

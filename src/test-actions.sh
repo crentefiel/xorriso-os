@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Test real filesystem changes in an isolated directory; no physical disks.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+T="$(mktemp -d)"
+trap 'rm -rf "$T"' EXIT
+mkdir -p "$T/user" "$T/run" "$T/data/models" "$T/runtime" "$T/bin"
+export XORRISO_ACTION_TEST_ROOT="$T/user/Documentos"
+sh -n "$ROOT/src/actions.sh" "$ROOT/src/ai-boot.sh"
+sh "$ROOT/src/actions.sh" 'Crie uma pasta chamada Meus Projetos' > "$T/out"
+test -d "$XORRISO_ACTION_TEST_ROOT/Meus Projetos"
+grep -q 'Pasta criada e verificada' "$T/out"
+sh "$ROOT/src/actions.sh" 'Liste minhas pastas' > "$T/out"
+grep -q 'Meus Projetos' "$T/out"
+sh "$ROOT/src/actions.sh" 'Crie uma pasta chamada Meus Projetos' > "$T/out"
+grep -q 'ja existe' "$T/out"
+for bad in '--create:../../etc' '--create:../escape' '--create:;touch /tmp/pwn' '--create:arquivo/nome' '--create:.oculta'; do
+ if sh "$ROOT/src/actions.sh" "$bad" > "$T/out"; then echo "Unsafe name accepted: $bad"; exit 32; fi
+done
+test ! -e "$T/escape"
+if sh "$ROOT/src/actions.sh" $'--create:Ok\n../escape' > "$T/out"; then
+ echo 'Multiline filename accepted'; exit 36
+fi
+printf 'spoof\n' > "$T/file"
+ln -s "$T/file" "$XORRISO_ACTION_TEST_ROOT/Link Pasta"
+if sh "$ROOT/src/actions.sh" '--create:Link Pasta' > "$T/out"; then echo 'Symlink not rejected'; exit 33; fi
+# Local IA auto-start, both model and runtime are known TEST fixtures.
+export XORRISO_AUTOSTART_TEST_MODE=1
+export XORRISO_AUTOSTART_TEST_DATA="$T/data"
+export XORRISO_AUTOSTART_TEST_RUNTIME="$T/runtime/llama-server"
+export XORRISO_AUTOSTART_TEST_STORAGE="$T/bin/storage"
+export XORRISO_AUTOSTART_TEST_SERVER="$T/bin/server"
+export XORRISO_AUTOSTART_TEST_LOOPBACK="$T/bin/loopback"
+export XORRISO_CONF_DIR="$T/run"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/storage"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/server"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/loopback"
+touch "$T/data/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf" "$T/runtime/llama-server"
+sh "$ROOT/src/ai-boot.sh" start
+test "$(sh "$ROOT/src/ai-boot.sh" status)" = 'pronta'
+grep -q '^http://127.0.0.1:8080/v1$' "$T/run/api_url"
+grep -q '^MiniCPM-V-4.7-1B$' "$T/run/api_model"
+rm "$T/runtime/llama-server"
+if sh "$ROOT/src/ai-boot.sh" start; then echo 'Missing runtime accepted'; exit 34; fi
+grep -q 'indisponivel: VDI do motor' "$T/run/boot-status"
+touch "$T/runtime/llama-server"
+printf '#!/bin/sh\nexit 4\n' > "$T/bin/server"
+if sh "$ROOT/src/ai-boot.sh" start; then echo 'Failed server reported ready'; exit 35; fi
+grep -q '^falha: carregamento da IA' "$T/run/boot-status"
+echo 'PASS: safe real folders; traversal/symlink rejection; automatic IA ready/missing/error states'

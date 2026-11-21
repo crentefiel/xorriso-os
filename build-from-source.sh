@@ -20,7 +20,7 @@ install -m 755 "$(command -v busybox)" "$ROOT/bin/busybox"
 for app in sh ash ls cat mount dmesg uname ip ps free vi grep mkdir touch echo date route ifconfig udhcpc insmod ping awk sed sleep head tail rm chmod printf clear readlink basename blkid df sync dd od tr mknod sha256sum mv wc cp kill; do
   ln -sf busybox "$ROOT/bin/$app"
 done
-for file in ai-request.sh ai-agent.sh local.sh network.sh storage.sh model.sh runtime.sh loopback.sh; do
+for file in ai-request.sh ai-agent.sh local.sh network.sh storage.sh model.sh runtime.sh loopback.sh ai-boot.sh actions.sh; do
   install -m 755 "$HERE/src/$file" "$ROOT/usr/lib/xorriso/$file"
 done
 install -m 755 "$HERE/src/udhcpc.script" "$ROOT/etc/udhcpc.script"
@@ -65,13 +65,13 @@ cat > "$STAGE/boot/grub/grub.cfg" <<'GRUB'
 set timeout=0
 set timeout_style=hidden
 set default=0
-menuentry 'xorriso Alpha 0.14 - Linux minimo' {
+menuentry 'xorriso Alpha 0.15 - Linux minimo' {
  linux /boot/vmlinuz console=tty0 quiet loglevel=0 vt.global_cursor_default=0 rdinit=/init
  initrd /boot/initramfs.cpio.gz
 }
 GRUB
-grub-mkrescue -o "$DIST/xorriso-alpha-014-grub.iso" "$STAGE"
+grub-mkrescue -o "$DIST/xorriso-alpha-015-grub.iso" "$STAGE"
 sudo cp "$KERNEL" "$DIST/vmlinuz"
 sudo chown "$(id -u):$(id -g)" "$DIST/vmlinuz"
-sha256sum "$DIST/xorriso-alpha-014-grub.iso" > "$DIST/SHA256SUMS"
-echo "Created $DIST/xorriso-alpha-014-grub.iso"
+sha256sum "$DIST/xorriso-alpha-015-grub.iso" > "$DIST/SHA256SUMS"
+echo "Created $DIST/xorriso-alpha-015-grub.iso"

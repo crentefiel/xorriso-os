@@ -87,8 +87,12 @@ def main():
                 time.sleep(22)
                 if proc.poll() is not None:
                     raise RuntimeError("QEMU exited while booting")
-                screens = {s:out/("qemu-iso-"+s+".ppm") for s in ("start","chat","chat-blank","console","blank")}
+                # Alpha 0.15 opens chat automatically; Esc hides it.
+                screens = {s:out/("qemu-iso-"+s+".ppm") for s in ("start","boot-blank","chat","chat-blank","console","blank")}
                 qmp.run("screendump", filename=str(screens["start"]))
+                qmp.run("send-key", keys=[{"type":"qcode", "data":"esc"}])
+                time.sleep(2)
+                qmp.run("screendump", filename=str(screens["boot-blank"]))
                 qmp.run("send-key", keys=[{"type":"qcode", "data":"f3"}])
                 time.sleep(3)
                 qmp.run("screendump", filename=str(screens["chat"]))
@@ -105,15 +109,19 @@ def main():
                 (out/"qemu-iso-screen.log").write_text(
                     "\n".join(f"{k}: nonblack pixels={v}" for k,v in counts.items())+"\n")
                 print("Screens:", counts, flush=True)
-                if counts["chat"] < 350 or counts["chat"] < counts["start"] + 200:
+                if counts["start"] < 350:
+                    raise RuntimeError("Automatic boot chat UI did not appear")
+                if counts["boot-blank"] > max(100, int(counts["start"]*.12)):
+                    raise RuntimeError("Esc did not hide automatic chat")
+                if counts["chat"] < 350 or counts["chat"] < counts["boot-blank"] + 200:
                     raise RuntimeError("F3 chat UI did not appear")
                 if counts["chat-blank"] > max(100, int(counts["chat"]*.12)):
                     raise RuntimeError("Esc did not close the chat UI")
-                if counts["console"] < 160 or counts["console"] < counts["start"] + 120:
+                if counts["console"] < 160 or counts["console"] < counts["boot-blank"] + 120:
                     raise RuntimeError("F2 console did not appear")
                 if counts["blank"] > max(100, int(counts["console"]*.12)):
                     raise RuntimeError("Esc did not return to blank screen")
-                print("PASS: real ISO GRUB; F3 chat UI; Esc blank; F2 console; Esc blank", flush=True)
+                print("PASS: real ISO GRUB; automatic AI chat; Esc blank; F3 chat; F2 console; Esc blank", flush=True)
         finally:
             if proc.poll() is None:
                 proc.terminate()
