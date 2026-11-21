@@ -12,8 +12,8 @@ HISTORY="$CONF/chat-history.json"
 getconf() { cat "$CONF/$1" 2>/dev/null || :; }
 case "${1:-}" in
  --clear)
-  rm -f "$HISTORY"
-  echo 'Conversa limpa da memoria RAM.'
+  rm -f "$HISTORY" "$HISTORY.tmp" "$CONF/api-request.json" "$CONF/api-response.json" "$CONF/api-message.txt"
+  echo 'Conversa e respostas temporarias apagadas da memoria RAM.'
   exit 0 ;;
  --history-status)
   if [ -f "$HISTORY" ] && "$JQ_BIN" -e 'type=="array"' "$HISTORY" >/dev/null 2>&1; then
