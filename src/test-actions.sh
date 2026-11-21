@@ -115,6 +115,9 @@ mock_plan check_folder ''
 sh "$ROOT/src/chat-actions.sh" 'Cheque minha ultima pasta' > "$T/out"
 grep -q 'Fotos de Natal' "$T/out"
 
+# The planner fixture configured a mock API. Reset it before the boot test,
+# which must verify the real MiniCPM default values on a clean startup.
+rm -f "$T/run/api_url" "$T/run/api_model" "$T/run/api_key"
 # Local IA auto-start, both model and runtime are known TEST fixtures.
 export XORRISO_AUTOSTART_TEST_MODE=1
 export XORRISO_AUTOSTART_TEST_DATA="$T/data"
