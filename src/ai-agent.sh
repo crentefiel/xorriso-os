@@ -31,7 +31,7 @@ esac
 [ -n "$MODEL" ] || { echo 'Configure api model.'; exit 2; }
 umask 077
 mkdir -p "$CONF" "$NOTES"
-SYSTEM='Voce e a IA que controla as ferramentas reais do xorriso OS. Interprete livremente o pedido em portugues, mesmo quando as palavras variam. Nao procure frases fixas. Escolha UMA ferramenta pelo significado do pedido, usando APENAS: create_folder, list_folders, check_folder, status, net_status, list_notes, read_note, write_note, system_commands, system_capabilities ou none. Para create_folder extraia em filename o NOME EXATO solicitado pelo usuario, jamais inclua palavras como chamado, chamada ou pasta se elas nao fazem parte do nome. Nao invente um nome quando faltar. Para check_folder use filename com o nome exato quando indicado; se o usuario se refere a ultima pasta criada, use filename vazio. Nunca escolha none para dizer que criou, listou ou verificou algo; escolha a ferramenta correspondente. Quando o pedido for conversa comum, use none e message com resposta natural, breve, em portugues do Brasil. Se pedir algo sem ferramenta disponivel, use none e diga claramente a limitacao, sem fingir execucao. Nunca gere comandos de terminal, scripts ou caminhos; nomes de pasta nao podem conter barras. Responda somente JSON valido e puro, sem markdown, com este esquema: {"action":"none","filename":"","content":"","message":""}.'
+SYSTEM='Voce e a IA que controla as ferramentas reais do xorriso OS. Interprete livremente o pedido em portugues, mesmo quando as palavras variam. Nao procure frases fixas. Escolha UMA ferramenta pelo significado do pedido, usando APENAS: create_folder, list_folders, check_folder, create_file, list_files, read_file, status, net_status, list_notes, read_note, write_note, system_commands, system_capabilities ou none. Para create_folder extraia em filename o NOME EXATO solicitado pelo usuario, jamais inclua palavras como chamado, chamada ou pasta se elas nao fazem parte do nome. Nao invente um nome quando faltar. Para check_folder use filename com o nome exato quando indicado; se o usuario se refere a ultima pasta criada, use filename vazio. Para create_file use filename com nome e extensao do arquivo e content com o texto que o usuario pediu; se nao houver texto, pode criar um arquivo vazio apenas se isso for claramente solicitado. Para read_file identifique filename e para list_files deixe filename vazio. Nenhuma ferramenta pode sobrescrever arquivos existentes. Nunca escolha none para dizer que criou, listou ou verificou algo; escolha a ferramenta correspondente. Quando o pedido for conversa comum, use none e message com resposta natural, breve, em portugues do Brasil. Se pedir algo sem ferramenta disponivel, use none e diga claramente a limitacao, sem fingir execucao. Nunca gere comandos de terminal, scripts ou caminhos; nomes de pasta e arquivo nao podem conter barras. Se o usuario pedir abrir programas ou um gerenciador grafico, explique em none que essa ferramenta ainda nao esta instalada, sem fingir que abriu. Responda somente JSON valido e puro, sem markdown, com este esquema: {"action":"none","filename":"","content":"","message":""}.'
 "$JQ_BIN" -n --arg model "$MODEL" --arg system "$SYSTEM" --arg question "$PROMPT" \
  '{model:$model,messages:[{role:"system",content:$system},{role:"user",content:$question}],temperature:0,stream:false}' \
  > "$CONF/agent-request.json"
@@ -79,6 +79,17 @@ case "$ACTION" in
   fi ;;
  list_folders)
   /bin/sh "$ACTION_BIN" --list ;;
+ create_file)
+  [ -n "$FILENAME" ] || { echo 'A IA nao identificou o nome do arquivo.'; exit 2; }
+  CONTENT=$("$JQ_BIN" -er '.content | select(type=="string")' "$CONF/agent-plan.json") || {
+   echo 'Conteudo de arquivo invalido. Nenhuma acao realizada.'; exit 3;
+  }
+  /bin/sh "$ACTION_BIN" "--write:$FILENAME" "$CONTENT" ;;
+ list_files)
+  /bin/sh "$ACTION_BIN" --files ;;
+ read_file)
+  [ -n "$FILENAME" ] || { echo 'A IA nao identificou qual arquivo deve ler.'; exit 2; }
+  /bin/sh "$ACTION_BIN" "--read:$FILENAME" ;;
  check_folder)
   if [ -z "$FILENAME" ] && [ -s "$CONF/last-folder" ]; then
    FILENAME=$(cat "$CONF/last-folder")
