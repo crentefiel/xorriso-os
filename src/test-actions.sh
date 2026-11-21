@@ -68,8 +68,8 @@ cp "$XORRISO_TEST_REPLY" "$out"
 MOCK
 chmod +x "$T/bin/agent-curl-mock"
 mock_plan() {
- jq -n --arg action "$1" --arg filename "${2:-}" --arg message "${3:-}" \
-  '{choices:[{message:{content:({action:$action,filename:$filename,content:"",message:$message}|tojson)}}]}' \
+ jq -n --arg action "$1" --arg filename "${2:-}" --arg message "${3:-}" --arg contents "${4:-}" \
+  '{choices:[{message:{content:({action:$action,filename:$filename,content:$contents,message:$message}|tojson)}}]}' \
   > "$XORRISO_TEST_REPLY"
 }
 mock_plan create_folder 'Projetos Internos 2026'
@@ -81,7 +81,7 @@ test -d "$XORRISO_ACTION_TEST_ROOT/Projetos Internos 2026"
 mock_plan create_folder 'Músicas para João'
 sh "$ROOT/src/chat-actions.sh" 'Pode abrir uma pasta para as músicas do João?' > "$T/out"
 test -d "$XORRISO_ACTION_TEST_ROOT/Músicas para João"
-mock_plan create_file 'resumo.txt' 'Relatorio criado pela IA e confirmado'
+mock_plan create_file 'resumo.txt' '' 'Relatorio criado pela IA e confirmado'
 sh "$ROOT/src/chat-actions.sh" 'Escreva em resumo.txt: Relatorio criado pela IA e confirmado' > "$T/out"
 grep -q 'Arquivo criado e verificado' "$T/out"
 grep -q 'Relatorio criado pela IA e confirmado' "$XORRISO_ACTION_TEST_ROOT/resumo.txt"
