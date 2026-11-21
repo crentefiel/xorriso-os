@@ -12,6 +12,14 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+      - name: Check script syntax before installing dependencies
+        run: |
+          for script in src/ai-request.sh src/ai-agent.sh src/local.sh src/network.sh src/storage.sh src/model.sh src/runtime.sh src/loopback.sh; do
+            sh -n "$script"
+          done
+          for script in src/test-*.sh build-from-source.sh; do
+            bash -n "$script"
+          done
       - name: Install Linux, ISO tools and tests
         run: |
           sudo apt-get update
