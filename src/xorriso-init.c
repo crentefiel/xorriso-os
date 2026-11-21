@@ -455,6 +455,7 @@ static void ci_dual_volume_test(void) {
    print("xorriso: dual volume FAIL (write)\n");
   }else{
    (void)fsync(fd);
+   sync(); /* Ensure folder and file metadata reach ext4 before CI terminates QEMU. */
    print("xorriso: dual volume write PASS\n");
   }
   if(fd>=0)close(fd);
