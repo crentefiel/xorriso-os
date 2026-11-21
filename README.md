@@ -1,40 +1,51 @@
-# xorriso OS — Alpha 0.13 (recuperação confiável do histórico)
+# xorriso OS — Alpha 0.14 (tela dedicada à conversa local)
 
-O xorriso continua sendo um protótipo Linux mínimo centrado em IA. Tela inicial **completamente preta e vazia**, sem barra, relógio ou ícones. F1 informa o estado, F2 abre o console, Esc retorna à tela preta.
+O xorriso é um sistema Linux experimental centrado em IA. **A inicialização continua totalmente preta e vazia**, sem barra, janela, ícone ou relógio.
 
-## Por que essa atualização?
+## Novidade: F3 abre uma conversa em tela cheia
 
-No VirtualBox, a Alpha 0.12 executou o MiniCPM local, respondeu em português, armazenou **duas trocas** e aceitou `chat clear`. Entretanto, diante de `ask Qual foi minha pergunta anterior?`, respondeu erroneamente que não havia pergunta anterior. Isso mostra que **ter o histórico no JSON não garante que um modelo pequeno consiga usá-lo corretamente**.
+Nesta versão, a interface de conversa é **textual e minimalista**, usando a própria tela de console do Linux (não é um ambiente gráfico de janelas). Ela só aparece quando o usuário solicita:
 
-A Alpha 0.13 introduz uma consulta direta e determinística ao histórico em RAM:
+- **F3**: abre a tela dedicada para conversar diretamente com o MiniCPM, sem precisar digitar o prefixo `ask`.
+- **Enter**: envia a pergunta ao servidor selecionado em `api local` ou à API configurada.
+- **F2**: abre o console administrativo tradicional.
+- **Esc**: fecha a conversa ou o console e retorna à tela preta totalmente vazia.
+- **F1**: mostra estado do sistema.
 
-- `chat status`: quantidade de trocas registradas em memória.
-- **`chat last`**: exibe literalmente a última mensagem do usuário disponível no histórico, sem chamar IA e sem rede.
-- `chat clear`: apaga histórico e arquivos temporários de perguntas e respostas na RAM.
-- Quando a **IA local** recebe `ask Qual foi minha pergunta anterior?` ou `ask O que eu te perguntei anteriormente?`, o xorriso consulta os registros reais e identifica o resultado como uma **consulta ao histórico local**, em vez de pedir ao MiniCPM que adivinhe.
+O usuário também pode abrir a conversa com `chat open` no console F2. Durante a conversa, existem comandos curtos:
 
-O histórico mantém apenas as últimas quatro trocas de conversa (oito mensagens usuário/assistente), apenas em `/run/xorriso` (RAM). `api local`, `api host` ou alteração de modelo/URL limpa o histórico.
+| Comando | Função |
+| --- | --- |
+| `/last` | Mostrar literalmente a última pergunta gravada na memória RAM |
+| `/status` | Ver quantidade de trocas registradas |
+| `/clear` | Apagar histórico e respostas temporárias na RAM |
+| `/exit` | Voltar à tela preta vazia |
+
+A memória de conversa permanece limitada a quatro pares de mensagens e **nunca é gravada no VDI**. O texto gerado pelo MiniCPM é apresentado como texto, nunca executado como comando de sistema.
 
 ## Como testar no VirtualBox
 
-Substitua **somente a ISO**. Preserve o VDI `XORRISO_DATA` que contém os pesos verificados do MiniCPM e o VDI `XORRISO_RUNTIME` com o motor `llama-server`.
+**Preserve os dois VDIs já existentes**: o volume `XORRISO_DATA` contém os pesos MiniCPM verificados e o volume `XORRISO_RUNTIME` contém o `llama-server`. Troque apenas a ISO pelo arquivo `xorriso-alpha-014-grub.iso`.
+
+1. Inicie o Linux, pressione F2 e prepare a IA:
 
 ```text
 storage status
 runtime start
 api local
-ask Ola, quem e voce?
-chat last
-ask Qual foi minha pergunta anterior?
-chat status
-chat clear
-chat last
 ```
 
-Após a primeira pergunta, `chat last` deverá retornar `Ola, quem e voce?`. A pergunta sobre o histórico também deverá mostrar o texto exato, mas com o prefixo `Consulta ao historico local`, para deixar explícito que **não foi uma resposta gerada pelo modelo**.
+2. Pressione **F3**. Deve surgir uma tela de conversa independente do prompt `xorriso>`.
+3. Escreva uma pergunta, por exemplo `Ola, quem e voce?` e pressione Enter.
+4. Teste `/last`, `/status`, `/clear`.
+5. Pressione Esc. A área de trabalho deve ficar **completamente preta**; F2 ainda abre o console.
 
-## Testes e limites
+Se quiser verificar o modelo diretamente no console, os comandos anteriores `ask`, `chat status`, `chat last` e `chat clear` continuam disponíveis.
 
-GitHub Actions compila a ISO, testa o boot com GRUB, tela vazia/F2/Esc, rede, TCP localhost, discos SATA/IDE e VDIs separados. Testes de HTTP simulam um servidor OpenAI-compatível e verificam que a recuperação da pergunta anterior é exata e **não faz requisição ao modelo**.
+## Testes e limitações
 
-O MiniCPM pode errar outros pedidos de memória ou conversação. A melhoria é deliberadamente limitada a consultas claras sobre a pergunta anterior, sem fingir uma capacidade de memória geral. O sistema permanece experimental, sem interface gráfica completa, criptografia de dados nem instalador automático. Não use para dados sensíveis.
+A automação do GitHub gera a ISO com GRUB e verifica em QEMU que **F3 abre a tela de conversa, Esc a fecha, F2 abre o console e Esc volta à tela preta**. Os testes de API simulada, histórico, localhost, armazenamento em IDE/SATA, volumes separados e verificação de runtime permanecem.
+
+Esta é uma **interface textual em tela cheia**, não ainda uma interface gráfica com compositor, janelas ou fontes renderizadas por GPU. A inferência MiniCPM local já foi confirmada em testes do VirtualBox do projeto, mas a qualidade das respostas continua dependente do modelo.
+
+Código próprio sob MIT. Os componentes externos mantêm suas licenças. O xorriso é experimental e não deve ser instalado em computadores de produção.
