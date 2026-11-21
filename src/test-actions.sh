@@ -52,6 +52,8 @@ test ! -e "$T/user/escape"
 export XORRISO_CONF_DIR="$T/run"
 export XORRISO_ACTION_BIN="$ROOT/src/actions.sh"
 export XORRISO_AGENT_BIN="$ROOT/src/ai-agent.sh"
+export XORRISO_ROOT_EXEC_BIN="$ROOT/src/root-exec.sh"
+export XORRISO_CATALOG_BIN="$ROOT/src/command-catalog.sh"
 export XORRISO_JQ_BIN="$(command -v jq)"
 export XORRISO_CURL_BIN="$T/bin/agent-curl-mock"
 export XORRISO_TEST_REPLY="$T/agent-answer.json"
@@ -68,14 +70,15 @@ cp "$XORRISO_TEST_REPLY" "$out"
 MOCK
 chmod +x "$T/bin/agent-curl-mock"
 mock_plan() {
- jq -n --arg action "$1" --arg filename "${2:-}" --arg message "${3:-}" --arg contents "${4:-}" \
-  '{choices:[{message:{content:({action:$action,filename:$filename,content:$contents,message:$message}|tojson)}}]}' \
+ jq -n --arg action "$1" --arg filename "${2:-}" --arg message "${3:-}" --arg contents "${4:-}" --arg command "${5:-}" \
+  '{choices:[{message:{content:({action:$action,filename:$filename,content:$contents,command:$command,message:$message}|tojson)}}]}' \
   > "$XORRISO_TEST_REPLY"
 }
 mock_plan create_folder 'Projetos Internos 2026'
 phrase='Você pode organizar uma nova pasta com o nome Projetos Internos 2026?'
 sh "$ROOT/src/chat-actions.sh" "$phrase" > "$T/out"
 jq -e --arg phrase "$phrase" '.messages[-1].content==$phrase' "$T/run/agent-request.json" >/dev/null
+jq -e '.messages[0].content | contains("Comandos executaveis instalados")' "$T/run/agent-request.json" >/dev/null
 grep -q 'Pasta criada e verificada' "$T/out"
 test -d "$XORRISO_ACTION_TEST_ROOT/Projetos Internos 2026"
 mock_plan create_folder 'Músicas para João'
@@ -118,6 +121,17 @@ grep -q 'Fotos de Natal' "$T/out"
 # The planner fixture configured a mock API. Reset it before the boot test,
 # which must verify the real MiniCPM default values on a clean startup.
 rm -f "$T/run/api_url" "$T/run/api_model" "$T/run/api_key"
+# The MiniCPM proposes a command unknown to the predefined filesystem tools.
+# The executor must NOT run it until the user types the exact approval token.
+mock_plan propose_command '' '' '' "printf 'resultado real' > '$T/exec-ok'"
+sh "$ROOT/src/chat-actions.sh" 'Crie um pequeno programa para marcar que terminou' > "$T/out"
+grep -q 'NAO executou' "$T/out"
+test ! -e "$T/exec-ok"
+TOKEN="$(cat "$T/run/root-pending/token")"
+sh "$ROOT/src/chat-actions.sh" "autorizar $TOKEN" > "$T/out"
+grep -q 'Codigo de saida: 0' "$T/out"
+test "$(cat "$T/exec-ok")" = 'resultado real'
+
 # Local IA auto-start, both model and runtime are known TEST fixtures.
 export XORRISO_AUTOSTART_TEST_MODE=1
 export XORRISO_AUTOSTART_TEST_DATA="$T/data"
