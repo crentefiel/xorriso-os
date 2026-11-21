@@ -27,6 +27,17 @@ wrap 'Resposta simulada da IA.'
 [ -f "$T/conf/api-auth-header" ]
 ! grep -q 'chave-apenas-para-teste' "$T/curl.log"
 jq -e '.model=="modelo-teste"' "$T/conf/api-request.json" >/dev/null
+jq -e '.messages|length==1 and .[0].role=="user"' "$T/conf/api-request.json" >/dev/null
+jq -e 'length==2 and .[0].content=="Ola" and .[1].content=="Resposta simulada da IA."' "$T/conf/chat-history.json" >/dev/null
+sh "$ROOT/src/ai-request.sh" 'Segunda mensagem' > "$T/out"
+jq -e '.messages|length==3 and .[0].content=="Ola" and .[1].content=="Resposta simulada da IA." and .[2].content=="Segunda mensagem"' "$T/conf/api-request.json" >/dev/null
+sh "$ROOT/src/ai-request.sh" --history-status > "$T/out"
+grep -q '2' "$T/out"
+sh "$ROOT/src/ai-request.sh" --clear > "$T/out"
+sh "$ROOT/src/ai-request.sh" --history-status > "$T/out"
+grep -q '0' "$T/out"
+[ ! -f "$T/conf/chat-history.json" ]
+
 wrap '{"action":"exec","filename":"","content":"rm -rf /","message":""}'
 if sh "$ROOT/src/ai-agent.sh" 'execute qualquer comando' > "$T/out"; then exit 51; fi
 grep -q 'fora da lista' "$T/out"
@@ -61,4 +72,4 @@ if sh "$ROOT/src/ai-agent.sh" 'Nao vaze chave' > "$T/out"; then exit 55; fi
 grep -q 'bloqueada' "$T/out"
 ! grep -q 'SEGREDO-QUE-NAO-PODE-SAIR' "$T/curl.log"
 sh -n "$ROOT/src/ai-agent.sh" "$ROOT/src/ai-request.sh" "$ROOT/src/local.sh" "$ROOT/src/network.sh"
-echo 'PASSOU: chat, credenciais, JSON, acoes bloqueadas, notas e localhost.'
+echo 'PASSOU: chat com memoria RAM, limpeza, credenciais, JSON, acoes bloqueadas, notas e localhost.'
