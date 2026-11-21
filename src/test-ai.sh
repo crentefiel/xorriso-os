@@ -56,6 +56,21 @@ printf 's\n' | sh "$ROOT/src/ai-agent.sh" 'nota' > "$T/out"
 wrap '{"action":"read_note","filename":"ideias.txt","content":"","message":""}'
 sh "$ROOT/src/ai-agent.sh" 'leia nota' > "$T/out"
 grep -q 'ideia inicial' "$T/out"
+# The MiniCPM agent may propose a folder, but only actions.sh validates and creates it.
+mkdir -p "$T/work"
+export XORRISO_ACTION_TEST_ROOT="$T/work/Documentos"
+export XORRISO_ACTION_BIN="$ROOT/src/actions.sh"
+wrap '{"action":"create_folder","filename":"Pasta AI","content":"","message":""}'
+sh "$ROOT/src/ai-agent.sh" 'Crie uma pasta chamada Pasta AI' > "$T/out"
+test -d "$T/work/Documentos/Pasta AI"
+grep -q 'Pasta criada e verificada' "$T/out"
+wrap '{"action":"list_folders","filename":"","content":"","message":""}'
+sh "$ROOT/src/ai-agent.sh" 'Liste minhas pastas' > "$T/out"
+grep -q 'Pasta AI' "$T/out"
+wrap '{"action":"create_folder","filename":"../../escape","content":"","message":""}'
+if sh "$ROOT/src/ai-agent.sh" 'Tente escapar do diretorio' > "$T/out"; then exit 59; fi
+[ ! -f "$T/escape" ]
+
 echo '{"choices":[{"message":{"content":"nao e JSON"}}]}' > "$XORRISO_TEST_REPLY"
 if sh "$ROOT/src/ai-agent.sh" 'teste' > "$T/out"; then exit 53; fi
 grep -q 'Nenhuma acao realizada' "$T/out"
