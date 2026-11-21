@@ -6,41 +6,41 @@ O xorriso é um sistema Linux experimental centrado em IA. **A inicialização c
 
 Nesta versão, a interface de conversa é **textual e minimalista**, usando a própria tela de console do Linux (não é um ambiente gráfico de janelas). Ela só aparece quando o usuário solicita:
 
-- **F3**: abre a tela dedicada para conversar diretamente com o MiniCPM, sem precisar digitar o prefixo \`ask\`.
-- **Enter**: envia a pergunta ao servidor selecionado em \`api local\` ou à API configurada.
+- **F3**: abre a tela dedicada para conversar diretamente com o MiniCPM, sem precisar digitar o prefixo `ask`.
+- **Enter**: envia a pergunta ao servidor selecionado em `api local` ou à API configurada.
 - **F2**: abre o console administrativo tradicional.
 - **Esc**: fecha a conversa ou o console e retorna à tela preta totalmente vazia.
 - **F1**: mostra estado do sistema.
 
-O usuário também pode abrir a conversa com \`chat open\` no console F2. Durante a conversa, existem comandos curtos:
+O usuário também pode abrir a conversa com `chat open` no console F2. Durante a conversa, existem comandos curtos:
 
 | Comando | Função |
 | --- | --- |
-| \`/last\` | Mostrar literalmente a última pergunta gravada na memória RAM |
-| \`/status\` | Ver quantidade de trocas registradas |
-| \`/clear\` | Apagar histórico e respostas temporárias na RAM |
-| \`/exit\` | Voltar à tela preta vazia |
+| `/last` | Mostrar literalmente a última pergunta gravada na memória RAM |
+| `/status` | Ver quantidade de trocas registradas |
+| `/clear` | Apagar histórico e respostas temporárias na RAM |
+| `/exit` | Voltar à tela preta vazia |
 
 A memória de conversa permanece limitada a quatro pares de mensagens e **nunca é gravada no VDI**. O texto gerado pelo MiniCPM é apresentado como texto, nunca executado como comando de sistema.
 
 ## Como testar no VirtualBox
 
-**Preserve os dois VDIs já existentes**: o volume \`XORRISO_DATA\` contém os pesos MiniCPM verificados e o volume \`XORRISO_RUNTIME\` contém o \`llama-server\`. Troque apenas a ISO pelo arquivo \`xorriso-alpha-014-grub.iso\`.
+**Preserve os dois VDIs já existentes**: o volume `XORRISO_DATA` contém os pesos MiniCPM verificados e o volume `XORRISO_RUNTIME` contém o `llama-server`. Troque apenas a ISO pelo arquivo `xorriso-alpha-014-grub.iso`.
 
 1. Inicie o Linux, pressione F2 e prepare a IA:
 
-\`\`\`text
+```text
 storage status
 runtime start
 api local
-\`\`\`
+```
 
-2. Pressione **F3**. Deve surgir uma tela de conversa independente do prompt \`xorriso>\`.
-3. Escreva uma pergunta, por exemplo \`Ola, quem e voce?\` e pressione Enter.
-4. Teste \`/last\`, \`/status\`, \`/clear\`.
+2. Pressione **F3**. Deve surgir uma tela de conversa independente do prompt `xorriso>`.
+3. Escreva uma pergunta, por exemplo `Ola, quem e voce?` e pressione Enter.
+4. Teste `/last`, `/status`, `/clear`.
 5. Pressione Esc. A área de trabalho deve ficar **completamente preta**; F2 ainda abre o console.
 
-Se quiser verificar o modelo diretamente no console, os comandos anteriores \`ask\`, \`chat status\`, \`chat last\` e \`chat clear\` continuam disponíveis.
+Se quiser verificar o modelo diretamente no console, os comandos anteriores `ask`, `chat status`, `chat last` e `chat clear` continuam disponíveis.
 
 ## Testes e limitações
 
