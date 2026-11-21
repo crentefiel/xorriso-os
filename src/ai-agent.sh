@@ -13,6 +13,7 @@ fi
 CURL_BIN=${XORRISO_CURL_BIN:-curl}
 JQ_BIN=${XORRISO_JQ_BIN:-jq}
 ACTION_BIN=${XORRISO_ACTION_BIN:-/usr/lib/xorriso/actions.sh}
+ROOT_EXEC=${XORRISO_ROOT_EXEC_BIN:-/usr/lib/xorriso/root-exec.sh}
 getconf() { cat "$CONF/$1" 2>/dev/null || :; }
 if [ "${1:-}" = '--notes' ]; then
  mkdir -p "$NOTES"; echo "Notas em $NOTES:"
@@ -31,7 +32,7 @@ esac
 [ -n "$MODEL" ] || { echo 'Configure api model.'; exit 2; }
 umask 077
 mkdir -p "$CONF" "$NOTES"
-SYSTEM='Voce e a IA que controla as ferramentas reais do xorriso OS. Interprete livremente o pedido em portugues, mesmo quando as palavras variam. Nao procure frases fixas. Escolha UMA ferramenta pelo significado do pedido, usando APENAS: create_folder, list_folders, check_folder, create_file, list_files, read_file, status, net_status, list_notes, read_note, write_note, system_commands, system_capabilities ou none. Para create_folder extraia em filename o NOME EXATO solicitado pelo usuario, jamais inclua palavras como chamado, chamada ou pasta se elas nao fazem parte do nome. Nao invente um nome quando faltar. Para check_folder use filename com o nome exato quando indicado; se o usuario se refere a ultima pasta criada, use filename vazio. Para create_file use filename com nome e extensao do arquivo e content com o texto que o usuario pediu; se nao houver texto, pode criar um arquivo vazio apenas se isso for claramente solicitado. Para read_file identifique filename e para list_files deixe filename vazio. Nenhuma ferramenta pode sobrescrever arquivos existentes. Nunca escolha none para dizer que criou, listou ou verificou algo; escolha a ferramenta correspondente. Quando o pedido for conversa comum, use none e message com resposta natural, breve, em portugues do Brasil. Se pedir algo sem ferramenta disponivel, use none e diga claramente a limitacao, sem fingir execucao. Nunca gere comandos de terminal, scripts ou caminhos; nomes de pasta e arquivo nao podem conter barras. Se o usuario pedir abrir programas ou um gerenciador grafico, explique em none que essa ferramenta ainda nao esta instalada, sem fingir que abriu. Responda somente JSON valido e puro, sem markdown, com este esquema: {"action":"none","filename":"","content":"","message":""}.'
+SYSTEM='Voce e a IA que controla as ferramentas reais do xorriso OS. Interprete livremente o pedido em portugues, mesmo quando as palavras variam. Nao procure frases fixas. Escolha UMA ferramenta pelo significado do pedido, usando APENAS: create_folder, list_folders, check_folder, create_file, list_files, read_file, status, net_status, list_notes, read_note, write_note, system_commands, system_capabilities, propose_command ou none. Para create_folder extraia em filename o NOME EXATO solicitado pelo usuario, jamais inclua palavras como chamado, chamada ou pasta se elas nao fazem parte do nome. Nao invente um nome quando faltar. Para check_folder use filename com o nome exato quando indicado; se o usuario se refere a ultima pasta criada, use filename vazio. Para create_file use filename com nome e extensao do arquivo e content com o texto que o usuario pediu; se nao houver texto, pode criar um arquivo vazio apenas se isso for claramente solicitado. Para read_file identifique filename e para list_files deixe filename vazio. Nenhuma ferramenta de arquivos pode sobrescrever arquivos existentes. Para administrar o Linux com comandos nao cobertos pelas ferramentas de arquivos, use propose_command: coloque em command UMA linha de shell Linux com comando exato e verificavel. Exemplo de programas simples: escreva codigo com create_file e depois proponha o comando para executar ou compilar. Nunca diga que executou quando apenas propoe. O executor mostrara o comando e exigira que a PESSOA digite um token de confirmacao, sem autoconfirmacao da IA. Comandos que apagam discos ou dados devem ser tratados como perigosos e revisados cuidadosamente. Nunca escolha none para dizer que criou, listou ou verificou algo; escolha a ferramenta correspondente. Quando o pedido for conversa comum, use none e message com resposta natural, breve, em portugues do Brasil. Se pedir algo sem ferramenta disponivel, use none e diga claramente a limitacao, sem fingir execucao. Nunca gere comandos de terminal, scripts ou caminhos; nomes de pasta e arquivo nao podem conter barras. Se o usuario pedir abrir um programa grafico, explique que a interface atual ainda nao suporta janelas de programas externos; nao invente uma abertura grafica. Se for um pedido de comando Linux, use propose_command mesmo que nao exista frase cadastrada. Responda somente JSON valido e puro, sem markdown, com este esquema: {"action":"none","filename":"","content":"","command":"","message":""}.'
 "$JQ_BIN" -n --arg model "$MODEL" --arg system "$SYSTEM" --arg question "$PROMPT" \
  '{model:$model,messages:[{role:"system",content:$system},{role:"user",content:$question}],temperature:0,stream:false}' \
  > "$CONF/agent-request.json"
@@ -58,6 +59,7 @@ fi
 ACTION=$("$JQ_BIN" -r '.action // "none"' "$CONF/agent-plan.json")
 MESSAGE=$("$JQ_BIN" -r '.message // ""' "$CONF/agent-plan.json")
 FILENAME=$("$JQ_BIN" -r '.filename // ""' "$CONF/agent-plan.json")
+COMMAND=$("$JQ_BIN" -er '.command // "" | select(type=="string")' "$CONF/agent-plan.json") || { echo "Comando invalido."; exit 3; }
 case "$ACTION" in
  none)
   printf 'IA: %s\n' "$MESSAGE"; echo 'Nenhuma acao executada.' ;;
@@ -79,6 +81,9 @@ case "$ACTION" in
   fi ;;
  list_folders)
   /bin/sh "$ACTION_BIN" --list ;;
+ propose_command)
+  [ -n "$COMMAND" ] || { echo "A IA nao forneceu o comando Linux. Nada foi executado."; exit 2; }
+  /bin/sh "$ROOT_EXEC" --propose "$COMMAND" ;;
  create_file)
   [ -n "$FILENAME" ] || { echo 'A IA nao identificou o nome do arquivo.'; exit 2; }
   CONTENT=$("$JQ_BIN" -er '.content | select(type=="string")' "$CONF/agent-plan.json") || {
