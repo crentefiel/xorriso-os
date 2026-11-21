@@ -1,51 +1,50 @@
-# xorriso OS — Alpha 0.14 (tela dedicada à conversa local)
+# xorriso OS — Alpha 0.15 (IA inicia sozinha + primeiras acoes reais)
 
-O xorriso é um sistema Linux experimental centrado em IA. **A inicialização continua totalmente preta e vazia**, sem barra, janela, ícone ou relógio.
+Sistema operacional Linux experimental centrado em IA, desenvolvido para testar no VirtualBox.
 
-## Novidade: F3 abre uma conversa em tela cheia
+## Como inicia
 
-Nesta versão, a interface de conversa é **textual e minimalista**, usando a própria tela de console do Linux (não é um ambiente gráfico de janelas). Ela só aparece quando o usuário solicita:
+**Nao ha mais comandos obrigatorios para abrir a IA.** Ao ligar:
 
-- **F3**: abre a tela dedicada para conversar diretamente com o MiniCPM, sem precisar digitar o prefixo `ask`.
-- **Enter**: envia a pergunta ao servidor selecionado em `api local` ou à API configurada.
-- **F2**: abre o console administrativo tradicional.
-- **Esc**: fecha a conversa ou o console e retorna à tela preta totalmente vazia.
-- **F1**: mostra estado do sistema.
+1. O Linux detecta e monta automaticamente os dois discos virtuais ja existentes: `XORRISO_DATA` (pesos do MiniCPM e dados) e `XORRISO_RUNTIME` (motor `llama-server`).
+2. A tela dedicada da IA aparece **automaticamente**, sem pressionar F2 ou F3.
+3. Em segundo plano, o xorriso configura a API local `127.0.0.1:8080`, verifica os componentes existentes e inicia o MiniCPM. A tela informa `preparando`, `pronta` ou a causa de indisponibilidade.
+4. Quando a IA estiver pronta, o usuário digita normalmente. O console administrativo F2 continua opcional.
 
-O usuário também pode abrir a conversa com `chat open` no console F2. Durante a conversa, existem comandos curtos:
+A interface ainda é **textual**, não um desktop gráfico; **voz/microfone ainda não foram implementados**. Esc fecha a conversa e deixa a tela completamente preta; F3 reabre, F2 mostra o console, F1 mostra o estado.
 
-| Comando | Função |
-| --- | --- |
-| `/last` | Mostrar literalmente a última pergunta gravada na memória RAM |
-| `/status` | Ver quantidade de trocas registradas |
-| `/clear` | Apagar histórico e respostas temporárias na RAM |
-| `/exit` | Voltar à tela preta vazia |
+## Primeiras ações no Linux
 
-A memória de conversa permanece limitada a quatro pares de mensagens e **nunca é gravada no VDI**. O texto gerado pelo MiniCPM é apresentado como texto, nunca executado como comando de sistema.
-
-## Como testar no VirtualBox
-
-**Preserve os dois VDIs já existentes**: o volume `XORRISO_DATA` contém os pesos MiniCPM verificados e o volume `XORRISO_RUNTIME` contém o `llama-server`. Troque apenas a ISO pelo arquivo `xorriso-alpha-014-grub.iso`.
-
-1. Inicie o Linux, pressione F2 e prepare a IA:
+No painel que abre automaticamente, o usuário já pode escrever:
 
 ```text
-storage status
-runtime start
-api local
+Crie uma pasta chamada Meus Projetos
+Liste minhas pastas
 ```
 
-2. Pressione **F3**. Deve surgir uma tela de conversa independente do prompt `xorriso>`.
-3. Escreva uma pergunta, por exemplo `Ola, quem e voce?` e pressione Enter.
-4. Teste `/last`, `/status`, `/clear`.
-5. Pressione Esc. A área de trabalho deve ficar **completamente preta**; F2 ainda abre o console.
+A pasta é criada de verdade em `/data/Documentos/Meus Projetos` e confirmada **somente após o Linux verificar que existe**. A pasta e seu conteúdo persistem no VDI `XORRISO_DATA`. Se não houver disco montado, a IA informa o problema sem gravar na RAM.
 
-Se quiser verificar o modelo diretamente no console, os comandos anteriores `ask`, `chat status`, `chat last` e `chat clear` continuam disponíveis.
+Para esse primeiro fluxo, pedidos comuns de criação/listagem são reconhecidos por regras simples do próprio sistema, garantindo confiabilidade. O comando administrativo `agent` também permite ao MiniCPM **propor essas ações em JSON**, que são validadas e executadas pelo mesmo helper. O xorriso ainda **não entende e executa qualquer pedido arbitrário**.
 
-## Testes e limitações
+O processo de inicialização e o executor rodam com privilégios do sistema Linux, mas **não** transformam texto do modelo em um shell root irrestrito. As operações disponíveis nesta etapa são limitadas, validadas e não destrutivas. Alterações administrativas amplas, instalação de programas, mudanças de aparência e operações destrutivas serão módulos posteriores, com autorização do usuário e recuperação.
 
-A automação do GitHub gera a ISO com GRUB e verifica em QEMU que **F3 abre a tela de conversa, Esc a fecha, F2 abre o console e Esc volta à tela preta**. Os testes de API simulada, histórico, localhost, armazenamento em IDE/SATA, volumes separados e verificação de runtime permanecem.
+## Teste no VirtualBox
 
-Esta é uma **interface textual em tela cheia**, não ainda uma interface gráfica com compositor, janelas ou fontes renderizadas por GPU. A inferência MiniCPM local já foi confirmada em testes do VirtualBox do projeto, mas a qualidade das respostas continua dependente do modelo.
+Preserve os dois VDIs que já estavam funcionando: **não reformate nem substitua esses discos**. Troque somente a ISO pela `xorriso-alpha-015-grub.iso`. Inicie a VM normalmente.
 
-Código próprio sob MIT. Os componentes externos mantêm suas licenças. O xorriso é experimental e não deve ser instalado em computadores de produção.
+1. A tela de conversa deverá aparecer sozinha.
+2. Aguarde o status da IA ficar **pronta**. O carregamento pode demorar conforme memória e CPU.
+3. Digite `Ola, MiniCPM!` e veja a resposta da IA local.
+4. Digite `Crie uma pasta chamada Meus Projetos`; o sistema deverá mostrar `Pasta criada e verificada: /data/Documentos/Meus Projetos`.
+5. Digite `Liste minhas pastas`; o nome deve aparecer.
+6. Pressione Esc: a tela ficará preta. F3 abre a conversa e F2 abre o console.
+
+No console administrativo opcional, `ai status`, `runtime status`, `storage status` e `action Crie uma pasta chamada Teste` continuam disponíveis. Se a IA não carregar, use `ai status` e `runtime log` para diagnosticar. `/ready` consulta o carregamento na tela de conversa.
+
+## Testes automatizados
+
+GitHub Actions verifica scripts, executor com pastas reais em um diretório isolado, validação contra travessia de caminhos e links simbólicos, inicialização automática simulada com cenários de pronto/ausente/falha, integração de ações propostas pelo modelo em JSON simulado, boot real da ISO pelo GRUB no QEMU **abrindo o chat automaticamente**, Esc, F3, F2, rede, TCP localhost e dois discos SATA com persistência.
+
+**Os testes automatizados não comprovam o carregamento do MiniCPM real nesta ISO.** O último teste do modelo real foi na versão anterior, e a Alpha 0.15 precisa ser validada pelo usuário no VirtualBox.
+
+O sistema continua experimental, sem criptografia do VDI, microfone, ambiente gráfico completo ou instalador genérico. Não utilize para dados sensíveis. Código próprio sob MIT, respeitando licenças dos componentes de terceiros.
