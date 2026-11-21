@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Test real filesystem changes in an isolated directory; no physical disks.
 set -euo pipefail
+trap 'rc=$?; printf "FAILED test-actions.sh at line %s (exit %s): %s\n" "$LINENO" "$rc" "$BASH_COMMAND"; if [[ -n "${T:-}" && -f "$T/out" ]]; then tail -20 "$T/out"; fi' ERR
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d)"
 trap 'rm -rf "$T"' EXIT
