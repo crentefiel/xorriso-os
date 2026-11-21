@@ -87,8 +87,14 @@ def main():
                 time.sleep(22)
                 if proc.poll() is not None:
                     raise RuntimeError("QEMU exited while booting")
-                screens = {s:out/("qemu-iso-"+s+".ppm") for s in ("start","console","blank")}
+                screens = {s:out/("qemu-iso-"+s+".ppm") for s in ("start","chat","chat-blank","console","blank")}
                 qmp.run("screendump", filename=str(screens["start"]))
+                qmp.run("send-key", keys=[{"type":"qcode", "data":"f3"}])
+                time.sleep(3)
+                qmp.run("screendump", filename=str(screens["chat"]))
+                qmp.run("send-key", keys=[{"type":"qcode", "data":"esc"}])
+                time.sleep(2)
+                qmp.run("screendump", filename=str(screens["chat-blank"]))
                 qmp.run("send-key", keys=[{"type":"qcode", "data":"f2"}])
                 time.sleep(3)
                 qmp.run("screendump", filename=str(screens["console"]))
@@ -99,11 +105,15 @@ def main():
                 (out/"qemu-iso-screen.log").write_text(
                     "\n".join(f"{k}: nonblack pixels={v}" for k,v in counts.items())+"\n")
                 print("Screens:", counts, flush=True)
+                if counts["chat"] < 350 or counts["chat"] < counts["start"] + 200:
+                    raise RuntimeError("F3 chat UI did not appear")
+                if counts["chat-blank"] > max(100, int(counts["chat"]*.12)):
+                    raise RuntimeError("Esc did not close the chat UI")
                 if counts["console"] < 160 or counts["console"] < counts["start"] + 120:
                     raise RuntimeError("F2 console did not appear")
                 if counts["blank"] > max(100, int(counts["console"]*.12)):
                     raise RuntimeError("Esc did not return to blank screen")
-                print("PASS: real ISO booted with GRUB; F2 console; Esc blank screen", flush=True)
+                print("PASS: real ISO GRUB; F3 chat UI; Esc blank; F2 console; Esc blank", flush=True)
         finally:
             if proc.poll() is None:
                 proc.terminate()
