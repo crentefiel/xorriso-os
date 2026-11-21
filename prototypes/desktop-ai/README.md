@@ -1,10 +1,10 @@
 # Alpha 0.15.5 — protótipo da interface gráfica por texto
 
-Esta pasta contém **somente um protótipo visual**, independente do boot. Nenhuma ação Linux é executada, e nenhuma resposta é apresentada como se fosse resultado real do MiniCPM.
+Esta pasta contém o protótipo visual e uma ponte HTTP de desenvolvimento para conversar com um MiniCPM já disponível no computador Linux. Ela não inicia o modelo nem executa ações Linux, e ainda não está incluída na ISO de boot.
 
 ## Como experimentar
 
-Abra `prototypes/desktop-ai/index.html` em um navegador desktop. O ícone "IA" abre a conversa; você pode minimizar, maximizar, fechar, mover a janela, criar sessões locais de conversa e escrever mensagens. O projeto não requer internet nem serviços externos.
+Em um computador com Python 3, navegador e um servidor OpenAI-compatible já funcionando em `127.0.0.1:8080/v1`, execute `python3 prototypes/desktop-ai/bridge.py`, depois abra `http://127.0.0.1:8765`. O ícone IA abre a conversa, que pode ser minimizada, maximizada, fechada e movida. A troca de texto é encaminhada ao servidor de modelo local, e erros reais são exibidos no chat. Não abra o HTML via `file://`, pois o bridge serve a interface e a API na mesma origem. Para testar sem carregar o modelo, rode `python3 prototypes/desktop-ai/test_bridge.py`; ele usa um MiniCPM simulado. A ponte escuta apenas em `127.0.0.1`, não oferece execução de comandos e guarda o histórico somente na sessão da página.
 
 ## Critérios para a integração real (próxima etapa)
 
