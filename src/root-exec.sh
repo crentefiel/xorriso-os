@@ -18,8 +18,8 @@ init() {
 }
 validate_command() {
  command_text=$1
- [ -n "$command_text" ] && [ "${#command_text}" -le 1000 ] ||
-   fail 'Comando vazio ou maior que 1000 bytes.'
+ [ -n "$command_text" ] && [ "${#command_text}" -le 240 ] ||
+   fail 'Comando vazio ou maior que 240 bytes. Use um script para tarefas maiores.'
  # Single-line preview: prevent hidden newlines in the human confirmation.
  cleaned=$(printf '%s' "$command_text" | LC_ALL=C tr -d '\011\012\015')
  [ "$cleaned" = "$command_text" ] ||
@@ -52,12 +52,12 @@ case "$mode" in
     rm -rf -- "$PENDING"
     fail 'Nao foi possivel salvar a proposta.'
   fi
-  audit PROPOSE "$token"
-  printf 'A IA PROPOS um comando Linux como root, mas NAO executou:\n'
-  printf '  %s\n' "$command_text"
-  printf 'Para executar, DIGITE exatamente: autorizar %s\n' "$token"
-  printf 'Para descartar, DIGITE: cancelar %s\n' "$token"
-  printf 'Expira em 5 minutos. Revise o comando; pode alterar o sistema.\n'
+  audit PROPOSE "$token command=$command_text"
+  # Approval token FIRST, so the graphical client cannot hide it below output.
+  printf 'AUTORIZAR ROOT: autorizar %s\n' "$token"
+  printf 'CANCELAR ROOT: cancelar %s\n' "$token"
+  printf 'COMANDO (NAO executou): %s\n' "$command_text"
+  printf 'Expira em 5 minutos. Revise o comando completo antes de autorizar.\n'
   ;;
  --approve:*|--cancel:*)
   token=${mode#*:}
@@ -90,7 +90,15 @@ case "$mode" in
   printf 'Executando comando aprovado como root:\n  %s\n' "$command_text"
   output="$RUNNING/output"
   rc=0
-  "$BUSYBOX" timeout -s KILL 25 /bin/sh -c "$command_text" > "$output" 2>&1 || rc=$?
+  # A relative command starts in the persistent Documents volume when present.
+  # System operations may still use absolute paths, but all remain human-approved.
+  workdir=/tmp
+  if grep -q ' /data ext4 ' /proc/mounts 2>/dev/null &&
+     [ -d /data/Documentos ] && [ ! -L /data/Documentos ]; then
+   workdir=/data/Documentos
+  fi
+  printf 'Diretorio inicial: %s\n' "$workdir"
+  (cd "$workdir" && "$BUSYBOX" timeout -s KILL 25 /bin/sh -c "$command_text") > "$output" 2>&1 || rc=$?
   printf 'Saida real (maximo de 4000 bytes):\n'
   head -c 4000 "$output" || :
   printf '\nCodigo de saida: %s\n' "$rc"
