@@ -114,7 +114,7 @@ case "${1:-status}" in
   if [ "${XORRISO_RUNTIME_TEST_MODE:-0}" != 1 ]; then
    echo 'Aguardando o carregamento do modelo e a API local...'
    count=0
-   while [ "$count" -lt 30 ]; do
+   while [ "$count" -lt 120 ]; do
     if ! kill -0 "$pid" 2>/dev/null; then
      echo 'Servidor terminou durante o carregamento.'
      tail -n 12 "$LOGFILE" 2>/dev/null || :
@@ -128,7 +128,8 @@ case "${1:-status}" in
     count=$((count+1))
     sleep 2
    done
-   echo 'O processo existe mas a API nao respondeu. Use runtime status e runtime log.'
+   echo 'API indisponivel apos cerca de quatro minutos. Confira memoria da VM, discos e logs.'
+   tail -n 15 "$LOGFILE" 2>/dev/null || :
    exit 9
   fi
   ;;
