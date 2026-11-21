@@ -22,24 +22,34 @@ ensure_root() {
  fi
  [ -d "$ROOT" ] && [ ! -L "$ROOT" ] || return 3
 }
-create_folder() {
+# A folder name is DATA, not a shell command. Unicode UTF-8 bytes are allowed
+# so Brazilian Portuguese names work. Reject paths, controls and shell punctuation.
+valid_name() {
  name=$1
- [ "${#name}" -gt 0 ] && [ "${#name}" -le 64 ] || {
-  echo 'Nome deve ter de 1 a 64 caracteres.'; return 3;
+ [ -n "$name" ] && [ "${#name}" -le 120 ] || {
+  echo 'Nome deve ter de 1 a 120 bytes.'; return 3;
  }
- # Permit only simple human names; reject traversal, slashes, shell metacharacters.
- # No eval, no sh -c, no interpretation of model text.
- # Validate the ENTIRE string, including line breaks: grep may accept one
- # valid line of a malicious multi-line filename. No control characters.
  case "$name" in
-  [A-Za-z0-9]*) : ;;
-  *) echo 'Nome deve iniciar com letra ou numero.'; return 3 ;;
+  .*|*/*) echo 'Use apenas o nome da pasta, sem caminho nem nome oculto.'; return 3 ;;
  esac
- allowed=$(printf '%s' "$name" | LC_ALL=C tr -cd 'A-Za-z0-9 _-')
- if [ "$allowed" != "$name" ]; then
-  echo 'Nome invalido. Use letras sem acentos, numeros, espaco, _ ou -.'
+ # od+awk validate every byte, not only the first line. UTF-8 bytes >= 128
+ # are accepted as data; the model result is never interpreted by a shell.
+ if ! printf '%s' "$name" | od -An -tu1 | awk '
+  { for (i=1; i<=NF; i++) {
+    b=$i+0
+    if (!(b>=128 || (b>=48&&b<=57) || (b>=65&&b<=90) ||
+          (b>=97&&b<=122) || b==32 || b==45 || b==46 || b==95))
+      bad=1
+  }}
+  END { exit bad ? 1 : 0 }
+ '; then
+  echo 'Nome invalido. Use letras, acentos, numeros, espaco, ponto, _ ou -.'
   return 3
  fi
+}
+create_folder() {
+ name=$1
+ valid_name "$name" || return 3
  ensure_root || return 3
  target="$ROOT/$name"
  if [ -L "$target" ]; then echo 'Link simbolico nao permitido.'; return 3; fi
@@ -56,11 +66,7 @@ create_folder() {
 }
 check_folder() {
  name=$1
- # Apply identical name validation via a dedicated, read-only check.
- [ "${#name}" -gt 0 ] && [ "${#name}" -le 64 ] || return 3
- case "$name" in [A-Za-z0-9]*) : ;; *) return 3 ;; esac
- allowed=$(printf '%s' "$name" | LC_ALL=C tr -cd 'A-Za-z0-9 _-')
- [ "$allowed" = "$name" ] || return 3
+ valid_name "$name" || return 3
  ensure_root || return 3
  if [ -d "$ROOT/$name" ] && [ ! -L "$ROOT/$name" ]; then
   echo "Pasta existe e foi verificada: $ROOT/$name"
