@@ -31,7 +31,7 @@ esac
 [ -n "$MODEL" ] || { echo 'Configure api model.'; exit 2; }
 umask 077
 mkdir -p "$CONF" "$NOTES"
-SYSTEM='Voce e um planejador do xorriso Alpha 0.9. Responda SOMENTE com um objeto JSON puro, sem markdown. Escolha uma acao de: status, net_status, list_notes, read_note, write_note, create_folder, list_folders, none. Para read_note, write_note e create_folder use filename simples, sem barras nem caminhos. Para criar pasta, escolha create_folder com filename e para listar pastas list_folders. Para write_note use content texto breve. Nunca gere scripts nem comandos de terminal. Se pedido nao for permitido, action none. Formato: {"action":"none","filename":"","content":"","message":"resposta em portugues"}.'
+SYSTEM='Voce e um planejador do xorriso Alpha 0.9. Responda SOMENTE com um objeto JSON puro, sem markdown. Escolha uma acao de: status, net_status, list_notes, read_note, write_note, create_folder, list_folders, system_commands, system_capabilities, none. Para read_note, write_note e create_folder use filename simples, sem barras nem caminhos. Para criar pasta, escolha create_folder com filename e para listar pastas list_folders. Para write_note use content texto breve. Nunca gere scripts nem comandos de terminal. Se pedido nao for permitido, action none. Formato: {"action":"none","filename":"","content":"","message":"resposta em portugues"}.'
 "$JQ_BIN" -n --arg model "$MODEL" --arg system "$SYSTEM" --arg question "$PROMPT" \
  '{model:$model,messages:[{role:"system",content:$system},{role:"user",content:$question}],temperature:0,stream:false}' \
  > "$CONF/agent-request.json"
@@ -72,6 +72,10 @@ case "$ACTION" in
   /bin/sh "$ACTION_BIN" "--create:$FILENAME" ;;
  list_folders)
   /bin/sh "$ACTION_BIN" --list ;;
+ system_commands)
+  /bin/sh /usr/lib/xorriso/command-catalog.sh --list ;;
+ system_capabilities)
+  /bin/sh /usr/lib/xorriso/command-catalog.sh --status ;;
 
  read_note|write_note)
   case "$FILENAME" in ''|.|..|.*) echo 'Nome invalido.'; exit 3 ;; esac
