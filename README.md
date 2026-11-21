@@ -60,3 +60,15 @@ Para testar, preserve os dois discos VDI originais e use **4 GiB ou mais de RAM*
 na VM, se disponíveis. Em F2: `ai status`, `storage status`, `runtime status`,
 `runtime log`. Os testes automatizados simulam o servidor; a resposta real do
 MiniCPM dentro do VirtualBox ainda requer validação prática.
+
+## Alpha 0.16 — primeiras ferramentas de administrador root
+
+A IA pode consultar um catálogo explícito das operações presentes no xorriso.
+Na conversa F3, digite `/admin quais comandos voce conhece?` ou
+`/admin mostre os processos`. O planejador MiniCPM produz JSON e um broker
+root permite somente operações verificadas. O agente pode consultar estado do
+Linux, processos, armazenamento e rede, e pedir para ativar a rede ou montar
+volumes **apenas com confirmação explícita no terminal**. A resposta não é
+executada como shell livre, nem permite instalação, apagamento ou reboot.
+O catálogo é uma lista de capacidades desta ISO, não todos os comandos Linux.
+Os VDI existentes não são formatados.
