@@ -13,6 +13,7 @@ fi
 CURL_BIN=${XORRISO_CURL_BIN:-curl}
 JQ_BIN=${XORRISO_JQ_BIN:-jq}
 ACTION_BIN=${XORRISO_ACTION_BIN:-/usr/lib/xorriso/actions.sh}
+ADMIN_BIN=${XORRISO_ADMIN_BIN:-/usr/lib/xorriso/admin-actions.sh}
 getconf() { cat "$CONF/$1" 2>/dev/null || :; }
 if [ "${1:-}" = '--notes' ]; then
  mkdir -p "$NOTES"; echo "Notas em $NOTES:"
@@ -31,7 +32,7 @@ esac
 [ -n "$MODEL" ] || { echo 'Configure api model.'; exit 2; }
 umask 077
 mkdir -p "$CONF" "$NOTES"
-SYSTEM='Voce e um planejador do xorriso Alpha 0.9. Responda SOMENTE com um objeto JSON puro, sem markdown. Escolha uma acao de: status, net_status, list_notes, read_note, write_note, create_folder, list_folders, none. Para read_note, write_note e create_folder use filename simples, sem barras nem caminhos. Para criar pasta, escolha create_folder com filename e para listar pastas list_folders. Para write_note use content texto breve. Nunca gere scripts nem comandos de terminal. Se pedido nao for permitido, action none. Formato: {"action":"none","filename":"","content":"","message":"resposta em portugues"}.'
+SYSTEM='Voce e um planejador do xorriso Alpha 0.9. Responda SOMENTE com um objeto JSON puro, sem markdown. Escolha uma acao de: status, net_status, list_notes, read_note, write_note, create_folder, list_folders, capabilities, system_status, disk_status, process_status, network_status, network_up, storage_mount, none. Somente use network_up e storage_mount quando o usuario pedir explicitamente; essas acoes exigem confirmacao do usuario no console. O sistema nao executa comandos shell arbitrarios. Para consultar operacoes disponiveis, escolha capabilities. Para read_note, write_note e create_folder use filename simples, sem barras nem caminhos. Para criar pasta, escolha create_folder com filename e para listar pastas list_folders. Para write_note use content texto breve. Nunca gere scripts nem comandos de terminal. Se pedido nao for permitido, action none. Formato: {"action":"none","filename":"","content":"","message":"resposta em portugues"}.'
 "$JQ_BIN" -n --arg model "$MODEL" --arg system "$SYSTEM" --arg question "$PROMPT" \
  '{model:$model,messages:[{role:"system",content:$system},{role:"user",content:$question}],temperature:0,stream:false}' \
  > "$CONF/agent-request.json"
@@ -72,6 +73,8 @@ case "$ACTION" in
   /bin/sh "$ACTION_BIN" "--create:$FILENAME" ;;
  list_folders)
   /bin/sh "$ACTION_BIN" --list ;;
+ capabilities|system_status|disk_status|process_status|network_status|network_up|storage_mount)
+  /bin/sh "$ADMIN_BIN" "$ACTION" ;;
 
  read_note|write_note)
   case "$FILENAME" in ''|.|..|.*) echo 'Nome invalido.'; exit 3 ;; esac
