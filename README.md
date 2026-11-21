@@ -48,3 +48,15 @@ GitHub Actions verifica scripts, executor com pastas reais em um diretório isol
 **Os testes automatizados não comprovam o carregamento do MiniCPM real nesta ISO.** O último teste do modelo real foi na versão anterior, e a Alpha 0.15 precisa ser validada pelo usuário no VirtualBox.
 
 O sistema continua experimental, sem criptografia do VDI, microfone, ambiente gráfico completo ou instalador genérico. Não utilize para dados sensíveis. Código próprio sob MIT, respeitando licenças dos componentes de terceiros.
+
+## Alpha 0.15.1 — inicialização automática (correção em PR)
+
+Ao iniciar, o xorriso procura novamente os VDI `XORRISO_DATA` e `XORRISO_RUNTIME`
+caso o VirtualBox demore a disponibilizá-los; informa a falta de cada componente
+e dá até cerca de quatro minutos para a API do MiniCPM responder. A tela mostra
+`carregando MiniCPM` até a resposta HTTP de saúde ou uma falha diagnosticável.
+
+Para testar, preserve os dois discos VDI originais e use **4 GiB ou mais de RAM**
+na VM, se disponíveis. Em F2: `ai status`, `storage status`, `runtime status`,
+`runtime log`. Os testes automatizados simulam o servidor; a resposta real do
+MiniCPM dentro do VirtualBox ainda requer validação prática.
