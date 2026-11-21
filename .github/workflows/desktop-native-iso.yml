@@ -22,6 +22,10 @@ jobs:
         run: python3 -m py_compile tools/check-native-desktop.py
       - name: Require actual native desktop, not an HTML-only prototype
         run: python3 tools/check-native-desktop.py
+      - name: Test model-selected filesystem tools with mock API
+        run: |
+          command -v jq >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq jq; }
+          bash src/test-actions.sh
       - name: Test root approval, cancellation, expiry and real command execution
         run: |
           command -v busybox >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq busybox-static; }
