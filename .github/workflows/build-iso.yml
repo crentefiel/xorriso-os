@@ -1,4 +1,4 @@
-name: xorriso Alpha 0.14 - Build and smoke test
+name: xorriso Alpha 0.15 - Build and smoke test
 on:
   push:
     branches: [main]
@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check script syntax before installing dependencies
         run: |
-          for script in src/ai-request.sh src/ai-agent.sh src/local.sh src/network.sh src/storage.sh src/model.sh src/runtime.sh src/loopback.sh; do
+          for script in src/ai-request.sh src/ai-agent.sh src/local.sh src/network.sh src/storage.sh src/model.sh src/runtime.sh src/loopback.sh src/ai-boot.sh src/actions.sh; do
             sh -n "$script"
           done
           for script in src/test-*.sh build-from-source.sh; do
@@ -31,13 +31,14 @@ jobs:
           bash src/test-ai.sh
           bash src/test-model.sh
           bash src/test-runtime.sh
+          bash src/test-actions.sh
           python3 src/test-http-real.py
       - name: Build ISO from source
         run: bash build-from-source.sh
       - name: Verify ISO format
         run: |
-          test -s dist/xorriso-alpha-014-grub.iso
-          xorriso -indev dist/xorriso-alpha-014-grub.iso -report_el_torito plain
+          test -s dist/xorriso-alpha-015-grub.iso
+          xorriso -indev dist/xorriso-alpha-015-grub.iso -report_el_torito plain
       - name: Smoke test PID1 with QEMU
         run: |
           set +e
@@ -58,13 +59,14 @@ jobs:
         run: timeout 120s python3 src/test-qemu-persistence.py
       - name: Verify existing model VDI plus separate read-only runtime VDI
         run: timeout 145s python3 src/test-qemu-dual-disk.py
-      - name: Boot actual GRUB ISO and verify F2 / Esc in QEMU
-        run: timeout 95s python3 src/test-iso-qemu.py dist/xorriso-alpha-014-grub.iso
+      - name: Boot real ISO; verify automatic AI chat and F2/Esc
+
+        run: timeout 95s python3 src/test-iso-qemu.py dist/xorriso-alpha-015-grub.iso
       - uses: actions/upload-artifact@v4
         with:
-          name: xorriso-alpha-014-grub
+          name: xorriso-alpha-015-grub
           path: |
-            dist/xorriso-alpha-014-grub.iso
+            dist/xorriso-alpha-015-grub.iso
             dist/SHA256SUMS
             dist/qemu-boot.log
             dist/qemu-host-bridge.log
