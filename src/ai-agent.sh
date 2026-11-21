@@ -31,7 +31,7 @@ esac
 [ -n "$MODEL" ] || { echo 'Configure api model.'; exit 2; }
 umask 077
 mkdir -p "$CONF" "$NOTES"
-SYSTEM='Voce e um planejador do xorriso Alpha 0.9. Responda SOMENTE com um objeto JSON puro, sem markdown. Escolha uma acao de: status, net_status, list_notes, read_note, write_note, create_folder, list_folders, system_commands, system_capabilities, none. Para read_note, write_note e create_folder use filename simples, sem barras nem caminhos. Para criar pasta, escolha create_folder com filename e para listar pastas list_folders. Para write_note use content texto breve. Nunca gere scripts nem comandos de terminal. Se pedido nao for permitido, action none. Formato: {"action":"none","filename":"","content":"","message":"resposta em portugues"}.'
+SYSTEM='Voce e a IA que controla as ferramentas reais do xorriso OS. Interprete livremente o pedido em portugues, mesmo quando as palavras variam. Nao procure frases fixas. Escolha UMA ferramenta pelo significado do pedido, usando APENAS: create_folder, list_folders, check_folder, status, net_status, list_notes, read_note, write_note, system_commands, system_capabilities ou none. Para create_folder extraia em filename o NOME EXATO solicitado pelo usuario, jamais inclua palavras como chamado, chamada ou pasta se elas nao fazem parte do nome. Nao invente um nome quando faltar. Para check_folder use filename com o nome exato quando indicado; se o usuario se refere a ultima pasta criada, use filename vazio. Nunca escolha none para dizer que criou, listou ou verificou algo; escolha a ferramenta correspondente. Quando o pedido for conversa comum, use none e message com resposta natural, breve, em portugues do Brasil. Se pedir algo sem ferramenta disponivel, use none e diga claramente a limitacao, sem fingir execucao. Nunca gere comandos de terminal, scripts ou caminhos; nomes de pasta nao podem conter barras. Responda somente JSON valido e puro, sem markdown, com este esquema: {"action":"none","filename":"","content":"","message":""}.'
 "$JQ_BIN" -n --arg model "$MODEL" --arg system "$SYSTEM" --arg question "$PROMPT" \
  '{model:$model,messages:[{role:"system",content:$system},{role:"user",content:$question}],temperature:0,stream:false}' \
  > "$CONF/agent-request.json"
@@ -68,10 +68,23 @@ case "$ACTION" in
  list_notes)
   echo 'Notas:';ls -1 "$NOTES";echo 'Somente leitura.' ;;
  create_folder)
-  echo "Pedido de criacao da pasta: $FILENAME"
-  /bin/sh "$ACTION_BIN" "--create:$FILENAME" ;;
+  [ -n "$FILENAME" ] || { echo 'A IA nao identificou o nome da pasta. Informe o nome.'; exit 2; }
+  # Only the allowlisted executor touches the filesystem. Save only confirmed results.
+  if result=$(/bin/sh "$ACTION_BIN" "--create:$FILENAME" 2>&1); then
+   printf '%s\n' "$result"
+   printf '%s\n' "$FILENAME" > "$CONF/last-folder"
+  else
+   printf '%s\n' "$result"
+   exit 3
+  fi ;;
  list_folders)
   /bin/sh "$ACTION_BIN" --list ;;
+ check_folder)
+  if [ -z "$FILENAME" ] && [ -s "$CONF/last-folder" ]; then
+   FILENAME=$(cat "$CONF/last-folder")
+  fi
+  [ -n "$FILENAME" ] || { echo 'Ainda nao ha uma pasta criada e confirmada nesta sessao.'; exit 2; }
+  /bin/sh "$ACTION_BIN" "--check:$FILENAME" ;;
  system_commands)
   /bin/sh /usr/lib/xorriso/command-catalog.sh --list ;;
  system_capabilities)
