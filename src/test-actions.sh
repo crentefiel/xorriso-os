@@ -29,26 +29,23 @@ fi
 printf 'spoof\n' > "$T/file"
 ln -s "$T/file" "$XORRISO_ACTION_TEST_ROOT/Link Pasta"
 if sh "$ROOT/src/actions.sh" '--create:Link Pasta' > "$T/out"; then echo 'Symlink not rejected'; exit 33; fi
-# Natural language chat must trigger a verified real operation, never an LLM echo.
-export XORRISO_CONF_DIR="$T/run"
-export XORRISO_ACTION_BIN="$ROOT/src/actions.sh"
-export XORRISO_CHAT_BIN="$T/bin/fallback-chat"
-printf '#!/bin/sh\necho "RESPOSTA-IA"\n' > "$T/bin/fallback-chat"
-chmod +x "$T/bin/fallback-chat"
-sh "$ROOT/src/chat-actions.sh" 'cria pasta xorriso' > "$T/out"
-grep -q 'Pasta criada e verificada' "$T/out"
-test -d "$XORRISO_ACTION_TEST_ROOT/xorriso"
-sh "$ROOT/src/chat-actions.sh" 'conseguiu criar?' > "$T/out"
-grep -q 'Pasta existe e foi verificada' "$T/out"
-sh "$ROOT/src/chat-actions.sh" 'liste minhas pastas' > "$T/out"
-grep -q '^xorriso$' "$T/out"
-sh "$ROOT/src/chat-actions.sh" 'como vai?' > "$T/out"
-grep -q 'RESPOSTA-IA' "$T/out"
-if sh "$ROOT/src/chat-actions.sh" 'cria pasta ../../escape' > "$T/out"; then
- echo 'Unsafe natural folder name accepted'; exit 39
+# Basic file tools: literal text, no clobber, no path traversal.
+sh "$ROOT/src/actions.sh" '--write:anotações.txt' 'Linha criada pela IA' > "$T/out"
+test -f "$XORRISO_ACTION_TEST_ROOT/anotações.txt"
+grep -q 'Arquivo criado e verificado' "$T/out"
+sh "$ROOT/src/actions.sh" '--read:anotações.txt' > "$T/out"
+grep -q 'Linha criada pela IA' "$T/out"
+sh "$ROOT/src/actions.sh" --files > "$T/out"
+grep -q 'anotações.txt' "$T/out"
+if sh "$ROOT/src/actions.sh" '--write:anotações.txt' 'texto sobrescrito' > "$T/out"; then
+ echo 'Existing file overwritten'; exit 46
 fi
-sh "$ROOT/src/chat-actions.sh" 'conseguiu criar?' > "$T/out"
-grep -q 'Nao ha criacao de pasta confirmada' "$T/out"
+grep -q 'Linha criada pela IA' "$XORRISO_ACTION_TEST_ROOT/anotações.txt"
+if sh "$ROOT/src/actions.sh" '--write:../escape' 'Nao' > "$T/out"; then
+ echo 'Unsafe file name accepted'; exit 47
+fi
+test ! -e "$T/user/escape"
+
 # The desktop must send arbitrary natural-language requests to the LLM planner,
 # not match fixed phrases. Mock the LLM response; verify real tool execution.
 export XORRISO_CONF_DIR="$T/run"
@@ -83,6 +80,16 @@ test -d "$XORRISO_ACTION_TEST_ROOT/Projetos Internos 2026"
 mock_plan create_folder 'Músicas para João'
 sh "$ROOT/src/chat-actions.sh" 'Pode abrir uma pasta para as músicas do João?' > "$T/out"
 test -d "$XORRISO_ACTION_TEST_ROOT/Músicas para João"
+mock_plan create_file 'resumo.txt' 'Relatorio criado pela IA e confirmado'
+sh "$ROOT/src/chat-actions.sh" 'Escreva em resumo.txt: Relatorio criado pela IA e confirmado' > "$T/out"
+grep -q 'Arquivo criado e verificado' "$T/out"
+grep -q 'Relatorio criado pela IA e confirmado' "$XORRISO_ACTION_TEST_ROOT/resumo.txt"
+mock_plan read_file 'resumo.txt'
+sh "$ROOT/src/chat-actions.sh" 'Leia o resumo que fez' > "$T/out"
+grep -q 'Relatorio criado pela IA e confirmado' "$T/out"
+mock_plan list_files ''
+sh "$ROOT/src/chat-actions.sh" 'Mostre todos os documentos' > "$T/out"
+grep -q 'resumo.txt' "$T/out"
 mock_plan create_folder 'Fotos de Natal'
 sh "$ROOT/src/chat-actions.sh" 'Monte outra area onde vou guardar as fotos do Natal' > "$T/out"
 test -d "$XORRISO_ACTION_TEST_ROOT/Fotos de Natal"
