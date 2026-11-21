@@ -22,3 +22,12 @@ jobs:
         run: python3 -m py_compile tools/check-native-desktop.py
       - name: Require actual native desktop, not an HTML-only prototype
         run: python3 tools/check-native-desktop.py
+      - name: Compile graphical PID1 wrapper and native desktop
+        run: |
+          gcc -std=gnu11 -Wall -Wextra -Werror -static -o /tmp/xorriso-gui-init src/xorriso-gui-init.c
+          gcc -std=gnu11 -Wall -Wextra -Werror -static -o /tmp/xorriso-desktop src/xorriso-desktop.c
+      - name: Exercise renderer with address and undefined behavior sanitizers
+        run: |
+          gcc -std=gnu11 -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -o /tmp/xorriso-desktop-asan src/xorriso-desktop.c
+          /tmp/xorriso-desktop-asan --selftest
+
