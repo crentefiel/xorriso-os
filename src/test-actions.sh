@@ -80,6 +80,9 @@ sh "$ROOT/src/chat-actions.sh" "$phrase" > "$T/out"
 jq -e --arg phrase "$phrase" '.messages[-1].content==$phrase' "$T/run/agent-request.json" >/dev/null
 grep -q 'Pasta criada e verificada' "$T/out"
 test -d "$XORRISO_ACTION_TEST_ROOT/Projetos Internos 2026"
+mock_plan create_folder 'Músicas para João'
+sh "$ROOT/src/chat-actions.sh" 'Pode abrir uma pasta para as músicas do João?' > "$T/out"
+test -d "$XORRISO_ACTION_TEST_ROOT/Músicas para João"
 mock_plan create_folder 'Fotos de Natal'
 sh "$ROOT/src/chat-actions.sh" 'Monte outra area onde vou guardar as fotos do Natal' > "$T/out"
 test -d "$XORRISO_ACTION_TEST_ROOT/Fotos de Natal"
