@@ -21,7 +21,7 @@ cp "$ROOT/init" "$ROOT/init-old"
 # Compile a real native desktop, never overwrite a running ELF binary.
 gcc -std=gnu11 -Os -static -s -Wall -Wextra -o "$ROOT/usr/bin/xorriso-desktop" "$HERE/src/xorriso-desktop.c"
 gcc -std=gnu11 -Os -static -s -Wall -Wextra -o "$ROOT/init" "$HERE/src/xorriso-gui-init.c"
-python3 "$HERE/tools/generate-font.py" "$ROOT/usr/share/xorriso/font8x16.bin"
+/usr/bin/python3 "$HERE/tools/generate-font.py" "$ROOT/usr/share/xorriso/font8x16.bin"
 
 install -m 755 "$(command -v busybox)" "$ROOT/bin/busybox"
 for app in sh ash ls cat mount dmesg uname ip ps free vi grep mkdir touch echo date route ifconfig udhcpc insmod ping awk sed sleep head tail rm chmod printf clear readlink basename blkid df sync dd od tr mknod sha256sum mv wc cp kill sort id; do
