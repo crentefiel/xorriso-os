@@ -34,6 +34,10 @@ esac
 umask 077
 mkdir -p "$CONF" "$NOTES"
 SYSTEM='Voce e a IA que controla as ferramentas reais do xorriso OS. Interprete livremente o pedido em portugues, mesmo quando as palavras variam. Nao procure frases fixas. Escolha UMA ferramenta pelo significado do pedido, usando APENAS: create_folder, list_folders, check_folder, create_file, list_files, read_file, status, net_status, list_notes, read_note, write_note, system_commands, system_capabilities, propose_command ou none. Para create_folder extraia em filename o NOME EXATO solicitado pelo usuario, jamais inclua palavras como chamado, chamada ou pasta se elas nao fazem parte do nome. Nao invente um nome quando faltar. Para check_folder use filename com o nome exato quando indicado; se o usuario se refere a ultima pasta criada, use filename vazio. Para create_file use filename com nome e extensao do arquivo e content com o texto que o usuario pediu; se nao houver texto, pode criar um arquivo vazio apenas se isso for claramente solicitado. Para read_file identifique filename e para list_files deixe filename vazio. Nenhuma ferramenta de arquivos pode sobrescrever arquivos existentes. Para administrar o Linux com comandos nao cobertos pelas ferramentas de arquivos, use propose_command: coloque em command UMA linha de shell Linux com comando exato e verificavel. Exemplo de programas simples: escreva codigo com create_file e depois proponha o comando para executar ou compilar. Nunca diga que executou quando apenas propoe. O executor mostrara o comando e exigira que a PESSOA digite um token de confirmacao, sem autoconfirmacao da IA. Comandos que apagam discos ou dados devem ser tratados como perigosos e revisados cuidadosamente. Nunca escolha none para dizer que criou, listou ou verificou algo; escolha a ferramenta correspondente. Quando o pedido for conversa comum, use none e message com resposta natural, breve, em portugues do Brasil. Se pedir algo sem ferramenta disponivel, use none e diga claramente a limitacao, sem fingir execucao. Somente propose_command pode conter comandos de terminal no campo command. Para as demais ferramentas, nao forneca comandos de terminal nem caminhos; nomes de pasta e arquivo nao podem conter barras. Se o usuario pedir abrir um programa grafico, explique que a interface atual ainda nao suporta janelas de programas externos; nao invente uma abertura grafica. Se for um pedido de comando Linux, use propose_command mesmo que nao exista frase cadastrada. Responda somente JSON valido e puro, sem markdown, com este esquema: {"action":"none","filename":"","content":"","command":"","message":""}.'
+# Keep minimal verified context across requests so follow-up requests can refer
+# to "o programa que voce criou" rather than guessing an arbitrary filename.
+LAST_FILE=$(cat "$CONF/last-file" 2>/dev/null || :)
+LAST_FOLDER=$(cat "$CONF/last-folder" 2>/dev/null || :)
 # Feed the model the commands actually installed in this boot, not an invented
 # Linux distribution catalog. This is informational, not permission to execute.
 if [ -f "$CATALOG_BIN" ]; then
@@ -44,7 +48,7 @@ fi
 SYSTEM="$SYSTEM
 Inventario de comandos realmente disponiveis nesta inicializacao:
 $INVENTORY
-Nao invente apt, gcc, ferramentas graficas ou compiladores que nao estejam aqui. Use propose_command para comandos existentes, sempre com autorizacao humana."
+Nao invente apt, gcc, ferramentas graficas ou compiladores que nao estejam aqui. Use propose_command para comandos existentes, sempre com autorizacao humana. Ultimo arquivo confirmado em /data/Documentos: $LAST_FILE . Ultima pasta confirmada: $LAST_FOLDER . Em pedidos de acompanhamento, use estes nomes verificados e nunca invente arquivos."
 "$JQ_BIN" -n --arg model "$MODEL" --arg system "$SYSTEM" --arg question "$PROMPT" \
  '{model:$model,messages:[{role:"system",content:$system},{role:"user",content:$question}],temperature:0,stream:false}' \
  > "$CONF/agent-request.json"
@@ -101,10 +105,18 @@ case "$ACTION" in
   CONTENT=$("$JQ_BIN" -er '.content | select(type=="string")' "$CONF/agent-plan.json") || {
    echo 'Conteudo de arquivo invalido. Nenhuma acao realizada.'; exit 3;
   }
-  /bin/sh "$ACTION_BIN" "--write:$FILENAME" "$CONTENT" ;;
+  if result=$(/bin/sh "$ACTION_BIN" "--write:$FILENAME" "$CONTENT" 2>&1); then
+   printf '%s\n' "$result"
+   printf '%s\n' "$FILENAME" > "$CONF/last-file"
+  else
+   printf '%s\n' "$result"; exit 3
+  fi ;;
  list_files)
   /bin/sh "$ACTION_BIN" --files ;;
  read_file)
+  if [ -z "$FILENAME" ] && [ -s "$CONF/last-file" ]; then
+   FILENAME=$(cat "$CONF/last-file")
+  fi
   [ -n "$FILENAME" ] || { echo 'A IA nao identificou qual arquivo deve ler.'; exit 2; }
   /bin/sh "$ACTION_BIN" "--read:$FILENAME" ;;
  check_folder)
