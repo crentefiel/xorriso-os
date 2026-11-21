@@ -56,7 +56,7 @@ jobs:
           set +e
           timeout 35s qemu-system-x86_64 -m 1024 -no-reboot -display none -serial stdio \
             -kernel dist/vmlinuz -initrd dist/initramfs.cpio.gz \
-            -append 'console=ttyS0 loglevel=7 rdinit=/init' -nic none \
+            -append 'console=ttyS0 loglevel=7 rdinit=/init xorriso.ci=smoke' -nic none \
             > dist/qemu-boot.log 2>&1
           status=$?
           set -e
