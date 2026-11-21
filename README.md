@@ -1,39 +1,40 @@
-# xorriso OS — Alpha 0.12 (conversa natural em IA local)
+# xorriso OS — Alpha 0.13 (recuperação confiável do histórico)
 
-Protótipo experimental de Linux centrado em IA. A tela permanece **totalmente preta e vazia** ao iniciar, sem barra, relógio ou ícones. **F1** mostra informações, **F2** abre o console, **Esc** volta à tela preta.
+O xorriso continua sendo um protótipo Linux mínimo centrado em IA. Tela inicial **completamente preta e vazia**, sem barra, relógio ou ícones. F1 informa o estado, F2 abre o console, Esc retorna à tela preta.
 
-## Novidades da Alpha 0.12
+## Por que essa atualização?
 
-O vídeo do VirtualBox confirmou que o MiniCPM-V 4.7 1B carregou, a API interna respondeu na porta 8080 e o comando `ask` gerou texto. A resposta usou um banner decorativo; a Alpha 0.12 adiciona um **prompt de sistema apenas para a IA local** para solicitar respostas curtas em português brasileiro, com texto simples, sem emojis, arte ASCII ou Markdown.
+No VirtualBox, a Alpha 0.12 executou o MiniCPM local, respondeu em português, armazenou **duas trocas** e aceitou `chat clear`. Entretanto, diante de `ask Qual foi minha pergunta anterior?`, respondeu erroneamente que não havia pergunta anterior. Isso mostra que **ter o histórico no JSON não garante que um modelo pequeno consiga usá-lo corretamente**.
 
-O comando `ask` agora carrega até **quatro trocas anteriores** (oito mensagens usuário/assistente), guardadas **somente na memória RAM**. Nenhuma conversa é gravada no VDI. A mensagem inicial é limpa ao trocar de modelo ou endpoint pelo console. Para conferir e limpar manualmente:
+A Alpha 0.13 introduz uma consulta direta e determinística ao histórico em RAM:
 
-```text
-chat status
-chat clear
-```
+- `chat status`: quantidade de trocas registradas em memória.
+- **`chat last`**: exibe literalmente a última mensagem do usuário disponível no histórico, sem chamar IA e sem rede.
+- `chat clear`: apaga histórico e arquivos temporários de perguntas e respostas na RAM.
+- Quando a **IA local** recebe `ask Qual foi minha pergunta anterior?` ou `ask O que eu te perguntei anteriormente?`, o xorriso consulta os registros reais e identifica o resultado como uma **consulta ao histórico local**, em vez de pedir ao MiniCPM que adivinhe.
 
-No VirtualBox, mantendo a ISO como CD e os VDIs anteriores (XORRISO_DATA e XORRISO_RUNTIME), pressione F2:
+O histórico mantém apenas as últimas quatro trocas de conversa (oito mensagens usuário/assistente), apenas em `/run/xorriso` (RAM). `api local`, `api host` ou alteração de modelo/URL limpa o histórico.
+
+## Como testar no VirtualBox
+
+Substitua **somente a ISO**. Preserve o VDI `XORRISO_DATA` que contém os pesos verificados do MiniCPM e o VDI `XORRISO_RUNTIME` com o motor `llama-server`.
 
 ```text
 storage status
 runtime start
-runtime status
 api local
 ask Ola, quem e voce?
-ask Voce consegue lembrar da minha ultima pergunta?
+chat last
+ask Qual foi minha pergunta anterior?
 chat status
 chat clear
+chat last
 ```
 
-A ISO nova **não altera nem formata os seus VDIs**. O MiniCPM GGUF continua em `/data/models`, e o servidor `llama-server` verificado fica no segundo VDI de runtime. Esse motor não está embutido na ISO, preservando o tamanho do sistema.
+Após a primeira pergunta, `chat last` deverá retornar `Ola, quem e voce?`. A pergunta sobre o histórico também deverá mostrar o texto exato, mas com o prefixo `Consulta ao historico local`, para deixar explícito que **não foi uma resposta gerada pelo modelo**.
 
-## Componentes anteriores
+## Testes e limites
 
-Rede DHCP, discos persistentes separados por rótulo ext4, downloads de GGUF com SHA-256, motor `llama-server` local verificado, cliente para APIs HTTPS compatíveis com OpenAI e agente experimental de operações permitidas.
+GitHub Actions compila a ISO, testa o boot com GRUB, tela vazia/F2/Esc, rede, TCP localhost, discos SATA/IDE e VDIs separados. Testes de HTTP simulam um servidor OpenAI-compatível e verificam que a recuperação da pergunta anterior é exata e **não faz requisição ao modelo**.
 
-## Limitações e validação
-
-Os testes do GitHub verificam requisições JSON, memória de conversa na RAM, limpeza, API simulada, boot GRUB da ISO, F2/Esc, TCP localhost, SATA/IDE e dois VDIs separados. **O prompt não garante respostas corretas ou sem caracteres decorativos**: a qualidade real depende do MiniCPM e precisa ser testada novamente no VirtualBox.
-
-O xorriso ainda não tem desktop gráfico completo, instalador automático de aplicativos, criptografia de dados ou ferramenta gráfica para controle da IA. É um protótipo para VM, não para uso diário. Código próprio sob MIT; componentes de terceiros respeitam suas licenças.
+O MiniCPM pode errar outros pedidos de memória ou conversação. A melhoria é deliberadamente limitada a consultas claras sobre a pergunta anterior, sem fingir uma capacidade de memória geral. O sistema permanece experimental, sem interface gráfica completa, criptografia de dados nem instalador automático. Não use para dados sensíveis.
