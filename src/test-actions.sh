@@ -41,7 +41,163 @@ test -d "$XORRISO_ACTION_TEST_ROOT/xorriso"
 sh "$ROOT/src/chat-actions.sh" 'conseguiu criar?' > "$T/out"
 grep -q 'Pasta existe e foi verificada' "$T/out"
 sh "$ROOT/src/chat-actions.sh" 'liste minhas pastas' > "$T/out"
-grep -q '^xorriso$' "$T/out"
+grep -q '^xorriso
+sh "$ROOT/src/chat-actions.sh" 'como vai?' > "$T/out"
+grep -q 'RESPOSTA-IA' "$T/out"
+if sh "$ROOT/src/chat-actions.sh" 'cria pasta ../../escape' > "$T/out"; then
+ echo 'Unsafe natural folder name accepted'; exit 39
+fi
+sh "$ROOT/src/chat-actions.sh" 'conseguiu criar?' > "$T/out"
+grep -q 'Nao ha criacao de pasta confirmada' "$T/out"
+# Local IA auto-start, both model and runtime are known TEST fixtures.
+export XORRISO_AUTOSTART_TEST_MODE=1
+export XORRISO_AUTOSTART_TEST_DATA="$T/data"
+export XORRISO_AUTOSTART_TEST_RUNTIME="$T/runtime/llama-server"
+export XORRISO_AUTOSTART_TEST_STORAGE="$T/bin/storage"
+export XORRISO_AUTOSTART_TEST_SERVER="$T/bin/server"
+export XORRISO_AUTOSTART_TEST_LOOPBACK="$T/bin/loopback"
+export XORRISO_CONF_DIR="$T/run"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/storage"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/server"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/loopback"
+touch "$T/data/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf" "$T/runtime/llama-server"
+sh "$ROOT/src/ai-boot.sh" start
+test "$(sh "$ROOT/src/ai-boot.sh" status)" = 'pronta'
+grep -q '^http://127.0.0.1:8080/v1$' "$T/run/api_url"
+grep -q '^MiniCPM-V-4.7-1B$' "$T/run/api_model"
+rm "$T/runtime/llama-server"
+if sh "$ROOT/src/ai-boot.sh" start; then echo 'Missing runtime accepted'; exit 34; fi
+grep -q 'indisponivel: VDI do motor' "$T/run/boot-status"
+touch "$T/runtime/llama-server"
+printf '#!/bin/sh\nexit 4\n' > "$T/bin/server"
+if sh "$ROOT/src/ai-boot.sh" start; then echo 'Failed server reported ready'; exit 35; fi
+grep -q '^falha: MiniCPM nao ficou pronto' "$T/run/boot-status"
+# Late-appearing model on the second storage scan must start successfully.
+rm -f "$T/data/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf"
+if sh "$ROOT/src/ai-boot.sh" start; then echo 'Missing model accepted'; exit 38; fi
+grep -q '^indisponivel: modelo nao encontrado' "$T/run/boot-status"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/server"
+cat > "$T/bin/storage" <<'STORAGE'
+#!/bin/sh
+printf '.\n' >> "$XORRISO_AUTOSTART_TEST_DATA/attempts"
+if [ "$(wc -l < "$XORRISO_AUTOSTART_TEST_DATA/attempts")" -eq 2 ]; then
+ touch "$XORRISO_AUTOSTART_TEST_DATA/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf"
+fi
+STORAGE
+sh "$ROOT/src/ai-boot.sh" start
+test "$(sh "$ROOT/src/ai-boot.sh" status)" = 'pronta'
+test "$(wc -l < "$T/data/attempts")" -eq 2
+echo 'PASS: safe real folders; automatic IA boot; delayed model and missing components'
+ "$T/out"
+# Regression from the user's VirtualBox video: "chamado livros" was wrongly
+# created as the literal folder name "chamado livros".
+sh "$ROOT/src/chat-actions.sh" 'cria uma pasta chamado livros' > "$T/out"
+grep -q 'Pasta criada e verificada' "$T/out"
+test -d "$XORRISO_ACTION_TEST_ROOT/livros"
+test ! -e "$XORRISO_ACTION_TEST_ROOT/chamado livros"
+sh "$ROOT/src/chat-actions.sh" 'me mostra a pasta que voce criou' > "$T/out"
+grep -q 'Pasta existe e foi verificada' "$T/out"
+grep -q '/livros' "$T/out"
+if grep -q 'RESPOSTA-IA' "$T/out"; then echo 'Unverified fallback for show-folder intent'; exit 40; fi
+sh "$ROOT/src/chat-actions.sh" 'liste as pastas' > "$T/out"
+grep -q '^livros
+sh "$ROOT/src/chat-actions.sh" 'como vai?' > "$T/out"
+grep -q 'RESPOSTA-IA' "$T/out"
+if sh "$ROOT/src/chat-actions.sh" 'cria pasta ../../escape' > "$T/out"; then
+ echo 'Unsafe natural folder name accepted'; exit 39
+fi
+sh "$ROOT/src/chat-actions.sh" 'conseguiu criar?' > "$T/out"
+grep -q 'Nao ha criacao de pasta confirmada' "$T/out"
+# Local IA auto-start, both model and runtime are known TEST fixtures.
+export XORRISO_AUTOSTART_TEST_MODE=1
+export XORRISO_AUTOSTART_TEST_DATA="$T/data"
+export XORRISO_AUTOSTART_TEST_RUNTIME="$T/runtime/llama-server"
+export XORRISO_AUTOSTART_TEST_STORAGE="$T/bin/storage"
+export XORRISO_AUTOSTART_TEST_SERVER="$T/bin/server"
+export XORRISO_AUTOSTART_TEST_LOOPBACK="$T/bin/loopback"
+export XORRISO_CONF_DIR="$T/run"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/storage"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/server"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/loopback"
+touch "$T/data/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf" "$T/runtime/llama-server"
+sh "$ROOT/src/ai-boot.sh" start
+test "$(sh "$ROOT/src/ai-boot.sh" status)" = 'pronta'
+grep -q '^http://127.0.0.1:8080/v1$' "$T/run/api_url"
+grep -q '^MiniCPM-V-4.7-1B$' "$T/run/api_model"
+rm "$T/runtime/llama-server"
+if sh "$ROOT/src/ai-boot.sh" start; then echo 'Missing runtime accepted'; exit 34; fi
+grep -q 'indisponivel: VDI do motor' "$T/run/boot-status"
+touch "$T/runtime/llama-server"
+printf '#!/bin/sh\nexit 4\n' > "$T/bin/server"
+if sh "$ROOT/src/ai-boot.sh" start; then echo 'Failed server reported ready'; exit 35; fi
+grep -q '^falha: MiniCPM nao ficou pronto' "$T/run/boot-status"
+# Late-appearing model on the second storage scan must start successfully.
+rm -f "$T/data/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf"
+if sh "$ROOT/src/ai-boot.sh" start; then echo 'Missing model accepted'; exit 38; fi
+grep -q '^indisponivel: modelo nao encontrado' "$T/run/boot-status"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/server"
+cat > "$T/bin/storage" <<'STORAGE'
+#!/bin/sh
+printf '.\n' >> "$XORRISO_AUTOSTART_TEST_DATA/attempts"
+if [ "$(wc -l < "$XORRISO_AUTOSTART_TEST_DATA/attempts")" -eq 2 ]; then
+ touch "$XORRISO_AUTOSTART_TEST_DATA/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf"
+fi
+STORAGE
+sh "$ROOT/src/ai-boot.sh" start
+test "$(sh "$ROOT/src/ai-boot.sh" status)" = 'pronta'
+test "$(wc -l < "$T/data/attempts")" -eq 2
+echo 'PASS: safe real folders; automatic IA boot; delayed model and missing components'
+ "$T/out"
+sh "$ROOT/src/chat-actions.sh" 'liste a pastas' > "$T/out"
+grep -q '^livros
+sh "$ROOT/src/chat-actions.sh" 'como vai?' > "$T/out"
+grep -q 'RESPOSTA-IA' "$T/out"
+if sh "$ROOT/src/chat-actions.sh" 'cria pasta ../../escape' > "$T/out"; then
+ echo 'Unsafe natural folder name accepted'; exit 39
+fi
+sh "$ROOT/src/chat-actions.sh" 'conseguiu criar?' > "$T/out"
+grep -q 'Nao ha criacao de pasta confirmada' "$T/out"
+# Local IA auto-start, both model and runtime are known TEST fixtures.
+export XORRISO_AUTOSTART_TEST_MODE=1
+export XORRISO_AUTOSTART_TEST_DATA="$T/data"
+export XORRISO_AUTOSTART_TEST_RUNTIME="$T/runtime/llama-server"
+export XORRISO_AUTOSTART_TEST_STORAGE="$T/bin/storage"
+export XORRISO_AUTOSTART_TEST_SERVER="$T/bin/server"
+export XORRISO_AUTOSTART_TEST_LOOPBACK="$T/bin/loopback"
+export XORRISO_CONF_DIR="$T/run"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/storage"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/server"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/loopback"
+touch "$T/data/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf" "$T/runtime/llama-server"
+sh "$ROOT/src/ai-boot.sh" start
+test "$(sh "$ROOT/src/ai-boot.sh" status)" = 'pronta'
+grep -q '^http://127.0.0.1:8080/v1$' "$T/run/api_url"
+grep -q '^MiniCPM-V-4.7-1B$' "$T/run/api_model"
+rm "$T/runtime/llama-server"
+if sh "$ROOT/src/ai-boot.sh" start; then echo 'Missing runtime accepted'; exit 34; fi
+grep -q 'indisponivel: VDI do motor' "$T/run/boot-status"
+touch "$T/runtime/llama-server"
+printf '#!/bin/sh\nexit 4\n' > "$T/bin/server"
+if sh "$ROOT/src/ai-boot.sh" start; then echo 'Failed server reported ready'; exit 35; fi
+grep -q '^falha: MiniCPM nao ficou pronto' "$T/run/boot-status"
+# Late-appearing model on the second storage scan must start successfully.
+rm -f "$T/data/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf"
+if sh "$ROOT/src/ai-boot.sh" start; then echo 'Missing model accepted'; exit 38; fi
+grep -q '^indisponivel: modelo nao encontrado' "$T/run/boot-status"
+printf '#!/bin/sh\nexit 0\n' > "$T/bin/server"
+cat > "$T/bin/storage" <<'STORAGE'
+#!/bin/sh
+printf '.\n' >> "$XORRISO_AUTOSTART_TEST_DATA/attempts"
+if [ "$(wc -l < "$XORRISO_AUTOSTART_TEST_DATA/attempts")" -eq 2 ]; then
+ touch "$XORRISO_AUTOSTART_TEST_DATA/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf"
+fi
+STORAGE
+sh "$ROOT/src/ai-boot.sh" start
+test "$(sh "$ROOT/src/ai-boot.sh" status)" = 'pronta'
+test "$(wc -l < "$T/data/attempts")" -eq 2
+echo 'PASS: safe real folders; automatic IA boot; delayed model and missing components'
+ "$T/out"
+
 sh "$ROOT/src/chat-actions.sh" 'como vai?' > "$T/out"
 grep -q 'RESPOSTA-IA' "$T/out"
 if sh "$ROOT/src/chat-actions.sh" 'cria pasta ../../escape' > "$T/out"; then
