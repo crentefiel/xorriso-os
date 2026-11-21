@@ -41,21 +41,27 @@ if [ ! -s "$CONF/api_url" ]; then
  printf '%s\n' 'http://127.0.0.1:8080/v1' > "$CONF/api_url"
  printf '%s\n' 'MiniCPM-V-4.7-1B' > "$CONF/api_model"
 fi
-if [ ! -f "$DATA/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf" ] ||
-   [ ! -f "$RUNTIME_PATH" ]; then
+# SATA disks may appear a few seconds after PID1. Never format either VDI.
+attempt=0
+while [ "$attempt" -lt 5 ]; do
  /bin/sh "$STORAGE_SCRIPT" boot >> "$LOG" 2>&1 || :
-fi
+ if [ -f "$DATA/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf" ] &&
+    [ -f "$RUNTIME_PATH" ]; then break; fi
+ attempt=$((attempt+1))
+ [ "$attempt" -lt 5 ] && sleep 2
+done
 if [ ! -f "$DATA/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf" ]; then
- state 'indisponivel: modelo nao encontrado'
+ state 'indisponivel: modelo nao encontrado em XORRISO_DATA'
  exit 2
 fi
 if [ ! -f "$RUNTIME_PATH" ]; then
- state 'indisponivel: VDI do motor nao encontrado'
+ state 'indisponivel: VDI do motor XORRISO_RUNTIME nao encontrado'
  exit 3
 fi
+state 'carregando MiniCPM (pode demorar alguns minutos)'
 if /bin/sh "$RUNTIME_SCRIPT" start >>"$LOG" 2>&1; then
  state 'pronta'
  exit 0
 fi
-state 'falha: carregamento da IA'
+state 'falha: MiniCPM nao ficou pronto (F2: runtime log)'
 exit 4
