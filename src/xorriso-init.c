@@ -378,9 +378,12 @@ static void ci_persistent_test(void) {
   if(f>=0) {
    const char *msg="hello-persist-0.9\n";
    ssize_t len=(ssize_t)strlen(msg);
-   if(write(f,msg,(size_t)len)==len)print("xorriso: persistence write PASS\n");
+   ssize_t written=write(f,msg,(size_t)len);
+   int committed=(written==len && fsync(f)==0);
+   close(f);
+   sync(); /* CI must not kill the VM before the disk is synced. */
+   if(committed)print("xorriso: persistence write PASS\n");
    else print("xorriso: persistence FAIL (write)\n");
-   (void)fsync(f);close(f);
   }else print("xorriso: persistence FAIL (open)\n");
  }else{
   char buf[128]={0};
