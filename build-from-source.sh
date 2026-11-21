@@ -65,13 +65,13 @@ cat > "$STAGE/boot/grub/grub.cfg" <<'GRUB'
 set timeout=0
 set timeout_style=hidden
 set default=0
-menuentry 'xorriso Alpha 0.13 - Linux minimo' {
+menuentry 'xorriso Alpha 0.14 - Linux minimo' {
  linux /boot/vmlinuz console=tty0 quiet loglevel=0 vt.global_cursor_default=0 rdinit=/init
  initrd /boot/initramfs.cpio.gz
 }
 GRUB
-grub-mkrescue -o "$DIST/xorriso-alpha-013-grub.iso" "$STAGE"
+grub-mkrescue -o "$DIST/xorriso-alpha-014-grub.iso" "$STAGE"
 sudo cp "$KERNEL" "$DIST/vmlinuz"
 sudo chown "$(id -u):$(id -g)" "$DIST/vmlinuz"
-sha256sum "$DIST/xorriso-alpha-013-grub.iso" > "$DIST/SHA256SUMS"
-echo "Created $DIST/xorriso-alpha-013-grub.iso"
+sha256sum "$DIST/xorriso-alpha-014-grub.iso" > "$DIST/SHA256SUMS"
+echo "Created $DIST/xorriso-alpha-014-grub.iso"
