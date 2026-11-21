@@ -1,0 +1,24 @@
+name: xorriso desktop — native graphical ISO preflight
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'build-from-source.sh'
+      - 'tools/check-native-desktop.py'
+      - '.github/workflows/desktop-native-iso.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Python syntax
+        run: python3 -m py_compile tools/check-native-desktop.py
+      - name: Require actual native desktop, not an HTML-only prototype
+        run: python3 tools/check-native-desktop.py
