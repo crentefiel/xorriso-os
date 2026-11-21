@@ -8,6 +8,9 @@ ROOT_EXEC=${XORRISO_ROOT_EXEC_BIN:-/usr/lib/xorriso/root-exec.sh}
 input=${1:-}
 [ -n "$input" ] || { echo 'Escreva um pedido para a IA.'; exit 2; }
 case "$input" in
+ 'desliga o sistema'|'desligue o sistema'|'desligar o sistema'|'desliga o computador'|'desligue o computador'|'desligar o computador')
+  # Never report a shutdown that did not happen. Proposal requires human approval.
+  exec /bin/sh "$ROOT_EXEC" --propose '/bin/busybox poweroff -f' ;;
  'autorizar '*)
   # This branch is only entered for literal text typed by the user.
   exec /bin/sh "$ROOT_EXEC" "--approve:${input#autorizar }" ;;
