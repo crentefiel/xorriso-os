@@ -33,6 +33,7 @@ jobs:
           bash src/test-runtime.sh
           bash src/test-actions.sh
           bash src/test-root-exec.sh
+          sh src/test-shutdown-intent.sh
           python3 src/test-http-real.py
       - name: Compile and test native framebuffer renderer with sanitizers
         run: |
