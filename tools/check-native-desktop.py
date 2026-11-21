@@ -9,7 +9,7 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 builder = (root / "build-from-source.sh").read_text()
-init = (root / "src/xorriso-init.c").read_text()
+init = (root / "src/xorriso-gui-init.c").read_text()
 failures = []
 
 def require(cond, message):
@@ -21,12 +21,15 @@ require(native.is_file(),
         "FALTA src/xorriso-desktop.c: o programa grafico da ISO testada nao esta versionado no GitHub.")
 require("src/xorriso-desktop.c" in builder and "xorriso-desktop" in builder,
         "FALTA compilar e incluir o desktop nativo na imagem por build-from-source.sh.")
-require("xorriso-desktop" in init and "exec" in init,
+require("xorriso-desktop" in init and "fork" in init,
         "FALTA iniciar o programa grafico de verdade no PID1, com log de falhas.")
-require("fb0" in init or "desktop" in init,
+require("fb0" in init and "desktop" in init,
         "FALTA suporte/verificacao do framebuffer no inicializador.")
-require("simpledrm" in builder or "efifb" in builder or "vesafb" in builder or "fb0" in builder,
+require("gfxterm" in builder and "set gfxpayload=keep" in builder,
         "FALTA configurar a inicializacao grafica/framebuffer no gerador de ISO.")
+
+require((root / "tools/generate-font.py").exists(), "FALTA geracao dos glifos de fonte do desktop.")
+require("init-old" in builder and "xorriso-gui-init.c" in builder, "FALTA fallback seguro para o PID1 antigo.")
 
 if failures:
     print("\nXORRISO DESKTOP — PRE-FLIGHT FALHOU: estes itens ainda nao existem no codigo-fonte:")
