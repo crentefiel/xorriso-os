@@ -23,6 +23,18 @@ case "${1:-}" in
   fi
   echo "Trocas de conversa armazenadas na RAM: $turns"
   exit 0 ;;
+ --history-last)
+  if [ -f "$HISTORY" ] && "$JQ_BIN" -e 'type=="array"' "$HISTORY" >/dev/null 2>&1; then
+   last=$("$JQ_BIN" -r '[.[] | select(.role=="user" and (.content|type=="string")) | .content] | last // empty' "$HISTORY")
+  else
+   last=
+  fi
+  if [ -n "$last" ]; then
+   printf 'Ultima pergunta registrada: %s\n' "$last"
+  else
+   echo 'Nenhuma pergunta registrada nesta conversa.'
+  fi
+  exit 0 ;;
 esac
 BASE=$(getconf api_url)
 MODEL=$(getconf api_model)
@@ -61,6 +73,55 @@ if [ ! -f "$HISTORY" ] ||
 fi
 LOCAL=0
 case "$BASE" in http://127.0.0.1:*|http://localhost:*) LOCAL=1 ;; esac
+
+# When asked to quote a prior user turn, read actual RAM history instead
+# of relying on a small LLM to infer or hallucinate it. This is xorriso's
+# own history lookup, not model-generated text, and does not use the network.
+if [ "$LOCAL" = 1 ] && printf '%s\n' "$PROMPT" | grep -Eiq '^(qual (foi|era) (a )?(minha )?(pergunta anterior|ultima pergunta)|o que (eu )?(te )?perguntei (antes|anteriormente))[?!. ]*'Voce e a IA local do xorriso. A conversa anterior aparece nas mensagens user e assistant anteriores ao ultimo pedido. Utilize esse contexto quando pertinente. Responda em portugues brasileiro, de modo natural e breve. Use texto simples, sem arte ASCII, emojis, bordas, simbolos decorativos ou Markdown. Para facilitar o console Linux, prefira letras ASCII sem acentos. Se nao souber a resposta, diga que nao sabe.'
+"$JQ_BIN" -n --arg model "$MODEL" --arg content "$PROMPT" --arg sys "$SYSTEM" \
+ --argjson local "$LOCAL" --slurpfile history "$HISTORY" \
+ '{model:$model,messages:((if $local==1 then [{role:"system",content:$sys}] else [] end)+$history[0]+[{role:"user",content:$content}]),stream:false,max_tokens:256,temperature:0.6}' \
+ > "$CONF/api-request.json"
+if [ -n "$KEY" ]; then
+ if ! "$CURL_BIN" -fSs --connect-timeout 8 --max-time 120 \
+  -H 'Content-Type: application/json' -H "@$CONF/api-auth-header" \
+  --data-binary "@$CONF/api-request.json" "$BASE/chat/completions" \
+  -o "$CONF/api-response.json"; then
+  echo 'Falha na API (rede, modelo, chave ou endpoint).'; exit 1
+ fi
+else
+ if ! "$CURL_BIN" -fSs --connect-timeout 8 --max-time 120 \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$CONF/api-request.json" "$BASE/chat/completions" \
+  -o "$CONF/api-response.json"; then
+  echo 'Servidor local indisponivel.'; exit 1
+ fi
+fi
+if ! "$JQ_BIN" -er '.choices[0].message.content | select(type=="string" and length>0)' \
+ "$CONF/api-response.json" > "$CONF/api-message.txt"; then
+ "$JQ_BIN" -r '.error.message // "Resposta invalida ou vazia do modelo."' "$CONF/api-response.json" 2>/dev/null || echo 'JSON invalido.'
+ exit 1
+fi
+# Keep only four user/assistant pairs, in RAM. Do not retain failed requests.
+"$JQ_BIN" -n --arg prompt "$PROMPT" --slurpfile history "$HISTORY" \
+ --slurpfile resp "$CONF/api-response.json" \
+ '($history[0]+[{role:"user",content:$prompt},{role:"assistant",content:$resp[0].choices[0].message.content}])[-8:]' > "$HISTORY.tmp"
+mv "$HISTORY.tmp" "$HISTORY"
+cat "$CONF/api-message.txt"
+; then
+ previous=$("$JQ_BIN" -r '[.[] | select(.role=="user" and (.content|type=="string")) | .content] | last // empty' "$HISTORY")
+ if [ -n "$previous" ]; then
+  answer="Sua pergunta anterior foi: $previous"
+ else
+  answer='Nenhuma pergunta anterior registrada nesta conversa.'
+ fi
+ "$JQ_BIN" -n --arg prompt "$PROMPT" --arg answer "$answer" --slurpfile history "$HISTORY" \
+  '($history[0]+[{role:"user",content:$prompt},{role:"assistant",content:$answer}])[-8:]' > "$HISTORY.tmp"
+ mv "$HISTORY.tmp" "$HISTORY"
+ printf 'Consulta ao historico local: %s\n' "$answer"
+ exit 0
+fi
+
 SYSTEM='Voce e a IA local do xorriso. Responda em portugues brasileiro, de modo natural e breve. Use texto simples, sem arte ASCII, emojis, bordas, simbolos decorativos ou Markdown. Para facilitar o console Linux, prefira letras ASCII sem acentos. Se nao souber a resposta, diga que nao sabe.'
 "$JQ_BIN" -n --arg model "$MODEL" --arg content "$PROMPT" --arg sys "$SYSTEM" \
  --argjson local "$LOCAL" --slurpfile history "$HISTORY" \
