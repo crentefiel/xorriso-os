@@ -12,6 +12,11 @@ test -d "$XORRISO_ACTION_TEST_ROOT/Meus Projetos"
 grep -q 'Pasta criada e verificada' "$T/out"
 sh "$ROOT/src/actions.sh" 'Liste minhas pastas' > "$T/out"
 grep -q 'Meus Projetos' "$T/out"
+printf 'arquivo\n' > "$XORRISO_ACTION_TEST_ROOT/arquivo.txt"
+mkdir "$XORRISO_ACTION_TEST_ROOT/Outra Pasta"
+sh "$ROOT/src/actions.sh" 'Liste minhas pastas' > "$T/out"
+grep -q 'Outra Pasta' "$T/out"
+if grep -q 'arquivo.txt' "$T/out"; then echo 'File included in folder list'; exit 37; fi
 sh "$ROOT/src/actions.sh" 'Crie uma pasta chamada Meus Projetos' > "$T/out"
 grep -q 'ja existe' "$T/out"
 for bad in '--create:../../etc' '--create:../escape' '--create:;touch /tmp/pwn' '--create:arquivo/nome' '--create:.oculta'; do
