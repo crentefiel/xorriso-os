@@ -29,11 +29,6 @@ create_folder() {
  }
  # Permit only simple human names; reject traversal, slashes, shell metacharacters.
  # No eval, no sh -c, no interpretation of model text.
- case "$name" in
-  .*|*..*|*/*|*\\*|*'
-'*|*'
-'*|*'  '*|*' '* ) : ;;
- esac
  if ! printf '%s' "$name" | LC_ALL=C grep -Eq '^[A-Za-z0-9][A-Za-z0-9 _-]*$'; then
   echo 'Nome invalido. Use letras sem acentos, numeros, espaco, _ ou -.'
   return 3
