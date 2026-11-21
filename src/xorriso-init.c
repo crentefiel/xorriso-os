@@ -432,6 +432,19 @@ static void ci_dual_volume_test(void) {
   print("xorriso: dual volume FAIL (runtime not readonly)\n");
   for(;;)pause();
  }
+ const char *folder="/data/Documentos/CI Projetos";
+ if(iswrite) {
+  if(ci_exec_script("/usr/lib/xorriso/actions.sh","Crie uma pasta chamada CI Projetos")!=0) {
+   print("xorriso: dual volume FAIL (action mkdir)\n");
+   for(;;)pause();
+  }
+ }else{
+  struct stat folder_stat;
+  if(stat(folder,&folder_stat)!=0||!S_ISDIR(folder_stat.st_mode)) {
+   print("xorriso: dual volume FAIL (action persistence)\n");
+   for(;;)pause();
+  }
+ }
  const char *note="/data/notes/ci-dual-note.txt";
  if(iswrite) {
   fd=open(note,O_WRONLY|O_CREAT|O_TRUNC|O_CLOEXEC,0600);
