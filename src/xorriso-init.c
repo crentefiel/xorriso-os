@@ -32,6 +32,7 @@ static struct termios original, raw;
 static int tty_fd = -1;
 static int is_console = 0;
 static int is_chat = 0;
+static char shown_ai_state[192]={0};
 
 static void print(const char *s) { if(s) (void)write(STDOUT_FILENO,s,strlen(s)); }
 static void crlf(void) { print("\r\n"); }
@@ -79,6 +80,8 @@ static void console_header(void) {
 }
 static int read_key(void) {
  unsigned char ch;
+ struct pollfd pending={.fd=STDIN_FILENO,.events=POLLIN};
+ if(poll(&pending,1,350)<=0)return -1;
  if(read(STDIN_FILENO,&ch,1)!=1) return -1;
  if(ch!=27) return (int)ch;
  char seq[10]={0};int n=0;
@@ -218,7 +221,9 @@ static void chat_screen(void) {
  print("/status mostra historico  |  /exit fecha\r\n");
  print("Historico temporario em RAM. Nenhum texto sera salvo no VDI.\r\n");
  char state[192];read_runtime("boot-status",state,sizeof(state));
- print("IA local: ");print(*state?state:"preparando");crlf();
+ if(!*state)snprintf(state,sizeof(state),"preparando");
+ snprintf(shown_ai_state,sizeof(shown_ai_state),"%s",state);
+ print("IA local: ");print(state);crlf();
  print("Digite o que deseja. Microfone sera integrado em versao futura.\r\n");
  print("------------------------------------------------------------\r\n\r\n");
 }
@@ -528,7 +533,16 @@ int main(void) {
   else if(is_chat)print("\033[?25hvoce> ");
   for(;;) {
    int key=read_key();
-   if(key<0){usleep(25000);continue;}
+   if(key<0){
+    if(is_chat && n==0) {
+     char state[192];read_runtime("boot-status",state,sizeof(state));
+     if(*state && strcmp(state,shown_ai_state)) {
+      snprintf(shown_ai_state,sizeof(shown_ai_state),"%s",state);
+      print("\r\nIA local: ");print(state);print("\r\nvoce> ");
+     }
+    }
+    continue;
+   }
    if(key==0x1001){status();n=0;break;}
    if(key==0x1002){console_header();n=0;break;}
    if(key==0x1003){chat_screen();n=0;break;}
