@@ -25,9 +25,9 @@ do_create() {
  fi
 }
 case "$lower" in
- 'liste minhas pastas'|'mostre minhas pastas'|'listar pastas'|'listar minhas pastas'|'quais pastas existem')
+ 'liste minhas pastas'|'mostre minhas pastas'|'listar pastas'|'listar minhas pastas'|'quais pastas existem'|'liste as pastas'|'liste a pastas'|'lista as pastas'|'mostre as pastas'|'mostra as pastas'|'me mostre as pastas')
   /bin/sh "$ACTION" --list ;;
- 'conseguiu criar'*|'criou a pasta'*|'cade a pasta'*|'onde esta a pasta'*|'verifique a pasta'*)
+ 'conseguiu criar'*|'criou a pasta'*|'cade a pasta'*|'onde esta a pasta'*|'verifique a pasta'*|'me mostra a pasta'*|'mostra a pasta que'*|'mostre a pasta que'*|'me mostre a pasta'*|'ver a pasta criada'*|'mostre a ultima pasta'*|'mostra a ultima pasta'*)
   if [ -s "$CONF/last-folder" ]; then
    name=$(sed -n 's/^Pasta: //p' "$CONF/last-folder")
    [ -n "$name" ] && /bin/sh "$ACTION" "--check:$name" || echo 'Nao ha pasta registrada.'
@@ -36,6 +36,8 @@ case "$lower" in
   case "$lower" in
    *' chamada '*)
     name=${input#* chamada } ;;
+   *' chamado '*)
+    name=${input#* chamado } ;;
    *' pasta '*)
     name=${input#* pasta } ;;
    *)
