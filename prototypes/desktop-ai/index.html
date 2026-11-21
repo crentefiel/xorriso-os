@@ -61,10 +61,10 @@ body{margin:0;min-height:100vh;overflow:hidden}
     <div class="app">
       <nav class="sidebar" aria-label="Histórico"><button id="newChat">+ Nova conversa</button><div class="history" id="history"></div></nav>
       <main class="main">
-        <div class="status" role="status">Protótipo visual — MiniCPM e executor Linux ainda não conectados</div>
+        <div class="status" role="status">MiniCPM via serviço local — executor Linux desativado</div>
         <div class="messages" id="messages" aria-live="polite"></div>
         <form class="compose" id="form"><input id="prompt" placeholder="Digite sua mensagem..." autocomplete="off" aria-label="Mensagem"><button type="submit">Enviar</button></form>
-        <div class="note">Somente texto nesta etapa. Nenhum comando do Linux é executado por esta demonstração.</div>
+        <div class="note">Somente texto nesta etapa. A conexão à IA usa o serviço local; nenhuma ação Linux é executada.</div>
       </main>
     </div>
   </section>
@@ -76,7 +76,7 @@ body{margin:0;min-height:100vh;overflow:hidden}
 const $=id=>document.getElementById(id);
 const windowEl=$("aiWindow"), messages=$("messages"), history=$("history"), prompt=$("prompt");
 const sessions=[];let current=null;
-function createSession(){const session={id:Date.now()+Math.random(),title:"Nova conversa",items:[{role:"assistant",text:"Olá! Esta é uma demonstração da interface do xorriso. A conexão com o MiniCPM e com as ações reais do Linux será integrada na próxima etapa."}]};sessions.unshift(session);current=session;render();return session}
+function createSession(){const session={id:Date.now()+Math.random(),title:"Nova conversa",items:[{role:"assistant",text:"Olá! Sou a interface de texto do xorriso. Se o MiniCPM estiver funcionando no serviço local, podemos conversar aqui. Ainda não executo comandos Linux."}]};sessions.unshift(session);current=session;render();return session}
 function add(role,text){current.items.push({role,text});if(role==="user"&&current.title==="Nova conversa")current.title=text.slice(0,34);render()}
 function render(){messages.replaceChildren();for(const item of current.items){const el=document.createElement("div");el.className="message "+item.role;el.textContent=item.text;messages.append(el)}messages.scrollTop=messages.scrollHeight;history.replaceChildren();for(const s of sessions){const btn=document.createElement("button");btn.textContent=s.title;btn.title=s.title;btn.setAttribute("aria-current",String(s===current));btn.onclick=()=>{current=s;render()};history.append(btn)}}
 function show(){windowEl.classList.remove("hidden");prompt.focus()}
@@ -85,7 +85,7 @@ $("desktopAi").addEventListener("click",show);$("taskAi").addEventListener("clic
 $("minimize").addEventListener("click",hide);$("close").addEventListener("click",hide);
 $("maximize").addEventListener("click",()=>{windowEl.classList.toggle("maximized");windowEl.style.left="";windowEl.style.top=""});
 $("newChat").addEventListener("click",()=>{createSession();prompt.focus()});
-$("form").addEventListener("submit",event=>{event.preventDefault();const text=prompt.value.trim();if(!text)return;prompt.value="";add("user",text);add("assistant","Recebi seu pedido, mas esta tela é apenas um protótipo. Não executei comandos nem consultei o MiniCPM. A integração real será feita no serviço local do xorriso.")});
+$("form").addEventListener("submit",async event=>{event.preventDefault();const message=prompt.value.trim();if(!message)return;const historyCopy=current.items.slice(1).map(item=>({role:item.role,content:item.text}));prompt.value="";add("user",message);const btn=$("form").querySelector("button");btn.disabled=true;btn.textContent="...";try{const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message,history:historyCopy})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Falha na IA");add("assistant",data.answer)}catch(error){add("assistant","Não foi possível falar com o MiniCPM: "+error.message)}finally{btn.disabled=false;btn.textContent="Enviar";prompt.focus()}});
 let dragging=false,dx=0,dy=0;
 $("titlebar").addEventListener("pointerdown",event=>{if(event.target.closest("button")||windowEl.classList.contains("maximized"))return;dragging=true;const rect=windowEl.getBoundingClientRect();windowEl.style.transform="none";windowEl.style.left=rect.left+"px";windowEl.style.top=rect.top+"px";dx=event.clientX-rect.left;dy=event.clientY-rect.top;event.currentTarget.setPointerCapture(event.pointerId)});
 $("titlebar").addEventListener("pointermove",event=>{if(!dragging)return;windowEl.style.left=Math.max(0,Math.min(innerWidth-100,event.clientX-dx))+"px";windowEl.style.top=Math.max(0,Math.min(innerHeight-85,event.clientY-dy))+"px"});
