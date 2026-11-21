@@ -57,7 +57,11 @@ create_folder() {
 list_folders() {
  ensure_root || return 3
  echo "Pastas em $ROOT:"
- ls -1 "$ROOT"
+ # List only real directories, never ordinary files or symbolic links.
+ for entry in "$ROOT"/*; do
+  [ -d "$entry" ] && [ ! -L "$entry" ] || continue
+  printf '%s\n' "${entry##*/}"
+ done
 }
 prompt=${1:-}
 case "$prompt" in

@@ -48,6 +48,17 @@ grep -q 'fora da lista' "$T/out"
 wrap '{"action":"write_note","filename":"../../escape","content":"x","message":""}'
 if sh "$ROOT/src/ai-agent.sh" 'grave um arquivo' > "$T/out"; then exit 52; fi
 [ ! -f "$T/escape" ]
+# A newline must invalidate the ENTIRE filename (grep -E used to match only
+# a valid first line, silently permitting a control character in the path).
+wrap '{"action":"write_note","filename":"valida.txt\nEVIL","content":"x","message":""}'
+if printf 's\n' | sh "$ROOT/src/ai-agent.sh" 'nota maliciosa' > "$T/out"; then
+ echo 'Multiline note filename accepted'; exit 60
+fi
+[ ! -e "$T/notes/valida.txt" ]
+wrap '{"action":"read_note","filename":"valida.txt\nEVIL","content":"","message":""}'
+if sh "$ROOT/src/ai-agent.sh" 'ler nota maliciosa' > "$T/out"; then
+ echo 'Multiline read filename accepted'; exit 61
+fi
 wrap '{"action":"write_note","filename":"ideias.txt","content":"ideia inicial","message":""}'
 printf 'n\n' | sh "$ROOT/src/ai-agent.sh" 'nota' > "$T/out"
 [ ! -f "$T/notes/ideias.txt" ]
