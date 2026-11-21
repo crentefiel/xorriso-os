@@ -69,6 +69,10 @@ static void setup_tty(void) {
  }
  /* Linux VT must deliver UTF-8 bytes for cedilla and composed accents. */
  (void)ioctl(tty_fd,KDSKBMODE,K_UNICODE);
+ /* Reduce unintended floods from virtual-key auto-repeat. Does not mask
+  * genuinely repeated key-down events from the VirtualBox host. */
+ struct kbd_repeat repeat={.delay=700,.period=90};
+ (void)ioctl(tty_fd,KDKBDREP,&repeat);
  print("\033%G");
  if(tcgetattr(tty_fd,&original)==0) {
   raw=original;cfmakeraw(&raw);raw.c_oflag|=OPOST;
@@ -259,18 +263,8 @@ static void chat_input(char *s) {
   print("Comandos: /last /status /clear /ready /exit\r\n");
   return;
  }
- if(!strncasecmp(s,"crie uma pasta chamada ",strlen("crie uma pasta chamada "))||
-    !strncasecmp(s,"criar uma pasta chamada ",strlen("criar uma pasta chamada "))||
-    !strncasecmp(s,"quero criar uma pasta chamada ",strlen("quero criar uma pasta chamada "))||
-    !strncasecmp(s,"crie a pasta ",strlen("crie a pasta "))||
-    !strcasecmp(s,"liste minhas pastas")||
-    !strcasecmp(s,"mostre minhas pastas")) {
-   print("Acao do xorriso:\r\n");
-   run_script("/usr/lib/xorriso/actions.sh",s);
-   return;
- }
- print("IA xorriso:");
- run_script("/usr/lib/xorriso/ai-request.sh",s);
+ print("xorriso:\r\n");
+ run_script("/usr/lib/xorriso/chat-actions.sh",s);
 }
 
 static void list_root(void) {
