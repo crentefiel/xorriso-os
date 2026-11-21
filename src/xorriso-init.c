@@ -237,8 +237,10 @@ static void chat_input(char *s) {
  if(!strcmp(s,"/last")) {run_script("/usr/lib/xorriso/ai-request.sh","--history-last");return;}
  if(!strcmp(s,"/status")) {run_script("/usr/lib/xorriso/ai-request.sh","--history-status");return;}
  if(!strcmp(s,"/ready")) {run_script("/usr/lib/xorriso/ai-boot.sh","status");return;}
+ if(!strcmp(s,"/commands")) {run_script("/usr/lib/xorriso/command-catalog.sh","--list");return;}
+ if(!strcmp(s,"/capabilities")) {run_script("/usr/lib/xorriso/command-catalog.sh","--status");return;}
  if(s[0]=='/') {
-  print("Comandos: /last /status /clear /ready /exit\r\n");
+  print("Comandos: /last /status /clear /ready /commands /capabilities /exit\r\n");
   return;
  }
  if(!strncasecmp(s,"crie uma pasta chamada ",strlen("crie uma pasta chamada "))||
@@ -270,9 +272,11 @@ static void cmd(char *s) {
  size_t n=strlen(s);
  while(n&&isspace((unsigned char)s[n-1]))s[--n]=0;
  if(!*s)return;
- if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent action notes storage model runtime chat local ai desktop reboot poweroff (F3: conversa)\r\n");
+ if(!strcmp(s,"help"))print("help status ls uptime commands capabilities shell net api ask agent action notes storage model runtime chat local ai desktop reboot poweroff (F3: conversa)\r\n");
  else if(!strcmp(s,"status")||!strcmp(s,"version")){status();is_console=1;}
  else if(!strcmp(s,"ls"))list_root();
+ else if(!strcmp(s,"commands"))run_script("/usr/lib/xorriso/command-catalog.sh","--list");
+ else if(!strcmp(s,"capabilities"))run_script("/usr/lib/xorriso/command-catalog.sh","--status");
  else if(!strcmp(s,"uptime")){
   struct sysinfo si;char b[128];
   if(!sysinfo(&si)){snprintf(b,sizeof(b),"Uptime: %ld s\r\n",si.uptime);print(b);}
