@@ -78,7 +78,7 @@ mock_plan create_folder 'Projetos Internos 2026'
 phrase='Você pode organizar uma nova pasta com o nome Projetos Internos 2026?'
 sh "$ROOT/src/chat-actions.sh" "$phrase" > "$T/out"
 jq -e --arg phrase "$phrase" '.messages[-1].content==$phrase' "$T/run/agent-request.json" >/dev/null
-jq -e '.messages[0].content | contains("Comandos executaveis instalados")' "$T/run/agent-request.json" >/dev/null
+jq -e '.messages[0].content | contains("Inventario de comandos realmente disponiveis")' "$T/run/agent-request.json" >/dev/null
 grep -q 'Pasta criada e verificada' "$T/out"
 test -d "$XORRISO_ACTION_TEST_ROOT/Projetos Internos 2026"
 mock_plan create_folder 'Músicas para João'
