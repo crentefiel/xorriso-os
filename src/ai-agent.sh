@@ -75,7 +75,17 @@ case "$ACTION" in
 
  read_note|write_note)
   case "$FILENAME" in ''|.|..|.*) echo 'Nome invalido.'; exit 3 ;; esac
-  if [ "${#FILENAME}" -gt 64 ] || ! printf '%s' "$FILENAME" | grep -Eq '^[a-zA-Z0-9_-][a-zA-Z0-9_.-]*$'; then
+  # Compare the complete byte string. grep -E can accept one matching line
+  # even when the filename also contains a newline or other control bytes.
+  if [ "${#FILENAME}" -gt 64 ] || [ -z "$FILENAME" ]; then
+   echo 'Nome invalido. Nenhuma acao realizada.'; exit 3
+  fi
+  case "$FILENAME" in
+   [a-zA-Z0-9_-]*) : ;;
+   *) echo 'Nome invalido. Nenhuma acao realizada.'; exit 3 ;;
+  esac
+  safe_name=$(printf '%s' "$FILENAME" | LC_ALL=C tr -cd 'a-zA-Z0-9_.-')
+  if [ "$safe_name" != "$FILENAME" ]; then
    echo 'Nome invalido. Nenhuma acao realizada.'; exit 3
   fi
   TARGET="$NOTES/$FILENAME"
