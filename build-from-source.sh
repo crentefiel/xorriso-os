@@ -20,7 +20,7 @@ install -m 755 "$(command -v busybox)" "$ROOT/bin/busybox"
 for app in sh ash ls cat mount dmesg uname ip ps free vi grep mkdir touch echo date route ifconfig udhcpc insmod ping awk sed sleep head tail rm chmod printf clear readlink basename blkid df sync dd od tr mknod sha256sum mv wc cp kill; do
   ln -sf busybox "$ROOT/bin/$app"
 done
-for file in ai-request.sh ai-agent.sh local.sh network.sh storage.sh model.sh runtime.sh loopback.sh ai-boot.sh actions.sh; do
+for file in ai-request.sh ai-agent.sh local.sh network.sh storage.sh model.sh runtime.sh loopback.sh ai-boot.sh actions.sh admin-actions.sh; do
   install -m 755 "$HERE/src/$file" "$ROOT/usr/lib/xorriso/$file"
 done
 install -m 755 "$HERE/src/udhcpc.script" "$ROOT/etc/udhcpc.script"
