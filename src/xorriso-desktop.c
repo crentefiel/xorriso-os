@@ -116,6 +116,19 @@ static void paragraph(int x,int y,const char *str,unsigned c,int chars,int rows)
   col++;
  }
 }
+static int measure_rows(const char *str,int cols){
+ if(!str||cols<1)return 1;
+ const unsigned char *q=(const unsigned char*)str;
+ int rows=1,col=0;
+ while(*q&&rows<100){
+  unsigned ch=unicode(&q);
+  if(ch=='\r')continue;
+  if(ch=='\n'){rows++;col=0;continue;}
+  if(col>=cols){rows++;col=0;}
+  col++;
+ }
+ return rows;
+}
 static void message(int role,const char *s){
  if(count==MSGS){memmove(answers,answers+1,sizeof(answers[0])*(MSGS-1));memmove(roles,roles+1,sizeof(int)*(MSGS-1));count--;}
  roles[count]=role;
@@ -163,11 +176,22 @@ static void window_paint(void){
  char status[160];snprintf(status,sizeof(status),"IA local: %.90s",state);
  label(mainx+12,winy+54,status,0xe9c28c,1,(mainw-20)/8);
  int view_top=winy+92,view_end=winy+winh-102;
- int slots=max(1,(view_end-view_top)/55),start=max(0,count-slots);
- for(int i=start;i<count;i++){
-  int y=view_top+(i-start)*55;
-  block(mainx+12,y,mainw-26,49,roles[i]?0x295076:0x293a51);
-  paragraph(mainx+19,y+6,answers[i],0xf3f7fe,max(1,(mainw-50)/8),2);
+ // Paint latest messages from the bottom. Variable-height text ensures that
+ // root commands and their human approval token are visible for inspection.
+ int bottom=view_end,chars=max(1,(mainw-50)/8);
+ int maxlines=max(1,(view_end-view_top-12)/16);
+ for(int i=count-1;i>=0&&bottom>view_top+16;i--){
+  int lines=min(maxlines,measure_rows(answers[i],chars));
+  int h=lines*16+12;
+  if(h>bottom-view_top){
+   if(i!=count-1)break;
+   h=bottom-view_top;
+   lines=max(1,(h-12)/16);
+  }
+  int y=bottom-h;
+  block(mainx+12,y,mainw-26,h-5,roles[i]?0x295076:0x293a51);
+  paragraph(mainx+19,y+6,answers[i],0xf3f7fe,chars,lines);
+  bottom=y-7;
  }
  int iy=winy+winh-82;
  block(mainx+12,iy,mainw-111,48,0x273d57);
