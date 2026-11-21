@@ -12,6 +12,7 @@ else
 fi
 CURL_BIN=${XORRISO_CURL_BIN:-curl}
 JQ_BIN=${XORRISO_JQ_BIN:-jq}
+ACTION_BIN=${XORRISO_ACTION_BIN:-/usr/lib/xorriso/actions.sh}
 getconf() { cat "$CONF/$1" 2>/dev/null || :; }
 if [ "${1:-}" = '--notes' ]; then
  mkdir -p "$NOTES"; echo "Notas em $NOTES:"
@@ -68,9 +69,9 @@ case "$ACTION" in
   echo 'Notas:';ls -1 "$NOTES";echo 'Somente leitura.' ;;
  create_folder)
   echo "Pedido de criacao da pasta: $FILENAME"
-  /bin/sh /usr/lib/xorriso/actions.sh "--create:$FILENAME" ;;
+  /bin/sh "$ACTION_BIN" "--create:$FILENAME" ;;
  list_folders)
-  /bin/sh /usr/lib/xorriso/actions.sh --list ;;
+  /bin/sh "$ACTION_BIN" --list ;;
 
  read_note|write_note)
   case "$FILENAME" in ''|.|..|.*) echo 'Nome invalido.'; exit 3 ;; esac
