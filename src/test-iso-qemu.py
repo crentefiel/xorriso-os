@@ -117,7 +117,7 @@ def main():
                     raise RuntimeError("F3 chat UI did not appear")
                 if counts["chat-blank"] > max(100, int(counts["chat"]*.12)):
                     raise RuntimeError("Esc did not close the chat UI")
-                if counts["console"] < 160 or counts["console"] < counts["start"] + 120:
+                if counts["console"] < 160 or counts["console"] < counts["boot-blank"] + 120:
                     raise RuntimeError("F2 console did not appear")
                 if counts["blank"] > max(100, int(counts["console"]*.12)):
                     raise RuntimeError("Esc did not return to blank screen")
