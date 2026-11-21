@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Test real filesystem changes in an isolated directory; no physical disks.
 set -euo pipefail
+trap 'rc=$?; printf "FAILED test-actions.sh at line %s (exit %s): %s\n" "$LINENO" "$rc" "$BASH_COMMAND"; if [[ -n "${T:-}" && -f "$T/out" ]]; then tail -20 "$T/out"; fi' ERR
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 T="$(mktemp -d)"
 trap 'rm -rf "$T"' EXIT
@@ -29,26 +30,115 @@ fi
 printf 'spoof\n' > "$T/file"
 ln -s "$T/file" "$XORRISO_ACTION_TEST_ROOT/Link Pasta"
 if sh "$ROOT/src/actions.sh" '--create:Link Pasta' > "$T/out"; then echo 'Symlink not rejected'; exit 33; fi
-# Natural language chat must trigger a verified real operation, never an LLM echo.
+# Basic file tools: literal text, no clobber, no path traversal.
+sh "$ROOT/src/actions.sh" '--write:anotações.txt' 'Linha criada pela IA' > "$T/out"
+test -f "$XORRISO_ACTION_TEST_ROOT/anotações.txt"
+grep -q 'Arquivo criado e verificado' "$T/out"
+sh "$ROOT/src/actions.sh" '--read:anotações.txt' > "$T/out"
+grep -q 'Linha criada pela IA' "$T/out"
+sh "$ROOT/src/actions.sh" --files > "$T/out"
+grep -q 'anotações.txt' "$T/out"
+if sh "$ROOT/src/actions.sh" '--write:anotações.txt' 'texto sobrescrito' > "$T/out"; then
+ echo 'Existing file overwritten'; exit 46
+fi
+grep -q 'Linha criada pela IA' "$XORRISO_ACTION_TEST_ROOT/anotações.txt"
+if sh "$ROOT/src/actions.sh" '--write:../escape' 'Nao' > "$T/out"; then
+ echo 'Unsafe file name accepted'; exit 47
+fi
+test ! -e "$T/user/escape"
+
+# The desktop must send arbitrary natural-language requests to the LLM planner,
+# not match fixed phrases. Mock the LLM response; verify real tool execution.
 export XORRISO_CONF_DIR="$T/run"
 export XORRISO_ACTION_BIN="$ROOT/src/actions.sh"
-export XORRISO_CHAT_BIN="$T/bin/fallback-chat"
-printf '#!/bin/sh\necho "RESPOSTA-IA"\n' > "$T/bin/fallback-chat"
-chmod +x "$T/bin/fallback-chat"
-sh "$ROOT/src/chat-actions.sh" 'cria pasta xorriso' > "$T/out"
+export XORRISO_AGENT_BIN="$ROOT/src/ai-agent.sh"
+export XORRISO_ROOT_EXEC_BIN="$ROOT/src/root-exec.sh"
+export XORRISO_CATALOG_BIN="$ROOT/src/command-catalog.sh"
+export XORRISO_JQ_BIN="$(command -v jq)"
+export XORRISO_CURL_BIN="$T/bin/agent-curl-mock"
+export XORRISO_TEST_REPLY="$T/agent-answer.json"
+printf '%s' 'http://127.0.0.1:8080/v1' > "$T/run/api_url"
+printf '%s' 'modelo-mock' > "$T/run/api_model"
+cat > "$T/bin/agent-curl-mock" <<'MOCK'
+#!/bin/sh
+out=
+while [ "$#" -gt 0 ]; do
+ case "$1" in -o) out=$2; shift 2 ;; *) shift ;; esac
+done
+[ -n "$out" ] || exit 21
+cp "$XORRISO_TEST_REPLY" "$out"
+MOCK
+chmod +x "$T/bin/agent-curl-mock"
+mock_plan() {
+ jq -n --arg action "$1" --arg filename "${2:-}" --arg message "${3:-}" --arg contents "${4:-}" --arg command "${5:-}" \
+  '{choices:[{message:{content:({action:$action,filename:$filename,content:$contents,command:$command,message:$message}|tojson)}}]}' \
+  > "$XORRISO_TEST_REPLY"
+}
+mock_plan create_folder 'Projetos Internos 2026'
+phrase='Você pode organizar uma nova pasta com o nome Projetos Internos 2026?'
+sh "$ROOT/src/chat-actions.sh" "$phrase" > "$T/out"
+jq -e --arg phrase "$phrase" '.messages[-1].content==$phrase' "$T/run/agent-request.json" >/dev/null
+jq -e '.messages[0].content | contains("Comandos executaveis instalados")' "$T/run/agent-request.json" >/dev/null
 grep -q 'Pasta criada e verificada' "$T/out"
-test -d "$XORRISO_ACTION_TEST_ROOT/xorriso"
-sh "$ROOT/src/chat-actions.sh" 'conseguiu criar?' > "$T/out"
+test -d "$XORRISO_ACTION_TEST_ROOT/Projetos Internos 2026"
+mock_plan create_folder 'Músicas para João'
+sh "$ROOT/src/chat-actions.sh" 'Pode abrir uma pasta para as músicas do João?' > "$T/out"
+test -d "$XORRISO_ACTION_TEST_ROOT/Músicas para João"
+mock_plan create_file 'resumo.txt' '' 'Relatorio criado pela IA e confirmado'
+sh "$ROOT/src/chat-actions.sh" 'Escreva em resumo.txt: Relatorio criado pela IA e confirmado' > "$T/out"
+grep -q 'Arquivo criado e verificado' "$T/out"
+grep -q 'Relatorio criado pela IA e confirmado' "$XORRISO_ACTION_TEST_ROOT/resumo.txt"
+mock_plan read_file 'resumo.txt'
+sh "$ROOT/src/chat-actions.sh" 'Leia o resumo que fez' > "$T/out"
+grep -q 'Relatorio criado pela IA e confirmado' "$T/out"
+mock_plan list_files ''
+sh "$ROOT/src/chat-actions.sh" 'Mostre todos os documentos' > "$T/out"
+grep -q 'resumo.txt' "$T/out"
+mock_plan create_folder 'Fotos de Natal'
+sh "$ROOT/src/chat-actions.sh" 'Monte outra area onde vou guardar as fotos do Natal' > "$T/out"
+test -d "$XORRISO_ACTION_TEST_ROOT/Fotos de Natal"
+mock_plan check_folder ''
+sh "$ROOT/src/chat-actions.sh" 'Me mostra a ultima coisa que voce criou?' > "$T/out"
 grep -q 'Pasta existe e foi verificada' "$T/out"
-sh "$ROOT/src/chat-actions.sh" 'liste minhas pastas' > "$T/out"
-grep -q '^xorriso$' "$T/out"
-sh "$ROOT/src/chat-actions.sh" 'como vai?' > "$T/out"
-grep -q 'RESPOSTA-IA' "$T/out"
-if sh "$ROOT/src/chat-actions.sh" 'cria pasta ../../escape' > "$T/out"; then
- echo 'Unsafe natural folder name accepted'; exit 39
+grep -q 'Fotos de Natal' "$T/out"
+mock_plan list_folders ''
+sh "$ROOT/src/chat-actions.sh" 'Quais diretorios estao disponiveis aqui?' > "$T/out"
+grep -q 'Projetos Internos 2026' "$T/out"
+grep -q 'Fotos de Natal' "$T/out"
+mock_plan none '' 'Uma pasta organiza arquivos no sistema.'
+sh "$ROOT/src/chat-actions.sh" 'O que e uma pasta?' > "$T/out"
+grep -q 'Uma pasta organiza arquivos' "$T/out"
+mock_plan create_folder '../escape'
+if sh "$ROOT/src/chat-actions.sh" 'Pedido malicioso de pasta' > "$T/out"; then
+ echo 'Unsafe LLM folder name accepted'; exit 39
 fi
-sh "$ROOT/src/chat-actions.sh" 'conseguiu criar?' > "$T/out"
-grep -q 'Nao ha criacao de pasta confirmada' "$T/out"
+test ! -e "$T/user/escape"
+# A failed action does not replace the last confirmed folder.
+mock_plan check_folder ''
+sh "$ROOT/src/chat-actions.sh" 'Cheque minha ultima pasta' > "$T/out"
+grep -q 'Fotos de Natal' "$T/out"
+
+# The model writes real shell source as a file; another model decision proposes
+# running that NEW program. Approval is still mandatory.
+PROGRAM_CODE=$(printf '#!/bin/sh\nprintf "resultado real"\n')
+mock_plan create_file 'programa-ia.sh' '' "$PROGRAM_CODE"
+sh "$ROOT/src/chat-actions.sh" 'Crie um programa em shell chamado programa-ia.sh' > "$T/out"
+test -f "$XORRISO_ACTION_TEST_ROOT/programa-ia.sh"
+grep -q 'Arquivo criado e verificado' "$T/out"
+test "$(cat "$T/run/last-file")" = 'programa-ia.sh'
+mock_plan propose_command '' '' '' "sh '$XORRISO_ACTION_TEST_ROOT/programa-ia.sh' > '$T/exec-ok'"
+sh "$ROOT/src/chat-actions.sh" 'Execute o programa que voce acabou de criar' > "$T/out"
+jq -e '.messages[0].content | contains("programa-ia.sh")' "$T/run/agent-request.json" >/dev/null
+grep -q 'NAO executou' "$T/out"
+test ! -e "$T/exec-ok"
+TOKEN="$(cat "$T/run/root-pending/token")"
+sh "$ROOT/src/chat-actions.sh" "autorizar $TOKEN" > "$T/out"
+grep -q 'Codigo de saida: 0' "$T/out"
+test "$(cat "$T/exec-ok")" = 'resultado real'
+
+# The planner fixture configured a mock API. Reset it before the boot test,
+# which must verify the real MiniCPM default values on a clean startup.
+rm -f "$T/run/api_url" "$T/run/api_model" "$T/run/api_key"
 # Local IA auto-start, both model and runtime are known TEST fixtures.
 export XORRISO_AUTOSTART_TEST_MODE=1
 export XORRISO_AUTOSTART_TEST_DATA="$T/data"

@@ -1,0 +1,19 @@
+name: Alpha 0.15.5 desktop bridge tests
+on:
+  pull_request:
+    paths:
+      - 'prototypes/desktop-ai/**'
+      - '.github/workflows/desktop-ui.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bridge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python syntax
+        run: python3 -m py_compile prototypes/desktop-ai/bridge.py prototypes/desktop-ai/test_bridge.py
+      - name: Offline mock MiniCPM roundtrip and security tests
+        run: python3 prototypes/desktop-ai/test_bridge.py

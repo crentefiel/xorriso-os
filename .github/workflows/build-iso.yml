@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check script syntax before installing dependencies
         run: |
-          for script in src/ai-request.sh src/ai-agent.sh src/local.sh src/network.sh src/storage.sh src/model.sh src/runtime.sh src/loopback.sh src/ai-boot.sh src/actions.sh src/chat-actions.sh src/command-catalog.sh; do
+          for script in src/ai-request.sh src/ai-agent.sh src/local.sh src/network.sh src/storage.sh src/model.sh src/runtime.sh src/loopback.sh src/ai-boot.sh src/actions.sh src/chat-actions.sh src/root-exec.sh src/command-catalog.sh; do
             sh -n "$script"
           done
           for script in src/test-*.sh build-from-source.sh; do
@@ -25,14 +25,20 @@ jobs:
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential linux-image-generic busybox-static grub-common grub-pc-bin grub2-common \
-            xorriso mtools cpio gzip zstd xz-utils curl jq ca-certificates qemu-system-x86 python3 e2fsprogs kbd console-setup
+            xorriso mtools cpio gzip zstd xz-utils curl jq ca-certificates qemu-system-x86 python3 e2fsprogs kbd console-setup python3-pil fonts-dejavu-core
       - name: Test AI executor against mock APIs
         run: |
           bash src/test-ai.sh
           bash src/test-model.sh
           bash src/test-runtime.sh
           bash src/test-actions.sh
+          bash src/test-root-exec.sh
           python3 src/test-http-real.py
+      - name: Compile and test native framebuffer renderer with sanitizers
+        run: |
+          gcc -std=gnu11 -O1 -g -Wall -Wextra -fsanitize=address,undefined -fno-omit-frame-pointer -o /tmp/xorriso-desktop-asan src/xorriso-desktop.c
+          ASAN_OPTIONS=detect_leaks=1 /tmp/xorriso-desktop-asan --selftest
+          python3 tools/check-native-desktop.py
       - name: Build ISO from source
         run: bash build-from-source.sh
       - name: Check ABNT2 console map and UTF-8 boot support
@@ -51,7 +57,7 @@ jobs:
           set +e
           timeout 35s qemu-system-x86_64 -m 1024 -no-reboot -display none -serial stdio \
             -kernel dist/vmlinuz -initrd dist/initramfs.cpio.gz \
-            -append 'console=ttyS0 loglevel=7 rdinit=/init' -nic none \
+            -append 'console=ttyS0 loglevel=7 rdinit=/init xorriso.ci=smoke' -nic none \
             > dist/qemu-boot.log 2>&1
           status=$?
           set -e
@@ -66,14 +72,16 @@ jobs:
         run: timeout 120s python3 src/test-qemu-persistence.py
       - name: Verify existing model VDI plus separate read-only runtime VDI
         run: timeout 145s python3 src/test-qemu-dual-disk.py
-      - name: Boot real ISO; verify automatic AI chat and F2/Esc
-
-        run: timeout 95s python3 src/test-iso-qemu.py dist/xorriso-alpha-015-grub.iso
+      - name: Boot actual GRUB ISO with QEMU VGA and require first graphical frame
+        run: timeout 125s python3 src/test-desktop-qemu.py dist/xorriso-alpha-0155-desktop-ia.iso
       - uses: actions/upload-artifact@v4
         with:
-          name: xorriso-alpha-015-grub
+          name: xorriso-alpha-0155-desktop-ia
           path: |
             dist/xorriso-alpha-015-grub.iso
+            dist/xorriso-alpha-0155-desktop-ia.iso
+            dist/DESKTOP-SHA256SUMS
+            dist/qemu-desktop-framebuffer.log
             dist/SHA256SUMS
             dist/qemu-boot.log
             dist/qemu-host-bridge.log

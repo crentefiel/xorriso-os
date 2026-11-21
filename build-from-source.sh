@@ -6,7 +6,7 @@ DIST="$HERE/dist"; WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 ROOT="$WORK/rootfs"; STAGE="$WORK/iso"
 mkdir -p "$DIST" "$ROOT" "$STAGE/boot/grub"
-for tool in gcc busybox curl jq cpio gzip grub-mkrescue xorriso ckbcomp loadkeys; do
+for tool in gcc busybox curl jq cpio gzip grub-mkrescue xorriso ckbcomp loadkeys python3; do
   command -v "$tool" >/dev/null || { echo "Missing $tool" >&2; exit 2; }
 done
 KERNEL="$(find /boot -maxdepth 1 -type f -name 'vmlinuz-*-generic' | sort -V | tail -n 1)"
@@ -16,11 +16,18 @@ echo "Building with kernel $VERSION"
 install -d "$ROOT"/{bin,dev,etc/ssl/certs,etc/xorriso,lib,lib64,proc,sys,run,tmp,usr/bin,usr/lib/xorriso,lib/xorriso/modules,data,runtime-data}
 chmod 1777 "$ROOT/tmp"
 gcc -std=gnu11 -Os -static -s -Wall -Wextra -o "$ROOT/init" "$HERE/src/xorriso-init.c"
+# Preserve the tested text console as an emergency/CI fallback.
+cp "$ROOT/init" "$ROOT/init-old"
+# Compile a real native desktop, never overwrite a running ELF binary.
+gcc -std=gnu11 -Os -static -s -Wall -Wextra -o "$ROOT/usr/bin/xorriso-desktop" "$HERE/src/xorriso-desktop.c"
+gcc -std=gnu11 -Os -static -s -Wall -Wextra -o "$ROOT/init" "$HERE/src/xorriso-gui-init.c"
+/usr/bin/python3 "$HERE/tools/generate-font.py" "$ROOT/usr/share/xorriso/font8x16.bin"
+
 install -m 755 "$(command -v busybox)" "$ROOT/bin/busybox"
 for app in sh ash ls cat mount dmesg uname ip ps free vi grep mkdir touch echo date route ifconfig udhcpc insmod ping awk sed sleep head tail rm chmod printf clear readlink basename blkid df sync dd od tr mknod sha256sum mv wc cp kill sort id; do
   ln -sf busybox "$ROOT/bin/$app"
 done
-for file in ai-request.sh ai-agent.sh local.sh network.sh storage.sh model.sh runtime.sh loopback.sh ai-boot.sh actions.sh chat-actions.sh command-catalog.sh; do
+for file in ai-request.sh ai-agent.sh local.sh network.sh storage.sh model.sh runtime.sh loopback.sh ai-boot.sh actions.sh chat-actions.sh root-exec.sh command-catalog.sh; do
   install -m 755 "$HERE/src/$file" "$ROOT/usr/lib/xorriso/$file"
 done
 install -m 755 "$HERE/src/udhcpc.script" "$ROOT/etc/udhcpc.script"
@@ -46,7 +53,7 @@ for lib in /lib/x86_64-linux-gnu/libnss_dns.so.2 /lib/x86_64-linux-gnu/libnss_fi
   install -d "$ROOT$(dirname "$lib")"; cp -L "$lib" "$ROOT$lib"
 done
 MODULEDIR="/lib/modules/$VERSION"
-for mod in mii net_failover e1000 pcnet32 8139too virtio_net virtio virtio_ring virtio_pci_modern_dev virtio_pci_legacy_dev virtio_pci virtio_blk scsi_common scsi_mod sd_mod libata libahci ahci ata_piix; do
+for mod in mii net_failover e1000 pcnet32 8139too virtio_net virtio virtio_ring virtio_pci_modern_dev virtio_pci_legacy_dev virtio_pci virtio_blk libps2 serio psmouse mousedev evdev scsi_common scsi_mod sd_mod libata libahci ahci ata_piix; do
   path="$(find "$MODULEDIR/kernel" -type f \( -name "$mod.ko" -o -name "$mod.ko.xz" -o -name "$mod.ko.zst" \) -print -quit 2>/dev/null || :)"
   [[ -n "$path" ]] || { echo "Module $mod unavailable"; continue; }
   case "$path" in
@@ -65,11 +72,22 @@ done
 sudo cp "$KERNEL" "$STAGE/boot/vmlinuz"
 sudo chown "$(id -u):$(id -g)" "$STAGE/boot/vmlinuz"
 cp "$DIST/initramfs.cpio.gz" "$STAGE/boot/initramfs.cpio.gz"
+# Explicit GRUB font/video initialization is required for the simpledrm framebuffer.
+if [[ -f /usr/share/grub/unicode.pf2 ]]; then
+  install -d "$STAGE/boot/grub/fonts"
+  install -m 644 /usr/share/grub/unicode.pf2 "$STAGE/boot/grub/fonts/unicode.pf2"
+fi
 cat > "$STAGE/boot/grub/grub.cfg" <<'GRUB'
 set timeout=0
 set timeout_style=hidden
 set default=0
-menuentry 'xorriso Alpha 0.15 - Linux minimo' {
+insmod all_video
+insmod gfxterm
+loadfont /boot/grub/fonts/unicode.pf2
+set gfxmode=1024x768x32,1024x768x16,800x600x32,auto
+terminal_output gfxterm
+set gfxpayload=keep
+menuentry 'xorriso Alpha 0.15.5 - Desktop IA' {
  linux /boot/vmlinuz console=tty0 quiet loglevel=0 vt.global_cursor_default=0 rdinit=/init
  initrd /boot/initramfs.cpio.gz
 }
@@ -78,4 +96,6 @@ grub-mkrescue -o "$DIST/xorriso-alpha-015-grub.iso" "$STAGE"
 sudo cp "$KERNEL" "$DIST/vmlinuz"
 sudo chown "$(id -u):$(id -g)" "$DIST/vmlinuz"
 sha256sum "$DIST/xorriso-alpha-015-grub.iso" > "$DIST/SHA256SUMS"
-echo "Created $DIST/xorriso-alpha-015-grub.iso"
+cp "$DIST/xorriso-alpha-015-grub.iso" "$DIST/xorriso-alpha-0155-desktop-ia.iso"
+sha256sum "$DIST/xorriso-alpha-0155-desktop-ia.iso" > "$DIST/DESKTOP-SHA256SUMS"
+echo "Created $DIST/xorriso-alpha-015-grub.iso and $DIST/xorriso-alpha-0155-desktop-ia.iso"
