@@ -1,5 +1,5 @@
 /*
- * xorriso Alpha 0.11 - Linux init minimo
+ * xorriso Alpha 0.12 - Linux init minimo
  * SPDX-License-Identifier: MIT
  * Plain Linux console is empty until user calls F1 or F2.
  */
@@ -59,7 +59,7 @@ static void setup_tty(void) {
 static void status(void) {
  struct utsname uts;struct sysinfo sys;
  clear_screen();
- print("xorriso alpha 0.11 - Linux minimo\r\n\r\n");
+ print("xorriso alpha 0.12 - Linux minimo\r\n\r\n");
  if(uname(&uts)==0) {print("Linux kernel: ");print(uts.release);crlf();}
  if(sysinfo(&sys)==0) {
   char buf[128];
@@ -72,7 +72,7 @@ static void status(void) {
 }
 static void console_header(void) {
  clear_screen();
- print("xorriso alpha 0.11 - console minimo\r\n");
+ print("xorriso alpha 0.12 - console minimo\r\n");
  print("help: comandos | ESC: tela vazia\r\n\r\n");
  is_console=1;
 }
@@ -146,6 +146,7 @@ static void api_command(const char *args) {
   print("api show | api local | api host | api url https://host/v1 | api model ID | api key | api test\r\n");return;
  }
  if(!strcmp(args,"host")) {
+  (void)unlink("/run/xorriso/chat-history.json");
   write_runtime("api_url","http://10.0.2.2:8080/v1");
   write_runtime("api_model","MiniCPM-V-4.7-1B");
   (void)unlink("/run/xorriso/api_key");
@@ -155,10 +156,11 @@ static void api_command(const char *args) {
   return;
  }
  if(!strcmp(args,"local")) {
+  (void)unlink("/run/xorriso/chat-history.json");
   write_runtime("api_url","http://127.0.0.1:8080/v1");
   write_runtime("api_model","MiniCPM-V-4.7-1B");
   (void)unlink("/run/xorriso/api_key");
-  print("Servidor local selecionado. Instale e inicie llama.cpp separadamente.\r\n");return;
+  print("IA local selecionada: 127.0.0.1:8080. Use runtime status.\r\n");return;
  }
  if(!strcmp(args,"show")){api_show();return;}
  if(!strcmp(args,"key")){
@@ -180,12 +182,12 @@ static void api_command(const char *args) {
   }
   char tmp[400];snprintf(tmp,sizeof(tmp),"%s",v);
   size_t n=strlen(tmp);while(n&&tmp[n-1]=='/')tmp[--n]=0;
-  write_runtime("api_url",tmp);print("URL definida.\r\n");return;
+  write_runtime("api_url",tmp);(void)unlink("/run/xorriso/chat-history.json");print("URL definida.\r\n");return;
  }
  if(!strncmp(args,"model ",6)){
   const char *v=args+6;
   if(!*v||strlen(v)>190){print("Modelo invalido.\r\n");return;}
-  write_runtime("api_model",v);print("Modelo definido.\r\n");return;
+  write_runtime("api_model",v);(void)unlink("/run/xorriso/chat-history.json");print("Modelo definido.\r\n");return;
  }
  print("Comando de API desconhecido.\r\n");
 }
@@ -216,7 +218,7 @@ static void cmd(char *s) {
  size_t n=strlen(s);
  while(n&&isspace((unsigned char)s[n-1]))s[--n]=0;
  if(!*s)return;
- if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent notes storage model runtime local ai desktop reboot poweroff\r\n");
+ if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent notes storage model runtime chat local ai desktop reboot poweroff\r\n");
  else if(!strcmp(s,"status")||!strcmp(s,"version")){status();is_console=1;}
  else if(!strcmp(s,"ls"))list_root();
  else if(!strcmp(s,"uptime")){
@@ -235,6 +237,9 @@ static void cmd(char *s) {
  else if(!strcmp(s,"net up"))run_script("/usr/lib/xorriso/network.sh","up");
  else if(!strcmp(s,"net down"))run_script("/usr/lib/xorriso/network.sh","down");
  else if(!strncmp(s,"api",3)&&(s[3]==' '||!s[3]))api_command(s[3]==' '?s+4:"");
+ else if(!strcmp(s,"chat")||!strcmp(s,"chat status"))run_script("/usr/lib/xorriso/ai-request.sh","--history-status");
+ else if(!strcmp(s,"chat clear"))run_script("/usr/lib/xorriso/ai-request.sh","--clear");
+ else if(!strncmp(s,"chat ",5))print("Uso: chat status | chat clear\r\n");
  else if(!strncmp(s,"ask ",4))run_script("/usr/lib/xorriso/ai-request.sh",s+4);
  else if(!strcmp(s,"ask"))print("Uso: ask sua pergunta\r\n");
  else if(!strncmp(s,"agent ",6))run_script("/usr/lib/xorriso/ai-agent.sh",s+6);
