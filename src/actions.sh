@@ -29,7 +29,14 @@ create_folder() {
  }
  # Permit only simple human names; reject traversal, slashes, shell metacharacters.
  # No eval, no sh -c, no interpretation of model text.
- if ! printf '%s' "$name" | LC_ALL=C grep -Eq '^[A-Za-z0-9][A-Za-z0-9 _-]*$'; then
+ # Validate the ENTIRE string, including line breaks: grep may accept one
+ # valid line of a malicious multi-line filename. No control characters.
+ case "$name" in
+  [A-Za-z0-9]*) : ;;
+  *) echo 'Nome deve iniciar com letra ou numero.'; return 3 ;;
+ esac
+ allowed=$(printf '%s' "$name" | LC_ALL=C tr -cd 'A-Za-z0-9 _-')
+ if [ "$allowed" != "$name" ]; then
   echo 'Nome invalido. Use letras sem acentos, numeros, espaco, _ ou -.'
   return 3
  fi
