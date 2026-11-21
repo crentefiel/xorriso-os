@@ -118,9 +118,6 @@ mock_plan check_folder ''
 sh "$ROOT/src/chat-actions.sh" 'Cheque minha ultima pasta' > "$T/out"
 grep -q 'Fotos de Natal' "$T/out"
 
-# The planner fixture configured a mock API. Reset it before the boot test,
-# which must verify the real MiniCPM default values on a clean startup.
-rm -f "$T/run/api_url" "$T/run/api_model" "$T/run/api_key"
 # The MiniCPM proposes a command unknown to the predefined filesystem tools.
 # The executor must NOT run it until the user types the exact approval token.
 mock_plan propose_command '' '' '' "printf 'resultado real' > '$T/exec-ok'"
@@ -132,6 +129,9 @@ sh "$ROOT/src/chat-actions.sh" "autorizar $TOKEN" > "$T/out"
 grep -q 'Codigo de saida: 0' "$T/out"
 test "$(cat "$T/exec-ok")" = 'resultado real'
 
+# The planner fixture configured a mock API. Reset it before the boot test,
+# which must verify the real MiniCPM default values on a clean startup.
+rm -f "$T/run/api_url" "$T/run/api_model" "$T/run/api_key"
 # Local IA auto-start, both model and runtime are known TEST fixtures.
 export XORRISO_AUTOSTART_TEST_MODE=1
 export XORRISO_AUTOSTART_TEST_DATA="$T/data"
