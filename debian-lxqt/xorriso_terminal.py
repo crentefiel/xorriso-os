@@ -46,6 +46,9 @@ def checked_argv(command):
         remaining = rest[:]
         if remaining and remaining[0] in flags:
             remaining.pop(0)
+        # An unrecognized flag must not masquerade as a filename.
+        if remaining and remaining[0].startswith("-"):
+            raise ValueError("Opcao ls nao permitida")
         if len(remaining) <= 1:
             target = pathlib.Path(remaining[0]).expanduser() if remaining else HOME
             if not target.is_absolute():
