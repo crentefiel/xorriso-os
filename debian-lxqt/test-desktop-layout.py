@@ -31,7 +31,7 @@ assert "etc/xdg/autostart/xorriso-ui.desktop" in build
 assert "cp /etc/skel/.config/autostart/xorriso-ui.desktop /etc/xdg/autostart/xorriso-ui.desktop" in hook
 qemu = (root / "test-debian-qemu.py").read_text(encoding="utf-8")
 assert "XORRISO_INSTALL_MODE_LIVE" in qemu and "INSTALLER_READY" in qemu
-assert "XORRISO_INSTALL_MODE_LIVE" in bootmode
+assert "XORRISO_INSTALL_MODE_LIVE" in (root / "xorriso-install-mode.sh").read_text(encoding="utf-8")
 installer = (root / "xorriso-install.sh").read_text(encoding="utf-8")
 bootmode = (root / "xorriso-install-mode.sh").read_text(encoding="utf-8")
 policy = (root / "live-calamares.rules").read_text(encoding="utf-8")
