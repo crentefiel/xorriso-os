@@ -96,3 +96,15 @@ Execução diagnóstica: https://github.com/crentefiel/xorriso-os/actions/runs/4
 **MiniCPM:** o usuário já enviou vídeo de uma ISO anterior em que a janela abriu, mas `127.0.0.1:8080` recusou conexão. Sem os VDI e modelos, o servidor local não pode ser executado. A interface nova explica a indisponibilidade e oferece **Verificar IA**; a conexão real ao `llama-server` e aos pesos depende de testes com cópias dos discos. Nunca formatar `XORRISO_DATA` ou `XORRISO_RUNTIME`.
 
 **Testes:** os testes estáticos e de agente foram ampliados para bloquear opções não previstas (por exemplo `ls -R`), validação do `mkdir` autorizado e empacotamento das ferramentas e tema. As verificações básicas e a ISO da nova revisão ainda têm que ser aprovadas em CI; QEMU aprovado não é sinônimo de teste no VirtualBox.
+
+## ISO minimalista — revisão experimental após auditoria de pacotes (22/11/2026)
+
+**Motivação:** a Alpha 0.16 do commit `0ac2f6d3cbcb` passou o build e o QEMU, mas seu log mostrou que o tema recomendado `sddm-theme-debian-breeze` puxava `plasma-workspace`, `plasma-desktop`, `plasma-discover` e muitas dependências alheias ao desktop LXQt.
+
+**Mudanças controladas:** o `live-build` agora é configurado com `--apt-recommends false`. Para preservar as funções necessárias, a lista inclui explicitamente `user-setup`, `sudo`, o tema de login `sddm-theme-maui`, `xserver-xorg-video-all` e `xserver-xorg-input-all`, além dos pacotes já existentes. O SDDM usa o tema `maui` em `10-xorriso-autologin.conf`, mantendo autologin do usuário Live `xorriso`.
+
+**Aceitação automática:** o build extrai o `/var/lib/dpkg/status` do SquashFS real, salva `package-manifest.txt`, verifica a presença das funções obrigatórias e rejeita a ISO se `plasma-workspace`, `plasma-desktop`, `plasma-discover` ou `sddm-theme-debian-breeze` ainda estiverem instalados. O workflow publica o manifesto junto à ISO aprovada e preserva os diagnósticos de boot QEMU.
+
+**Limitações:** desligar os pacotes recomendados pode remover funcionalidades úteis implícitas. A nova versão deve passar novamente todos os testes de build, login automático, SDDM, LXQt, janela da IA, gerenciador de arquivos, terminal e Plymouth. Não confundir tamanho reduzido com boot mais rápido sem medição real. Não montar nem modificar os VDIs originais `XORRISO_DATA` e `XORRISO_RUNTIME`, e não fazer merge automático.
+
+Documentação oficial: https://live-team.pages.debian.net/live-manual/html/live-manual/customizing-package-installation.en.html , https://packages.debian.org/trixie/sddm-theme-maui e https://packages.debian.org/trixie/sddm-theme-debian-breeze .
