@@ -63,7 +63,7 @@ cat > /usr/local/bin/xorriso-desktop-ready <<'EOF'
 sleep 5
 if [ -n "${DISPLAY:-}" ] && pgrep -u "$(id -u)" -x lxqt-session >/dev/null 2>&1 &&
    /usr/bin/xset -q >/dev/null 2>&1; then
-    printf '%s\\n' 'XORRISO_LXQT_DESKTOP_READY' > /tmp/xorriso-desktop-ready
+    printf '%s\n' 'XORRISO_LXQT_DESKTOP_READY' > /tmp/xorriso-desktop-ready
     # The regular user may not have permission to write /dev/ttyS0.
     # The independent root-owned boot-diagnostics service forwards it.
 fi
@@ -122,7 +122,7 @@ attempt=0
 while [ "$attempt" -lt 170 ]; do
     if [ -f /tmp/xorriso-desktop-ready ] && 
        grep -Fxq 'XORRISO_LXQT_DESKTOP_READY' /tmp/xorriso-desktop-ready; then
-        printf '%s\\n' 'XORRISO_LXQT_DESKTOP_READY' > /dev/ttyS0 || true
+        printf '%s\n' 'XORRISO_LXQT_DESKTOP_READY' > /dev/ttyS0 || true
         exit 0
     fi
     attempt=$((attempt + 1))
