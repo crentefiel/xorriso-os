@@ -50,4 +50,10 @@ assert "def start_file_manager():" in agent
 assert 'subprocess.Popen([executable, str(pathlib.Path.home())]' in agent
 assert 'return start_file_manager()' in agent
 assert "mkfs" not in hook and "wipefs" not in hook
+# The QEMU test deliberately has no VDI disks; absence must not fail the boot.
+volume_script = (root / "mount-volumes.sh").read_text(encoding="utf-8")
+assert 'return 0' in volume_script
+assert "ro,noload,nosuid,nodev,noexec" in volume_script
+assert "mkfs " not in volume_script and "wipefs " not in volume_script
+
 print("PASS: two visible shortcuts, file manager installed, Live username and basic disk safety")
