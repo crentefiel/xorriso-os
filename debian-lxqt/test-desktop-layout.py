@@ -18,6 +18,15 @@ assert "DesktopShortcuts=\n" in hook
 assert "xorriso-ui.desktop" in hook and "OnlyShowIn=LXQt;" in hook
 assert "WallpaperMode=color\n" in hook
 assert "pcmanfm-qt" in packages
+assert all(p in packages for p in ("qterminal", "gvfs", "plymouth", "plymouth-themes"))
+assert "quiet splash" in build
+assert "plymouth-set-default-theme tribar" in hook
+assert "etc/skel/.config/autostart/xorriso-trust-launchers.desktop" in build
+assert "gio set" in hook and "metadata::trusted true" in hook
+assert "QuickExec=true" not in hook
+assert "usr/local/bin/xorriso_terminal.py" in build
+assert "run_terminal_command" in agent and "open_terminal" in agent
+
 assert "username=xorriso" in build
 # Avoid Debian Live component that grants unconditional root via passwordless sudo.
 assert "live-config.nocomponents=sudo" in build
