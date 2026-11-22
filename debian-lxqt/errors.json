@@ -266,6 +266,30 @@
       "references": [
         "https://github.com/crentefiel/xorriso-os/commit/6d74de35d7950c0a6eaee04d89d4e62769207759"
       ]
+    },
+    {
+      "id": "XOS-012",
+      "title": "Calamares impede definir senha: error loading dictionary (CrackLib ausente)",
+      "fingerprint": [
+        "A senha falhou na verificação do dicionário - error loading dictionary",
+        "The password fails the dictionary check - error loading dictionary",
+        "/var/cache/cracklib/cracklib_dict.pwd"
+      ],
+      "status": "correção de pacotes/dicionário enviada ao PR; build QEMU e validação real Calamares pendentes",
+      "root_cause_status": "causa fortemente sustentada por reprodução documentada no Debian trixie (bug #1086182), ainda sem diagnóstico de arquivo individual dentro da VM do usuário",
+      "cause": "A construção minimalista usa live-build --apt-recommends false e não declarava cracklib-runtime e wamerican; libpwquality procura o banco /var/cache/cracklib/cracklib_dict.* e recusa senhas quando não consegue abrir o dicionário. O bug Debian 1086182 reproduziu a mesma mensagem quando os Recommends eram omitidos.",
+      "fix": "Adicionar explicitamente libpam-pwquality, cracklib-runtime e wamerican à lista de pacotes; executar update-cracklib no hook de geração da ISO; exigir *.pwd, *.pwi e *.hwm no SquashFS; testar que o manifesto inclui pacotes e os arquivos realmente existem. Nunca desativar a verificação de senha nem atribuir senha root predefinida.",
+      "evidence": [
+        "Screenshot do usuário em Calamares de 22/11/2026 exibindo 'A senha falhou na verificação do dicionário - error loading dictionary'",
+        "Pacotes ausentes da lista explícita debian-lxqt/package-list.chroot e --apt-recommends false no build.sh",
+        "Debian bug #1086182 com reprodução em trixie, a mesma mensagem e ausência de /var/cache/cracklib/cracklib_dict.pwd"
+      ],
+      "verification": "Requer CI foundation + ISO + QEMU do mesmo HEAD e teste manual Calamares no VirtualBox com disco virtual descartável, criação de usuário e senha, confirmação do GRUB e boot instalado; não alegar sucesso antes disso.",
+      "references": [
+        "https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1086182",
+        "https://packages.debian.org/trixie/admin/cracklib-runtime",
+        "https://github.com/crentefiel/xorriso-os/pull/27"
+      ]
     }
   ]
 }
