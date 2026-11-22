@@ -55,6 +55,7 @@ jobs:
           bash -n debian-lxqt/build-llama-runtime.sh
           python3 -m py_compile debian-lxqt/xorriso-ui.py debian-lxqt/xorriso-agent.py debian-lxqt/admin-package.py debian-lxqt/admin-service.py debian-lxqt/xorriso_terminal.py debian-lxqt/xorriso-model-provision.py debian-lxqt/xorriso-run-model.py
           python3 debian-lxqt/test-agent.py
+          python3 debian-lxqt/test-model-provision.py
           python3 debian-lxqt/test-desktop-layout.py
           python3 debian-lxqt/xorriso-ui.py --selftest
           grep -q 'XORRISO_LXQT_DESKTOP_READY' debian-lxqt/020-xorriso-user.hook.chroot
