@@ -220,6 +220,31 @@
         "https://huggingface.co/openbmb/MiniCPM-V-4.7-1B-gguf",
         "https://github.com/crentefiel/xorriso-os/pull/27"
       ]
+    },
+    {
+      "id": "XOS-010",
+      "title": "Calamares Live pede senha root inexistente (unix-user:root)",
+      "fingerprint": [
+        "Authentication Required",
+        "unix-user:root",
+        "Authentication is required to run the installation program",
+        "Calamares iniciado",
+        "root password"
+      ],
+      "status": "correção de PolicyKit e wrapper aplicada; CI/VirtualBox ainda pendentes",
+      "root_cause_status": "confirmada por comparação com ação Debian Calamares",
+      "cause": "O Calamares Debian 13 registra a ação PolicyKit com ID com.github.calamares.calamares.pkexec.run e programa anotado /usr/bin/calamares. A regra do xorriso procurava org.freedesktop.policykit.exec, por isso não sobrescrevia a ação e o fallback auth_admin solicitava senha root sem senha configurada.",
+      "fix": "Criar ação PolicyKit própria org.xorriso.install.launch para somente /usr/local/libexec/xorriso/calamares-root, mantendo default no/auth_admin fora da regra Live. Copiar a regra temporária exclusivamente no boot=live: conceder YES apenas para sujeito xorriso local e ativo, programa exato root-owned. Launcher chama pkexec desse wrapper; wrapper com EUID root valida boot=live, zero argumentos, lsblk dos dois labels VDI protegidos, depois exec /usr/bin/calamares. Não criar senha root, sudo sem senha nem autorização geral do shell.",
+      "evidence": [
+        "Screenshot do VirtualBox enviada pelo usuário em 22/11/2026, seletor com apenas unix-user:root",
+        "Debian 13 calamares com.github.calamares.calamares.policy action id com.github.calamares.calamares.pkexec.run, allow_active auth_admin"
+      ],
+      "verification": "Build e CI do novo HEAD ainda por comprovar; lançamento real sem solicitação root e processo Calamares operando no VirtualBox ainda aguardam teste do usuário.",
+      "references": [
+        "https://sources.debian.org/src/calamares/3.3.14-1/com.github.calamares.calamares.policy",
+        "https://github.com/crentefiel/xorriso-os/pull/27",
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45066931115"
+      ]
     }
   ]
 }
