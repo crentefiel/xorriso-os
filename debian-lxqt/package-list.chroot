@@ -6,12 +6,15 @@ systemd-sysv
 linux-image-amd64
 syslinux-utils
 xorg
+xserver-xorg-input-all
+xserver-xorg-video-all
 x11-xserver-utils
 lxqt-core
 pcmanfm-qt
 qterminal
 gvfs
 sddm
+sddm-theme-maui
 network-manager
 iproute2
 dbus-user-session
