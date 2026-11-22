@@ -25,7 +25,7 @@ EOF
 cat > /usr/local/bin/xorriso-ui <<'EOF'
 #!/bin/sh
 # Temporary launcher: never invent an AI answer or claim it executed a command.
-exec xterm -T 'xorriso IA - integração pendente' -hold -e sh -c  'printf "\n xorriso IA\n\n Base Debian LXQt iniciada.\n MiniCPM e executor Linux ainda nao integrados nesta imagem.\n Nenhuma acao administrativa sera executada aqui.\n\n"'
+exec /usr/bin/python3 /usr/local/bin/xorriso-ui.py
 EOF
 chmod 755 /usr/local/bin/xorriso-ui /home/xorriso/Desktop/xorriso.desktop
 chown -R xorriso:xorriso /home/xorriso/.config /home/xorriso/Desktop
