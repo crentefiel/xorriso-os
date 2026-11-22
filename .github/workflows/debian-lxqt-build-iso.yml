@@ -26,6 +26,16 @@ jobs:
           test -f "$script"
           sudo sed -i 's|/dists/${LB_DISTRIBUTION}/Contents-|/dists/${LB_DISTRIBUTION}/main/Contents-|g; s|/dists/${LB_PARENT_DISTRIBUTION}/Contents-|/dists/${LB_PARENT_DISTRIBUTION}/main/Contents-|g' "$script"
           grep -F 'main/Contents-' "$script"
+      - name: Fix removed rsvg CLI in old live-build Syslinux template
+        run: |
+          script=/usr/lib/live/build/lb_binary_syslinux
+          test -f "$script"
+          # Ubuntu live-build 3.x invokes the removed command with a positional
+          # output file; Debian 13 rsvg-convert requires "-o" instead.
+          grep -F 'rsvg --format png --height 480 --width 640 splash.svg splash.png' "$script"
+          sudo sed -i 's|rsvg --format png --height 480 --width 640 splash.svg splash.png|rsvg-convert --format png --height 480 --width 640 splash.svg -o splash.png|g' "$script"
+          grep -F 'rsvg-convert --format png --height 480 --width 640 splash.svg -o splash.png' "$script"
+          ! grep -F 'rsvg --format png --height 480 --width 640 splash.svg splash.png' "$script"
       - name: Check scripts and desktop app
         run: |
           bash -n debian-lxqt/build.sh
