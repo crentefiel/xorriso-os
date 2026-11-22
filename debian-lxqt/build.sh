@@ -35,6 +35,27 @@ install -m 755 "$ROOT/start-model.sh" config/includes.chroot/usr/local/libexec/x
 install -m 644 "$ROOT/xorriso-volumes.service" config/includes.chroot/etc/systemd/system/xorriso-volumes.service
 install -m 644 "$ROOT/xorriso-model.service" config/includes.chroot/etc/systemd/system/xorriso-model.service
 chmod +x config/hooks/normal/020-xorriso-user.hook.chroot
+# Ubuntu 24.04 live-build ships old Syslinux symlinks incompatible with Debian 13 paths.
+# Ship ordinary, matched Ubuntu Syslinux v6 BIOS files in a local bootloader template.
+# The Debian guest remains the full target OS; these are only BIOS ISO boot records.
+BOOT_TEMPLATE=/usr/share/live/build/bootloaders/isolinux
+mkdir -p config/bootloaders
+test -d "$BOOT_TEMPLATE"
+cp -a "$BOOT_TEMPLATE" config/bootloaders/isolinux
+for item in \
+  "isolinux.bin:/usr/lib/ISOLINUX/isolinux.bin" \
+  "vesamenu.c32:/usr/lib/syslinux/modules/bios/vesamenu.c32" \
+  "ldlinux.c32:/usr/lib/syslinux/modules/bios/ldlinux.c32" \
+  "libcom32.c32:/usr/lib/syslinux/modules/bios/libcom32.c32" \
+  "libutil.c32:/usr/lib/syslinux/modules/bios/libutil.c32"; do
+  name=${item%%:*}
+  source=${item#*:}
+  test -s "$source" || { echo "Missing host Syslinux BIOS asset: $source" >&2; exit 4; }
+  rm -f "config/bootloaders/isolinux/$name"
+  cp "$source" "config/bootloaders/isolinux/$name"
+done
+test -s config/bootloaders/isolinux/isolinux.bin
+test -s config/bootloaders/isolinux/vesamenu.c32
 echo "Building Debian LXQt live ISO in $OUT"
 sudo lb build
 echo "Check $OUT for live-image-amd64.hybrid.iso; boot-test before distribution."
