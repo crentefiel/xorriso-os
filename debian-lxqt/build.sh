@@ -14,7 +14,7 @@ if [[ -e config ]]; then
 fi
 lb config --mode debian --distribution trixie --architectures amd64 \
   --binary-images iso-hybrid --debian-installer false --initsystem systemd \
-  --archive-areas "main" --apt-indices false --security false --bootappend-live "boot=live components quiet"
+  --archive-areas "main" --apt-indices false --security false --bootappend-live "boot=live components console=ttyS0,115200n8 console=tty0"
 mkdir -p config/package-lists config/includes.chroot/etc/sddm.conf.d \
   config/hooks/normal config/includes.chroot/usr/local/share/xorriso
 mkdir -p config/archives
