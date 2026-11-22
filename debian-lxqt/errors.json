@@ -195,6 +195,31 @@
         "https://github.com/crentefiel/xorriso-os/actions/runs/45061720981",
         "https://github.com/crentefiel/xorriso-os/commit/aa6d0bab649181c52fb8d5c0f1829b5638ec177c"
       ]
+    },
+    {
+      "id": "XOS-009",
+      "title": "IA exibe Errno 111 Connection refused porque o motor/pesos locais não estavam incluídos",
+      "fingerprint": [
+        "Errno 111",
+        "Connection refused",
+        "127.0.0.1:8080",
+        "MiniCPM local indisponivel"
+      ],
+      "status": "integração de provisionamento 1B aplicada; compilação/instalação e inferência real pendentes",
+      "root_cause_status": "confirmada por screenshot e inspeção de build/serviço anterior",
+      "cause": "A ISO Live abria apenas a interface Tk; o serviço antigo xorriso-model exigia pesos e binário llama-server em dois VDIs opcionais e, sem eles, não iniciava. O comando 'oi' tentava conectar à API inexistente. O pedido posterior mudou para download do modelo oficial 1B no HD, após a instalação, não 35B.",
+      "fix": "Empacotar llama-server CPU compatível com MiniCPM 4.7; no primeiro boot instalado iniciar xorriso-model-provision.service, baixar oficialmente GGUF Q4_K_M 1B e projetor 4x com hashes SHA256 LFS, guardar no StateDirectory do HD, reusar offline nos boots posteriores e iniciar API localhost:8080 como usuário não privilegiado. UI exibe progresso e falhas reais.",
+      "evidence": [
+        "Captura VirtualBox 2026-11-22 com desktop e janela IA mostrando HTTP 127.0.0.1:8080 connection refused",
+        "xorriso-model.service antigo com ConditionPathExists em VDI",
+        "Run da ISO Live com Calamares 45062002964 aprovado sem pesos/llama-server"
+      ],
+      "verification": "Testes unitários locais via CI, build runtime/ISO e inferência real 1B no HD pendentes. Nenhuma afirmação de resposta real do MiniCPM ainda.",
+      "references": [
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45062002964",
+        "https://huggingface.co/openbmb/MiniCPM-V-4.7-1B-gguf",
+        "https://github.com/crentefiel/xorriso-os/pull/27"
+      ]
     }
   ]
 }
