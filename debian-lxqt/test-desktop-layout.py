@@ -27,6 +27,10 @@ assert all(x in build for x in ("usr/bin/calamares", "etc/calamares/settings.con
                                "xorriso-install.sh", "xorriso-install-mode.sh",
                                "xorriso-install-mode.service", "live-calamares.rules"))
 assert "open_installer" in agent and "is_live_session" in agent
+assert "manage_service" in agent and "ADMIN_SERVICE_HELPER" in agent
+assert "usr/local/libexec/xorriso/admin-service" in build
+assert (root / "admin-service.py").is_file()
+
 assert "etc/xdg/autostart/xorriso-ui.desktop" in build
 assert "cp /etc/skel/.config/autostart/xorriso-ui.desktop /etc/xdg/autostart/xorriso-ui.desktop" in hook
 qemu = (root / "test-debian-qemu.py").read_text(encoding="utf-8")
