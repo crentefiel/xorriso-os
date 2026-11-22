@@ -9,6 +9,8 @@ xorg
 x11-xserver-utils
 lxqt-core
 pcmanfm-qt
+qterminal
+gvfs
 sddm
 network-manager
 iproute2
@@ -20,6 +22,8 @@ ca-certificates
 fonts-dejavu-core
 locales
 console-setup
+plymouth
+plymouth-themes
 keyboard-configuration
 
 procps
