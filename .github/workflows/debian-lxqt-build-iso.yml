@@ -85,27 +85,3 @@ jobs:
             debian-lxqt/work/SHA256SUMS
           retention-days: 14
           if-no-files-found: error
- /tmp/xorriso-isolinux/live.cfg)" -eq 1
-      - name: Boot ISO and verify LXQt desktop session in QEMU
-        run: timeout 330s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
-      - name: Upload QEMU boot failure diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: xorriso-lxqt-boot-diagnostics
-          path: debian-lxqt/work/boot-diagnostics/
-          retention-days: 7
-          if-no-files-found: warn
-      - name: Validate ISO image
-        run: |
-          test -s debian-lxqt/work/live-image-amd64.hybrid.iso
-          xorriso -indev debian-lxqt/work/live-image-amd64.hybrid.iso -report_el_torito plain
-          sha256sum debian-lxqt/work/live-image-amd64.hybrid.iso | tee debian-lxqt/work/SHA256SUMS
-      - uses: actions/upload-artifact@v4
-        with:
-          name: xorriso-debian-lxqt-EXPERIMENTAL
-          path: |
-            debian-lxqt/work/live-image-amd64.hybrid.iso
-            debian-lxqt/work/SHA256SUMS
-          retention-days: 14
-          if-no-files-found: error
