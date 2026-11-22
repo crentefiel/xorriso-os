@@ -271,7 +271,10 @@ def local_api_url(base):
     return "http://" + parsed.netloc + "/v1/chat/completions"
 
 def next_plan(messages, endpoint=API, model=MODEL):
+    # llama-server supports JSON-constrained decoding. The 1B model must
+    # produce machine-readable tool plans, never raw shell or plain guesses.
     payload = json.dumps({"model": model, "temperature": 0, "stream": False,
+                          "response_format": {"type": "json_object"},
                           "messages": messages}, ensure_ascii=False).encode("utf-8")
     req = request.Request(local_api_url(endpoint), data=payload,
                           headers={"Content-Type": "application/json"}, method="POST")
