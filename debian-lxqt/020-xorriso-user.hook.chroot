@@ -29,3 +29,7 @@ exec /usr/bin/python3 /usr/local/bin/xorriso-ui.py
 EOF
 chmod 755 /usr/local/bin/xorriso-ui /home/xorriso/Desktop/xorriso.desktop
 chown -R xorriso:xorriso /home/xorriso/.config /home/xorriso/Desktop
+# Enable optional, read-only volume discovery and local model service.
+mkdir -p /etc/systemd/system/multi-user.target.wants
+ln -sf ../xorriso-volumes.service /etc/systemd/system/multi-user.target.wants/xorriso-volumes.service
+ln -sf ../xorriso-model.service /etc/systemd/system/multi-user.target.wants/xorriso-model.service
