@@ -19,6 +19,17 @@ assert "DesktopShortcuts=\n" in hook
 assert "xorriso-ui.desktop" in hook and "OnlyShowIn=LXQt;" in hook
 assert "WallpaperMode=color\n" in hook
 assert "pcmanfm-qt" in packages
+# Regression XOS-012: Debian Calamares password cannot be created when
+# --apt-recommends false removes the CrackLib dictionary generator/wordlist.
+assert all(p in packages for p in ("libpam-pwquality", "cracklib-runtime", "wamerican"))
+assert "command -v update-cracklib" in hook
+assert "update-cracklib\n" in hook
+assert 'XORRISO_PASSWORD_DICTIONARY_READY' in hook
+assert "var/cache/cracklib/cracklib_dict.pwd" in build
+assert "var/cache/cracklib/cracklib_dict.pwi" in build
+assert "var/cache/cracklib/cracklib_dict.hwm" in build
+assert 'libpam-pwquality cracklib-runtime wamerican; do' in build
+
 # The local AI must be installed *on the HD*, not fetched into ephemeral Live
 # memory, and it must never depend on the protected legacy VDI volumes.
 model_provision = (root / "xorriso-model-provision.py").read_text(encoding="utf-8")
