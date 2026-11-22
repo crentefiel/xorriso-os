@@ -28,9 +28,10 @@ jobs:
           grep -q '^NoNewPrivileges=yes' debian-lxqt/xorriso-model.service
           grep -q 'EXPECTED_MODEL=' debian-lxqt/start-model.sh
           grep -q 'xorriso-model.service' debian-lxqt/build.sh
-          python3 -m py_compile debian-lxqt/xorriso-ui.py debian-lxqt/xorriso-agent.py debian-lxqt/admin-package.py debian-lxqt/admin-service.py debian-lxqt/xorriso_terminal.py
+          python3 -m py_compile debian-lxqt/xorriso-ui.py debian-lxqt/xorriso-agent.py debian-lxqt/admin-package.py debian-lxqt/admin-service.py debian-lxqt/xorriso_terminal.py debian-lxqt/xorriso-model-provision.py debian-lxqt/xorriso-run-model.py
           python3 debian-lxqt/test-desktop-layout.py
           python3 debian-lxqt/test-agent.py
+          python3 debian-lxqt/test-model-provision.py
           python3 debian-lxqt/xorriso-ui.py --selftest
           grep -q 'xorriso-ui.py' debian-lxqt/build.sh
           grep -q 'admin-package.py' debian-lxqt/build.sh
