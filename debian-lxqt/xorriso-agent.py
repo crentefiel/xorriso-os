@@ -45,7 +45,7 @@ SYSTEM = (
     "Nao execute shell arbitrario. No maximo seis etapas."
 )
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9+._-]{0,79}$")
-DESKTOP_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,110}\\.desktop$")
+DESKTOP_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,110}[.]desktop$")
 
 def simple_name(name):
     if not isinstance(name, str) or not name or len(name) > 120:
