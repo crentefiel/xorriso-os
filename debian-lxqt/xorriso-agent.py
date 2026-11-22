@@ -130,7 +130,21 @@ def is_live_session(kernel_cmdline=None):
     return "boot=live" in cmdline.split()
 
 def start_installer():
-    """Launch a fixed wrapper as the desktop user; Calamares asks for polkit."""
+    """Launch a fixed wrapper as user; never touch a block device from the AI."""
+    # Provide immediate GUI feedback, in addition to the launcher's own check.
+    lsblk = shutil.which("lsblk", path="/usr/bin:/bin")
+    if not lsblk:
+        return {"launched": False, "error": "Nao foi possivel verificar discos protegidos"}
+    try:
+        labels = subprocess.run([lsblk, "-rno", "LABEL"], capture_output=True,
+                                text=True, timeout=8, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {"launched": False, "error": "Falha ao verificar discos: " + str(exc)}
+    if labels.returncode != 0:
+        return {"launched": False, "error": "Falha ao identificar rotulos dos discos"}
+    if {"XORRISO_DATA", "XORRISO_RUNTIME"}.intersection(set(labels.stdout.splitlines())):
+        return {"launched": False,
+                "error": "Desconecte os discos protegidos antes de instalar no HD"}
     executable = pathlib.Path(INSTALLER_WRAPPER)
     if not executable.is_file() or not os.access(str(executable), os.X_OK):
         return {"launched": False, "error": "Instalador Live nao disponivel"}
