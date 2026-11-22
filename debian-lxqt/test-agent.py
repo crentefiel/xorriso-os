@@ -211,6 +211,24 @@ def test_interactive_terminal_requires_approval():
         assert popen.call_args.kwargs.get("shell") is not True
 
 
+def test_installer_requires_explicit_live_consent():
+    from unittest.mock import patch
+    assert agent.is_live_session(kernel_cmdline="BOOT_IMAGE=/live/vmlinuz boot=live quiet")
+    assert not agent.is_live_session(kernel_cmdline="BOOT_IMAGE=/boot/vmlinuz quiet")
+    assert not agent.is_live_session(kernel_cmdline="boot=livesystem")
+    with patch.object(agent, "is_live_session", return_value=False):
+        denied = agent.action("open_installer", {}, lambda _: True)
+        assert "somente no modo Live" in denied["error"]
+    with patch.object(agent, "is_live_session", return_value=True), \
+         patch.object(agent, "start_installer") as start:
+        assert not agent.action("open_installer", {}, lambda _: False)["approved"]
+        assert start.call_count == 0
+        start.return_value = {"application": "calamares", "launch_requested": True}
+        approved = agent.action("open_installer", {}, lambda _: True)
+        assert approved["launch_requested"]
+        assert start.call_count == 1
+
+
 def test_real_http_planning():
     import json
     import threading
@@ -261,5 +279,6 @@ if __name__ == "__main__":
     test_safe_terminal_commands()
     test_terminal_mkdir_requires_consent_and_stays_in_documents()
     test_interactive_terminal_requires_approval()
+    test_installer_requires_explicit_live_consent()
     test_real_http_planning()
     print("PASS: multi-etapas, observacao, autorizacao, filesystem, pkexec, comandos sem shell")
