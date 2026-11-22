@@ -15,12 +15,14 @@ if lsblk -rno LABEL 2>/dev/null | grep -Eq '^(XORRISO_DATA|XORRISO_RUNTIME)$'; t
     echo 'Disco protegido conectado. Desconecte XORRISO_DATA e XORRISO_RUNTIME antes da instalacao.' >&2
     exit 4
 fi
-if [ ! -x /usr/bin/calamares ] || [ ! -x /usr/bin/pkexec ]; then
+if [ ! -x /usr/bin/calamares ] || [ ! -x /usr/bin/pkexec ] ||
+   [ ! -x /usr/local/libexec/xorriso/calamares-root ]; then
     echo 'Calamares ou PolicyKit indisponivel.' >&2
     exit 5
 fi
-# The scoped live-only polkit rule still requests user authentication.
-# No unrestricted root shell and no command strings from the model.
+# The specific PolicyKit rule grants the ephemeral Live user permission for
+# ONE fixed root-owned installer wrapper. No reusable root password or
+# privileged shell is created, and the wrapper rechecks protected VDI labels.
 xhost +si:localuser:root >/dev/null
 trap 'xhost -si:localuser:root >/dev/null 2>&1 || true' EXIT HUP INT TERM
-/usr/bin/pkexec /usr/bin/calamares
+/usr/bin/pkexec /usr/local/libexec/xorriso/calamares-root
