@@ -41,9 +41,12 @@ install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorris
 install -m 755 "$ROOT/xorriso-agent.py" config/includes.chroot/usr/local/bin/xorriso-agent.py
 install -m 755 "$ROOT/xorriso_terminal.py" config/includes.chroot/usr/local/bin/xorriso_terminal.py
 install -m 755 "$ROOT/xorriso-install.sh" config/includes.chroot/usr/local/bin/xorriso-install
+mkdir -p config/includes.chroot/usr/share/polkit-1/actions
+install -m 644 "$ROOT/xorriso-calamares.policy" config/includes.chroot/usr/share/polkit-1/actions/org.xorriso.install.policy
 mkdir -p config/includes.chroot/usr/local/libexec/xorriso config/includes.chroot/etc/systemd/system
 install -m 755 "$ROOT/admin-package.py" config/includes.chroot/usr/local/libexec/xorriso/admin-package
 install -m 755 "$ROOT/admin-service.py" config/includes.chroot/usr/local/libexec/xorriso/admin-service
+install -m 755 "$ROOT/calamares-root.sh" config/includes.chroot/usr/local/libexec/xorriso/calamares-root
 install -m 755 "$ROOT/mount-volumes.sh" config/includes.chroot/usr/local/libexec/xorriso/mount-volumes.sh
 install -m 755 "$ROOT/start-model.sh" config/includes.chroot/usr/local/libexec/xorriso/start-model.sh
 install -m 755 "$ROOT/xorriso-run-model.py" config/includes.chroot/usr/local/libexec/xorriso/run-model.py
@@ -123,6 +126,8 @@ for expected in \
   usr/local/bin/xorriso-desktop-ready \
   usr/local/bin/xorriso_terminal.py \
   usr/local/bin/xorriso-install \
+  usr/local/libexec/xorriso/calamares-root \
+  usr/share/polkit-1/actions/org.xorriso.install.policy \
   usr/local/libexec/xorriso/install-mode.sh \
   usr/local/libexec/xorriso/admin-service \
   usr/local/libexec/xorriso/model-provision.py \
