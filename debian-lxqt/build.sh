@@ -91,17 +91,23 @@ if [ -f config/bootloaders/isolinux/splash.svg ]; then
 fi
 echo "Building Debian LXQt live ISO in $OUT"
 sudo lb build
-# An ISO without these files is merely uncustomized Debian; reject it.
+# live-build deletes its temporary chroot during lb build. Inspect the actual
+# compressed root filesystem that will ship inside the ISO, not OUT/chroot.
+SQUASHFS="$OUT/binary/live/filesystem.squashfs"
+test -s "$SQUASHFS" || {
+  echo "Built ISO is missing its Live root filesystem: $SQUASHFS" >&2; exit 6;
+}
 for expected in \
   home/xorriso/Desktop/xorriso.desktop \
   home/xorriso/Desktop/arquivos.desktop \
   home/xorriso/.config/autostart/xorriso-ui.desktop \
   usr/local/bin/xorriso-desktop-ready; do
-  test -s "$OUT/chroot/$expected" || {
-    echo "xorriso customization missing in built chroot: $expected" >&2; exit 6;
-  }
+  if ! unsquashfs -cat "$SQUASHFS" "$expected" >/dev/null 2>&1; then
+    echo "xorriso customization missing in Live SquashFS: $expected" >&2
+    exit 6
+  fi
 done
-printf '%s\\n' 'PASS: xorriso user hook actually customized the root filesystem.'
+printf '%s\\n' 'PASS: xorriso desktop customization verified in ISO SquashFS.'
 # Ubuntu 24.04's legacy live-build names the resulting file binary.hybrid.iso,
 # whereas current live-build uses live-image-amd64.hybrid.iso. Normalize to
 # one documented CI artifact name and fail early if no real ISO was created.
