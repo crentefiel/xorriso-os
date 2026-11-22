@@ -3,13 +3,29 @@ set -eu
 if ! id xorriso >/dev/null 2>&1; then
     useradd -m -s /bin/bash -G audio,video,netdev xorriso
 fi
-# Do not put the default session in sudoers; elevation requires a separate design.
+# No passwordless root. The agent must request privilege via audited service.
 passwd -l xorriso
-mkdir -p /home/xorriso/.config/lxqt
-# Minimal LXQt panel configuration: keep taskbar/menu hidden by default.
+mkdir -p /home/xorriso/.config/lxqt /home/xorriso/Desktop /usr/local/bin
 cat > /home/xorriso/.config/lxqt/panel.conf <<'EOF'
 [General]
 __userfile__=true
 panels=0
 EOF
-chown -R xorriso:xorriso /home/xorriso/.config
+cat > /home/xorriso/Desktop/xorriso.desktop <<'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=xorriso IA
+Comment=Abrir o assistente do xorriso
+Exec=/usr/local/bin/xorriso-ui
+Icon=system-run
+Terminal=false
+Categories=Utility;
+EOF
+cat > /usr/local/bin/xorriso-ui <<'EOF'
+#!/bin/sh
+# Temporary launcher: never invent an AI answer or claim it executed a command.
+exec xterm -T 'xorriso IA - integração pendente' -hold -e sh -c  'printf "\n xorriso IA\n\n Base Debian LXQt iniciada.\n MiniCPM e executor Linux ainda nao integrados nesta imagem.\n Nenhuma acao administrativa sera executada aqui.\n\n"'
+EOF
+chmod 755 /usr/local/bin/xorriso-ui /home/xorriso/Desktop/xorriso.desktop
+chown -R xorriso:xorriso /home/xorriso/.config /home/xorriso/Desktop
