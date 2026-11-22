@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Build a separate Debian LXQt live ISO. Never writes to attached VDI disks.
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OUT="${XORRISO_LIVE_WORKDIR:-$ROOT/work}"
+mkdir -p "$OUT"
+cd "$OUT"
+for cmd in lb xorriso; do
+  command -v "$cmd" >/dev/null || { echo "Missing $cmd. On Debian/Ubuntu install live-build and xorriso." >&2; exit 2; }
+done
+if [[ -e config ]]; then
+  echo "Existing live-build configuration in $OUT; refusing to overwrite." >&2
+  exit 3
+fi
+lb config --mode debian --distribution trixie --architectures amd64 \
+  --binary-images iso-hybrid --debian-installer none \
+  --archive-areas "main" --bootappend-live "boot=live components quiet"
+mkdir -p config/package-lists config/includes.chroot/etc/sddm.conf.d \
+  config/hooks/normal config/includes.chroot/usr/local/share/xorriso
+cp "$ROOT/package-list.chroot" config/package-lists/xorriso.list.chroot
+cp "$ROOT/10-xorriso-autologin.conf" config/includes.chroot/etc/sddm.conf.d/10-xorriso-autologin.conf
+cp "$ROOT/020-xorriso-user.hook.chroot" config/hooks/normal/020-xorriso-user.hook.chroot
+cp "$ROOT/README.md" config/includes.chroot/usr/local/share/xorriso/MIGRATION.md
+chmod +x config/hooks/normal/020-xorriso-user.hook.chroot
+echo "Building Debian LXQt live ISO in $OUT"
+sudo lb build
+echo "Check $OUT for live-image-amd64.hybrid.iso; boot-test before distribution."
