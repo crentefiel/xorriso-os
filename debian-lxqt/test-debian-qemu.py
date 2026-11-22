@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Cold-boot Debian Live in QEMU and REQUIRE a running LXQt X11 session."""
 import pathlib
+import shutil
 import socket
 import subprocess
 import sys
@@ -75,12 +76,32 @@ def main():
                     raise RuntimeError("LXQt user session did not signal READY on serial within 280s")
                 raise RuntimeError("LXQt signaled READY but graphical framebuffer was blank")
             except Exception:
+                # Preserve evidence outside TemporaryDirectory so CI can upload it.
+                diag = pathlib.Path("debian-lxqt/work/boot-diagnostics").resolve()
+                diag.mkdir(parents=True, exist_ok=True)
+                if serial.exists():
+                    shutil.copy2(serial, diag / "serial.log")
+                shutil.copy2(tmp / "qemu.log", diag / "qemu.log")
+                try:
+                    frame = tmp / "last-screen.ppm"
+                    shot(sock, frame)
+                    from PIL import Image
+                    with Image.open(frame) as im:
+                        rgb = im.convert("RGB")
+                        rgb.save(diag / "last-screen.png")
+                        small = rgb.copy()
+                        small.thumbnail((128, 128))
+                        pixels = list(small.getdata())
+                        bright = sum(max(p) > 35 for p in pixels) / max(1, len(pixels))
+                        print(f"Diagnostic framebuffer: {rgb.size}, bright-pixel ratio {bright:.2%}", file=sys.stderr)
+                except Exception as exc:
+                    print(f"Could not capture QEMU screen: {exc}", file=sys.stderr)
                 print("QEMU boot diagnostic (serial tail):", file=sys.stderr)
                 if serial.is_file():
-                    print(serial.read_bytes()[-6000:].decode("utf-8", "replace"), file=sys.stderr)
+                    print(serial.read_bytes()[-14000:].decode("utf-8", "replace"), file=sys.stderr)
                 else:
                     print("No serial output; verify kernel boot and console", file=sys.stderr)
-                print((tmp / "qemu.log").read_text(errors="replace")[-2000:], file=sys.stderr)
+                print((tmp / "qemu.log").read_text(errors="replace")[-3000:], file=sys.stderr)
                 raise
             finally:
                 process.terminate()
