@@ -134,3 +134,11 @@ As alterações mantêm o tema leve Maui e os recursos principais. Não montar o
 **Testes:** a compilação + boot QEMU agora exigem tanto o marcador da sessão gráfica quanto `XORRISO_INSTALL_MODE_LIVE`, demonstrando que o serviço instalador foi preparado. Esses testes **não substituem** uma instalação real em disco descartável: antes de distribuir como instalador final é necessário testar Calamares contra HD virtual **novo/descartável** (sem os discos VDI protegidos), escolher partições, criar o usuário, validar GRUB BIOS/UEFI, reiniciar SEM ISO, confirmar login com senha própria, IA abrindo automaticamente, atalhos e ausência da regra Live. O VirtualBox real e MiniCPM seguem pendentes.
 
 Referências: https://www.debian.org/CD/live/index.html , https://packages.debian.org/trixie/calamares-settings-debian , https://calamares.codeberg.page/docs/deploy-configuration/ .
+
+### Administração autenticada por ferramenta (complemento desta revisão)
+
+Além de `install_package`, a IA pode solicitar `manage_service` para operações `start`, `stop`, `restart`, `enable`, `disable` somente sobre `xorriso-model.service`, `xorriso-volumes.service` e `NetworkManager.service`. A GUI exige confirmação exata; o helper independente `admin-service` é invocado via `pkexec` com autenticação administrativa, valida os argumentos novamente antes de chamar `/usr/bin/systemctl` sem shell, verifica estado e registra a operação no syslog (facility auth). A IA não pode solicitar `sddm`, serviços arbitrários, comandos shell ou formatar partições por essa ferramenta.
+
+O usuário quer que a IA seja o **pilar administrativo** do xorriso. Isso significa um orquestrador de ações reais, apoiado em políticas por capacidade, confirmações, autenticação e auditoria. Não equivale a entregar senha root ou uma interface que execute qualquer texto do modelo com privilégios. Novas categorias administrativas (rede, pacotes, arquivos de sistema, dispositivos e processos) podem ser implementadas com helpers separados, salvaguardas e testes, e devem ser registradas no banco de erros `errors.json` quando houver falhas.
+
+**Estado de prova:** os helpers são reais e testáveis em código; sem instalação completa com credenciais no HD, não há comprovação do `pkexec` administrativo após instalar. QEMU Live não valida isso.
