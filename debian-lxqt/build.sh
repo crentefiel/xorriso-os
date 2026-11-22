@@ -141,6 +141,10 @@ for expected in \
   usr/bin/calamares \
   usr/local/bin/xorriso-trust-launchers \
   usr/share/plymouth/themes/tribar/tribar.plymouth \
+  usr/sbin/update-cracklib \
+  var/cache/cracklib/cracklib_dict.pwd \
+  var/cache/cracklib/cracklib_dict.pwi \
+  var/cache/cracklib/cracklib_dict.hwm \
   usr/lib/live/config/0030-user-setup; do
   if ! unsquashfs -cat "$SQUASHFS" "$expected" >/dev/null 2>&1; then
     echo "xorriso desktop skeleton or live-config is missing from Live SquashFS: $expected" >&2
@@ -160,7 +164,8 @@ for needed in sddm sddm-theme-maui lxqt-core lxqt-session xfwm4 xdg-user-dirs pc
   calamares calamares-settings-debian grub-pc-bin grub-efi-amd64-bin efibootmgr \
   qterminal gvfs live-boot live-config user-setup xorg \
   xserver-xorg-video-all xserver-xorg-input-all python3-tk \
-  plymouth plymouth-themes polkitd pkexec; do
+  plymouth plymouth-themes polkitd pkexec \
+  libpam-pwquality cracklib-runtime wamerican; do
   grep -Fxq "$needed" "$MANIFEST" || {
     echo "Required package missing in built ISO: $needed" >&2; exit 7;
   }
@@ -173,6 +178,15 @@ for unwanted in plasma-workspace plasma-desktop plasma-discover sddm-theme-debia
 done
 echo "Verified minimal installed package count: $(wc -l < "$MANIFEST")"
 echo "PASS: LXQt runtime and lightweight SDDM without Plasma in SquashFS."
+# Runtime verification: Calamares creates the installed account from this
+# SquashFS; failing this gate prevents shipping a broken password screen.
+for suffix in pwd pwi hwm; do
+  unsquashfs -cat "$SQUASHFS" "var/cache/cracklib/cracklib_dict.$suffix" >/dev/null 2>&1 || {
+    echo "Calamares password validation database missing: $suffix" >&2
+    exit 7
+  }
+done
+echo 'PASS: Calamares password-quality dictionary is present and nonempty.'
 
 # Ubuntu 24.04's legacy live-build names the resulting file binary.hybrid.iso,
 # whereas current live-build uses live-image-amd64.hybrid.iso. Normalize to
