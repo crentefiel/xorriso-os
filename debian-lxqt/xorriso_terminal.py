@@ -2,6 +2,7 @@
 """Non-privileged terminal bridge for xorriso. NEVER invokes a shell or root."""
 import os
 import pathlib
+import re
 import shlex
 import shutil
 import subprocess
@@ -10,6 +11,7 @@ import time
 MAX_OUTPUT = 6000
 MAX_COMMAND = 400
 HOME = pathlib.Path.home().resolve()
+DOCUMENTS = HOME / "Documentos"
 SERVICES = {"sddm.service", "NetworkManager.service", "xorriso-model.service", "xorriso-volumes.service"}
 
 def checked_argv(command):
@@ -67,6 +69,42 @@ def run_readonly(command, approve=None, runner=subprocess.run):
                     check=False, env={**os.environ, "PATH": "/usr/bin:/bin"})
     return {"command": command, "argv": argv, "exit_code": output.returncode,
             "output": (output.stdout + output.stderr)[:MAX_OUTPUT]}
+
+def run_command(command, approve=lambda _: False):
+    """Run diagnostics, or a narrowly scoped user-approved mkdir operation."""
+    try:
+        return run_readonly(command)
+    except ValueError as readonly_error:
+        # No generic shell or arbitrary command fallback.
+        if (not isinstance(command, str) or len(command) > MAX_COMMAND or
+                any(ord(c) < 32 for c in command)):
+            raise readonly_error
+        try:
+            parts = shlex.split(command)
+        except ValueError:
+            raise readonly_error
+        if len(parts) != 2 or parts[0] != "mkdir":
+            raise readonly_error
+        name = parts[1]
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", name) or name in {".", ".."}:
+            raise ValueError("mkdir aceita somente nome simples sem caminhos")
+        if DOCUMENTS.is_symlink() or DOCUMENTS.resolve() != HOME / "Documentos":
+            raise ValueError("Pasta Documentos redirecionada: operacao bloqueada")
+        target = DOCUMENTS / name
+        if target.exists() or target.is_symlink():
+            raise FileExistsError("Pasta ja existe; nada foi sobrescrito")
+        if not approve("Autoriza executar mkdir -- " + name + " dentro de " + str(DOCUMENTS) + "?"):
+            return {"command": command, "approved": False, "error": "Pessoa cancelou a operacao"}
+        DOCUMENTS.mkdir(mode=0o700, parents=True, exist_ok=True)
+        binary = shutil.which("mkdir", path="/usr/bin:/bin")
+        if not binary:
+            return {"command": command, "error": "mkdir nao instalado"}
+        result = subprocess.run([binary, "--", name], cwd=str(DOCUMENTS),
+                                capture_output=True, text=True, input="", check=False, timeout=12,
+                                env={**os.environ, "PATH": "/usr/bin:/bin"})
+        return {"command": command, "approved": True,
+                "exit_code": result.returncode, "created": target.is_dir(),
+                "path": str(target), "output": (result.stdout + result.stderr)[:MAX_OUTPUT]}
 
 def open_terminal(approve=lambda _: False):
     """Open a user-facing QTerminal; no root privileges or autocommands."""
