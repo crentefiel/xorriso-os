@@ -26,6 +26,7 @@ TOOLS = {
     "package_info": "Consulta apt-cache policy para um pacote Debian",
     "install_package": "Pede autorizacao e autenticacao administrativa via pkexec para instalar pacote",
     "open_application": "Abre um aplicativo instalado pelo seu arquivo .desktop, com autorizacao",
+    "open_file_manager": "Abre o gerenciador de arquivos PCManFM-Qt na pasta pessoal, sem privilegios root",
     "finish": "Conclui a tarefa em portugues, sem afirmar resultados nao observados",
 }
 SYSTEM = (
@@ -40,6 +41,7 @@ SYSTEM = (
     "Se uma acao falhar, explique o erro ou use ferramentas de leitura para investigar. "
     "Nao repita uma acao que ja foi negada. Em install_package args.package, somente nome do pacote apt. "
     "Em open_application args.desktop_id, arquivo .desktop instalado. "
+    "Para mostrar os arquivos e pastas ao usuario, use open_file_manager com args vazios. "
     "Em create_folder/create_file/read_file args.filename, sem barras; create_file args.content. "
     "Em find_command args.name, em package_info args.package. "
     "Nao execute shell arbitrario. No maximo seis etapas."
@@ -127,6 +129,11 @@ def action(tool, args, approve, runner=run_readonly):
             return {"approved": True, "error": "Instalador administrativo nao esta instalado"}
         result = runner(["pkexec", ADMIN_HELPER, name], timeout=180)
         return {"package": name, **result, "installed": result["exit_code"] == 0}
+    if tool == "open_file_manager":
+        # User-requested navigation never uses a root shell. The GUI manages
+        # files with the same permissions as the logged-in desktop user.
+        result = runner(["pcmanfm-qt", str(pathlib.Path.home())], timeout=15)
+        return {"application": "pcmanfm-qt", **result, "launched": result["exit_code"] == 0}
     if tool == "open_application":
         name = args.get("desktop_id")
         desktop_path(name)

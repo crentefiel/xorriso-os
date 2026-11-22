@@ -5,11 +5,26 @@ if ! id xorriso >/dev/null 2>&1; then
 fi
 # No passwordless root. The agent must request privilege via audited service.
 passwd -l xorriso
-mkdir -p /home/xorriso/.config/lxqt /home/xorriso/.config/autostart /home/xorriso/Desktop /usr/local/bin
+mkdir -p /home/xorriso/.config/lxqt /home/xorriso/.config/autostart /home/xorriso/.config/pcmanfm-qt/lxqt /home/xorriso/Desktop /usr/local/bin
 cat > /home/xorriso/.config/lxqt/panel.conf <<'EOF'
 [General]
 __userfile__=true
 panels=0
+EOF
+# PCManFM-Qt manages the desktop AND provides a normal graphical file browser.
+# Keep both functions; only hide its built-in Home/Trash/Computer/Network icons.
+cat > /home/xorriso/.config/pcmanfm-qt/lxqt/settings.conf <<'EOF'
+[Behavior]
+UseTrash=true
+ConfirmDelete=true
+[Desktop]
+DesktopShortcuts=
+WallpaperMode=color
+BgColor=#000000
+FgColor=#ffffff
+[Volume]
+MountOnStartup=false
+AutoRun=false
 EOF
 cat > /home/xorriso/Desktop/xorriso.desktop <<'EOF'
 [Desktop Entry]
@@ -21,6 +36,17 @@ Exec=/usr/local/bin/xorriso-ui
 Icon=system-run
 Terminal=false
 Categories=Utility;
+EOF
+cat > /home/xorriso/Desktop/arquivos.desktop <<'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Arquivos
+Comment=Gerenciar pastas e arquivos do xorriso
+Exec=pcmanfm-qt
+Icon=system-file-manager
+Terminal=false
+Categories=System;FileManager;
 EOF
 cat > /usr/local/bin/xorriso-ui <<'EOF'
 #!/bin/sh
@@ -41,6 +67,17 @@ if [ -n "${DISPLAY:-}" ] && pgrep -u "$(id -u)" -x lxqt-session >/dev/null 2>&1 
     fi
 fi
 EOF
+# The assistant window is the main user interface; a desktop shortcut remains
+# available for relaunching it after a user closes the window.
+cat > /home/xorriso/.config/autostart/xorriso-ui.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=xorriso IA (iniciar com o desktop)
+Exec=/usr/local/bin/xorriso-ui
+Terminal=false
+OnlyShowIn=LXQt;
+X-LXQt-Need-Tray=false
+EOF
 cat > /home/xorriso/.config/autostart/xorriso-desktop-ready.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
@@ -51,7 +88,7 @@ X-LXQt-Need-Tray=false
 OnlyShowIn=LXQt;
 EOF
 chmod 755 /usr/local/bin/xorriso-desktop-ready
-chmod 755 /usr/local/bin/xorriso-ui /home/xorriso/Desktop/xorriso.desktop
+chmod 755 /usr/local/bin/xorriso-ui /home/xorriso/Desktop/xorriso.desktop /home/xorriso/Desktop/arquivos.desktop
 chown -R xorriso:xorriso /home/xorriso/.config /home/xorriso/Desktop
 # Old live-build can omit the display-manager enablement in a chroot.
 # Explicitly boot the graphical target and SDDM for live sessions.

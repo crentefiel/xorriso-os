@@ -4,8 +4,11 @@ Este caminho de compilação usa o Debian Live e o LXQt em vez de desenhar diret
 
 ## Interface
 - Login gráfico automático da sessão `xorriso`.
-- Desktop minimalista, sem barra de tarefas e com um único ícone "xorriso IA".
-- Esse ícone abre uma interface Python/Tk que conversa com o servidor local OpenAI-compatível em `127.0.0.1:8080/v1`.
+- Desktop minimalista, sem barra de tarefas, com apenas dois atalhos: **xorriso IA** e **Arquivos**.
+- O ícone **xorriso IA** abre uma interface Python/Tk que conversa com o servidor local OpenAI-compatível em `127.0.0.1:8080/v1`.
+- O ícone **Arquivos** abre o gerenciador `pcmanfm-qt`, preservado para navegação manual, pastas, documentos, cópia e organização. O agente também possui a ferramenta `open_file_manager`, executada como usuário comum, sem shell root.
+- O perfil PCManFM-Qt omite os atalhos automáticos de Home, Trash, Computer e Network; desabilita a montagem automática de volumes e mantém a lixeira dentro do gerenciador. Não elimina o gerenciador de arquivos.
+- O boot Live agora especifica `username=xorriso` para evitar que a personalização seja aplicada só em `/home/xorriso` enquanto a sessão gráfica entre com o usuário padrão `user`. Essa mudança ainda exige validação na ISO e no VirtualBox.
 - O MiniCPM recebe o pedido em português e propõe uma ação em JSON. O sistema só executa ações conhecidas e verifica o resultado real.
 - Ações disponíveis nesta fase: listar/criar/ler arquivos em `~/Documentos`, criar pastas, consultar informações do sistema. Criação exige confirmação do usuário; nunca sobrescreve arquivos.
 - Perguntas de capacidade, como "você consegue criar uma pasta?", devem ser respondidas sem executar. Há instruções ao modelo, além da confirmação obrigatória na interface.
@@ -28,7 +31,7 @@ O build deverá produzir `debian-lxqt/work/live-image-amd64.hybrid.iso` quando b
 
 ## Testes antes de distribuir
 1. Testar compilação, ISO/GRUB e vários cold boots no QEMU e VirtualBox.
-2. Confirmar LXQt e ícone único, clique, teclado ABNT2 e janela de conversa.
+2. Confirmar LXQt e apenas os dois ícones (xorriso IA e Arquivos), clique, teclado ABNT2, PCManFM-Qt e janela de conversa.
 3. Confirmar que sem VDIs a interface abre e explica a indisponibilidade da IA.
 4. Ligar primeiro cópias dos VDIs e confirmar montagem somente leitura; só depois usar os originais.
 5. Testar o MiniCPM com modelo local, criação/listagem de arquivos, perguntas sem execução e autorização/cancelamento.
@@ -51,3 +54,9 @@ Instalar programas é um fluxo de **duas autorizações**: a pessoa confirma o n
 
 Os testes de agente usam um modelo e executor simulados para verificar a sequência pacote → instalação → abertura, observações, cancelamento, proteção de caminhos e que não se executa `sh -c` como root. **Não comprovam ainda** que o MiniCPM real gerará os JSONs corretos nem que o PolicyKit autentica no VirtualBox.
 
+
+## Regra de interface — 22/11/2026
+
+Conservar **xorriso IA** e **Arquivos** como os únicos atalhos do desktop. O gerenciador PCManFM-Qt é componente essencial, não pode ser removido ao "limpar" o Debian. Configurações do sistema permanecem instaladas, mesmo sem painel. A IA pode pedir abertura da pasta pessoal, mas o usuário sempre mantém acesso direto aos seus arquivos pelo ícone **Arquivos**.
+
+Ainda não há confirmação de que a ISO nova inicialize sem demora ou tela preta: corrigir a conta Live e reduzir atalhos são passos de implementação, não prova de boot. Nenhum dos discos `XORRISO_DATA` e `XORRISO_RUNTIME` deve ser formatado, remontado com escrita ou excluído.
