@@ -76,5 +76,6 @@ jobs:
           path: |
             debian-lxqt/work/live-image-amd64.hybrid.iso
             debian-lxqt/work/SHA256SUMS
+            debian-lxqt/work/package-manifest.txt
           retention-days: 14
           if-no-files-found: error
