@@ -100,14 +100,18 @@ ln -sf /usr/lib/systemd/system/sddm.service /etc/systemd/system/graphical.target
 # Runs after the graphical target has been requested; never modifies disks.
 cat > /usr/local/bin/xorriso-boot-diagnostics <<'EOF'
 #!/bin/sh
-sleep 100
+sleep 60
 {
     echo 'XORRISO_BOOT_DIAGNOSTICS_BEGIN'
+    date -u || true
+    echo 'Service enablement and status:'
+    systemctl is-enabled display-manager.service || true
     systemctl is-active display-manager.service || true
     systemctl is-active sddm.service || true
     systemctl get-default || true
     ps -eo pid,user,comm,args | grep -E 'sddm|Xorg|Xwayland|lxqt-session' | grep -v grep || true
-    journalctl -b -u sddm.service --no-pager -n 35 || true
+    journalctl -b -u sddm.service --no-pager -n 50 || true
+    systemctl --failed --no-pager || true
     echo 'XORRISO_BOOT_DIAGNOSTICS_END'
 } > /dev/ttyS0 2>&1 || true
 EOF
@@ -115,7 +119,7 @@ chmod 755 /usr/local/bin/xorriso-boot-diagnostics
 cat > /etc/systemd/system/xorriso-boot-diagnostics.service <<'EOF'
 [Unit]
 Description=xorriso graphical boot diagnostics for testing
-After=graphical.target
+After=systemd-journald.service
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/xorriso-boot-diagnostics
@@ -128,3 +132,4 @@ ln -sf ../xorriso-boot-diagnostics.service /etc/systemd/system/multi-user.target
 mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf ../xorriso-volumes.service /etc/systemd/system/multi-user.target.wants/xorriso-volumes.service
 ln -sf ../xorriso-model.service /etc/systemd/system/multi-user.target.wants/xorriso-model.service
+echo 'XORRISO_CHROOT_HOOK_EXECUTED'
