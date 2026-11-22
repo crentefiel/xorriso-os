@@ -315,6 +315,33 @@
         "https://github.com/crentefiel/xorriso-os/pull/27",
         "https://www.liquid.ai/blog/lfm2-5-350m-no-size-left-behind"
       ]
+    },
+    {
+      "id": "XOS-014",
+      "title": "Calamares falha em unpackfs porque /usr/bin/unsquashfs nao foi instalado no Live",
+      "fingerprint": [
+        "Falha na Instalação",
+        "Configuração incorreta do unpackfs",
+        "Não foi possível encontrar o unsquashfs",
+        "Failed to find unsquashfs",
+        "/run/live/medium/live/filesystem.squashfs"
+      ],
+      "status": "pacote e verificacoes aplicados na branch; CI + teste de instalacao em disco pendentes",
+      "root_cause_status": "confirmada pela captura do video e ordem de validacao do Calamares",
+      "cause": "Com --apt-recommends false a ISO nao instalou squashfs-tools explicitamente. O build tinha unsquashfs no host de compilacao e usava-o para validar o SquashFS, mas o executavel nao foi instalado dentro da sessao Live. O modulo unpackfs valida primeiro se a imagem existe e depois verifica shutil.which('unsquashfs'), quando produz a mensagem vista no video.",
+      "fix": "Adicionar squashfs-tools a package-list.chroot; exigir pacote e /usr/bin/unsquashfs no SquashFS final do build; testar disponibilidade e legibilidade read-only do /run/live/medium/live/filesystem.squashfs no boot antes de emitir marcador de instalador pronto, e novamente no calamares-root antes de permitir ao instalador particionar qualquer HD.",
+      "evidence": [
+        "Video fornecido pelo usuario em 22/11/2026 (164 segundos), por volta de 2m30s: Calamares mostra 'Configuração incorreta do unpackfs' e 'Não foi possível encontrar o unsquashfs'",
+        "No vídeo, o usuário escolheu limpar /dev/sda (VBOX HARDDISK, 21,87 GiB), então é importante nao tentar novamente com dados pessoais neste disco",
+        "Inspecao do GitHub HEAD d7cf8162: package-list.chroot nao tinha squashfs-tools, embora build.sh usasse unsquashfs no host",
+        "Codigo fonte do Calamares unpackfs verifica primeiro a existencia do source e depois se unsquashfs esta disponivel"
+      ],
+      "verification": "Requer foundation checks, build ISO e boot QEMU com marcador da verificacao do instalador no mesmo SHA, artifact de ISO e teste de instalacao real em um disco virtual descartavel ate o boot do HD; nunca alegar instalacao final concluida sem isso.",
+      "references": [
+        "https://github.com/calamares/calamares/blob/calamares/src/modules/unpackfs/main.py",
+        "https://packages.debian.org/trixie/amd64/squashfs-tools/filelist",
+        "https://github.com/crentefiel/xorriso-os/pull/27"
+      ]
     }
   ]
 }

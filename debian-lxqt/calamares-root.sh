@@ -19,5 +19,20 @@ if printf '%s\n' "$labels" | grep -Eq '^(XORRISO_DATA|XORRISO_RUNTIME)$'; then
     exit 5
 fi
 test -x /usr/bin/calamares || exit 6
+# XOS-014: fail BEFORE Calamares partitions anything when unpackfs would fail.
+# These checks are read-only: no filesystem is mounted, changed or extracted.
+test -x /usr/bin/unsquashfs || {
+    echo 'Calamares indisponivel: falta /usr/bin/unsquashfs no Live.' >&2
+    exit 7
+}
+LIVE_ROOTFS=/run/live/medium/live/filesystem.squashfs
+test -s "$LIVE_ROOTFS" || {
+    echo "Calamares: arquivo de imagem Live nao encontrado: $LIVE_ROOTFS" >&2
+    exit 8
+}
+/usr/bin/unsquashfs -s "$LIVE_ROOTFS" >/dev/null 2>&1 || {
+    echo "Calamares: imagem Live corrompida ou ilegivel: $LIVE_ROOTFS" >&2
+    exit 9
+}
 # Calamares itself displays and asks confirmation of all target disk changes.
 exec /usr/bin/calamares

@@ -139,6 +139,7 @@ for expected in \
   etc/systemd/system/xorriso-install-mode.service \
   etc/calamares/settings.conf \
   usr/bin/calamares \
+  usr/bin/unsquashfs \
   usr/local/bin/xorriso-trust-launchers \
   usr/share/plymouth/themes/tribar/tribar.plymouth \
   usr/sbin/update-cracklib \
@@ -161,7 +162,7 @@ awk -F': ' '/^Package: / { package=$2 }
              /^Status: install ok installed$/ { if (package != "") print package }' \
     "$STATUS_FILE" | LC_ALL=C sort -u > "$MANIFEST"
 for needed in sddm sddm-theme-maui lxqt-core lxqt-session xfwm4 xdg-user-dirs pcmanfm-qt \
-  calamares calamares-settings-debian grub-pc-bin grub-efi-amd64-bin efibootmgr \
+  calamares calamares-settings-debian squashfs-tools grub-pc-bin grub-efi-amd64-bin efibootmgr \
   qterminal gvfs live-boot live-config user-setup xorg \
   xserver-xorg-video-all xserver-xorg-input-all python3-tk \
   plymouth plymouth-themes polkitd pkexec \

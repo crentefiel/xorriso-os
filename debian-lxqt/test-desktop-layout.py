@@ -19,6 +19,16 @@ assert "DesktopShortcuts=\n" in hook
 assert "xorriso-ui.desktop" in hook and "OnlyShowIn=LXQt;" in hook
 assert "WallpaperMode=color\n" in hook
 assert "pcmanfm-qt" in packages
+# Regression XOS-014: Calamares unpackfs fails after partitioning if no tool.
+assert "squashfs-tools" in packages
+assert "usr/bin/unsquashfs" in build
+assert "calamares-settings-debian squashfs-tools" in build
+assert "test -x /usr/bin/unsquashfs" in (root / "calamares-root.sh").read_text(encoding="utf-8")
+assert "/usr/bin/unsquashfs -s" in (root / "calamares-root.sh").read_text(encoding="utf-8")
+assert "/run/live/medium/live/filesystem.squashfs" in (root / "calamares-root.sh").read_text(encoding="utf-8")
+install_mode_script = (root / "xorriso-install-mode.sh").read_text(encoding="utf-8")
+assert "XORRISO_INSTALL_PRECHECK_FAILED" in install_mode_script
+assert "unsquashfs -s /run/live/medium/live/filesystem.squashfs" in install_mode_script
 # Regression XOS-012: Debian Calamares password cannot be created when
 # --apt-recommends false removes the CrackLib dictionary generator/wordlist.
 assert all(p in packages for p in ("libpam-pwquality", "cracklib-runtime", "wamerican"))
