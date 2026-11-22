@@ -14,6 +14,7 @@ assert sorted(shortcuts) == ["arquivos.desktop", "xorriso.desktop"], shortcuts
 assert "Name=Arquivos\n" in hook and "Exec=pcmanfm-qt\n" in hook
 assert "Name=xorriso IA\n" in hook
 assert "DesktopShortcuts=\n" in hook
+assert "xorriso-ui.desktop" in hook and "OnlyShowIn=LXQt;" in hook
 assert "WallpaperMode=color\n" in hook
 assert "pcmanfm-qt" in packages
 assert "username=xorriso" in build
