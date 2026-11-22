@@ -10,7 +10,6 @@ import os
 from pathlib import Path
 import re
 import shutil
-import subprocess
 import sys
 import time
 from urllib.parse import quote
@@ -48,13 +47,6 @@ def choose_quant(memory):
     raise RuntimeError(
         "O MiniCPM-V 4.7 1B com projetor visual precisa de pelo menos "
         "3 GiB de RAM, preferencialmente 4 GiB ou mais.")
-
-def protected_connected(runner=subprocess.run):
-    proc = runner(["/usr/bin/lsblk", "-rno", "LABEL"],
-                  capture_output=True, text=True, check=False, timeout=12)
-    if proc.returncode:
-        raise RuntimeError("Nao foi possivel identificar os discos")
-    return bool({"XORRISO_DATA", "XORRISO_RUNTIME"} & set(proc.stdout.splitlines()))
 
 def ensure_destination(path=None):
     if path is None:
