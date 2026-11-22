@@ -217,6 +217,7 @@ chmod 755 /usr/local/bin/xorriso-boot-diagnostics
 cat > /etc/systemd/system/xorriso-boot-diagnostics.service <<'EOF'
 [Unit]
 Description=xorriso graphical boot diagnostics for testing
+ConditionKernelCommandLine=boot=live
 After=systemd-journald.service
 [Service]
 Type=simple
