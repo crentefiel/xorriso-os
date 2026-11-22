@@ -11,6 +11,7 @@ import tempfile
 import time
 
 READY = b"XORRISO_LXQT_DESKTOP_READY"
+INSTALLER_READY = b"XORRISO_INSTALL_MODE_LIVE"
 CHECKPOINTS = (12, 45, 100, 180, 265, 350, 455)
 
 
@@ -104,11 +105,15 @@ def main():
                         capture(sock, out, "boot-%03ds" % CHECKPOINTS[checkpoint])
                         checkpoint += 1
                     if serial.is_file() and READY in serial.read_bytes():
+                        serial_data = serial.read_bytes()
                         seen_session = True
+                        if INSTALLER_READY not in serial_data:
+                            raise RuntimeError("Live Calamares installer authorization service did not start")
                         if capture(sock, out, "lxqt-desktop"):
                             print("PASS: LXQt autostart verified working X11 and nonblack desktop in QEMU", flush=True)
                             (out / "boot-status.json").write_text(
-                                json.dumps({"session_ready": True, "seconds": round(elapsed, 1)}, indent=2))
+                                json.dumps({"session_ready": True, "live_installer_ready": True,
+                                            "seconds": round(elapsed, 1)}, indent=2))
                             return
                     time.sleep(4)
                 if not seen_session:
