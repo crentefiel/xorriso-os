@@ -56,6 +56,32 @@ for item in \
 done
 test -s config/bootloaders/isolinux/isolinux.bin
 test -s config/bootloaders/isolinux/vesamenu.c32
+# Legacy live-build 3.x ships a boot menu with timeout=0 (wait forever)
+# and duplicate "menu default" entries, selecting failsafe. Debian documents
+# the five-second timeout and historical bug #693453 confirms the bad default.
+cat > config/bootloaders/isolinux/isolinux.cfg <<'ISOLINUX'
+include menu.cfg
+default vesamenu.c32
+prompt 0
+timeout 50
+ISOLINUX
+# Ensure only the NORMAL Live entry is marked as the menu default.
+if [ -f config/bootloaders/isolinux/live.cfg.in ]; then
+  python3 - <<'PYTHON'
+from pathlib import Path
+p = Path("config/bootloaders/isolinux/live.cfg.in")
+result, seen = [], False
+for line in p.read_text().splitlines():
+    if line.strip().lower() == "menu default":
+        if seen:
+            continue
+        seen = True
+    result.append(line)
+if not seen:
+    raise SystemExit("No default Live entry in the Syslinux template")
+p.write_text("\n".join(result) + "\n")
+PYTHON
+fi
 # Ubuntu live-build's Syslinux step unconditionally reads 'bootlogo' as a CPIO
 # archive in Debian mode, but only generates it in Ubuntu mode. Provide an
 # empty, valid archive so the extraction step succeeds without touching disks.
