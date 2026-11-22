@@ -1,0 +1,15 @@
+#!/bin/sh
+set -eu
+if ! id xorriso >/dev/null 2>&1; then
+    useradd -m -s /bin/bash -G audio,video,netdev xorriso
+fi
+# Do not put the default session in sudoers; elevation requires a separate design.
+passwd -l xorriso
+mkdir -p /home/xorriso/.config/lxqt
+# Minimal LXQt panel configuration: keep taskbar/menu hidden by default.
+cat > /home/xorriso/.config/lxqt/panel.conf <<'EOF'
+[General]
+__userfile__=true
+panels=0
+EOF
+chown -R xorriso:xorriso /home/xorriso/.config
