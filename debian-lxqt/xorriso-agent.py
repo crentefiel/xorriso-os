@@ -11,7 +11,7 @@ import xorriso_terminal
 from urllib import request
 from urllib.parse import urlsplit
 
-MODEL = os.environ.get("XORRISO_MODEL", "MiniCPM-V-4.7-1B")
+MODEL = os.environ.get("XORRISO_MODEL", "LFM2.5-350M")
 API = os.environ.get("XORRISO_API_URL", "http://127.0.0.1:8080/v1")
 DOCUMENTS = pathlib.Path.home() / "Documentos"
 MAX_STEPS = 6
@@ -276,7 +276,7 @@ def local_api_url(base):
     return "http://" + parsed.netloc + "/v1/chat/completions"
 
 def next_plan(messages, endpoint=API, model=MODEL):
-    # llama-server supports JSON-constrained decoding. The 1B model must
+    # llama-server supports JSON-constrained decoding. The lightweight model must
     # produce machine-readable tool plans, never raw shell or plain guesses.
     payload = json.dumps({"model": model, "temperature": 0, "stream": False,
                           "response_format": {"type": "json_object"},
@@ -291,7 +291,7 @@ def next_plan(messages, endpoint=API, model=MODEL):
     try:
         plan = json.loads(raw)
     except ValueError as exc:
-        raise ValueError("MiniCPM nao forneceu JSON valido") from exc
+        raise ValueError("LFM2.5-350M nao forneceu JSON valido") from exc
     if not isinstance(plan, dict) or plan.get("tool") not in TOOLS:
         raise ValueError("Ferramenta da IA nao reconhecida")
     return plan

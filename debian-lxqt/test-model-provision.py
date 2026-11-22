@@ -1,82 +1,79 @@
 #!/usr/bin/env python3
-"""No-network tests of official 1B auto-provision and verified execution."""
+"""Offline LFM2.5-350M install and safety regression tests."""
 import hashlib
 import importlib.util
 import json
 from pathlib import Path
 import tempfile
 from unittest.mock import patch
+BASE=Path(__file__).resolve().parent
 
-BASE = Path(__file__).resolve().parent
-
-def load(name, filename):
-    spec = importlib.util.spec_from_file_location(name, BASE / filename)
-    obj = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(obj)
-    return obj
-
-download = load("xorriso_provision_test", "xorriso-model-provision.py")
-runtime = load("xorriso_runtime_test", "xorriso-run-model.py")
+def load(name,file):
+    spec=importlib.util.spec_from_file_location(name,BASE/file)
+    mod=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+download=load("lfm25_download","xorriso-model-provision.py")
+runtime=load("lfm25_runtime","xorriso-run-model.py")
 
 def main():
-    assert download.REPO == "openbmb/MiniCPM-V-4.7-1B-gguf"
-    assert download.PROJECTOR == "mmproj-model-f16-4x.gguf"
-    assert download.choose_quant(4.0) == (
-        "Q4_K_M", "MiniCPM-V-4_7-1B-Q4_K_M.gguf")
-    assert download.live("quiet boot=live username=xorriso")
-    assert not download.live("root=UUID=test quiet")
+    assert download.REPO == runtime.REPO == "LiquidAI/LFM2.5-350M-GGUF"
+    assert download.REVISION == runtime.REVISION
+    assert download.PINNED_SHA == runtime.PINNED_SHA
+    assert download.MODEL_FILE == runtime.MODEL_FILE
+    assert download.choose_quant(2.0)==("Q4_K_M",download.MODEL_FILE)
+    assert download.live("boot=live quiet") and not download.live("root=UUID=test")
     try:
-        download.choose_quant(1.5)
+        download.choose_quant(1.0)
+        raise AssertionError("RAM check missing")
     except RuntimeError:
         pass
-    else:
-        raise AssertionError("Low-memory machine must get actionable error")
-
     with tempfile.TemporaryDirectory() as d:
-        root = Path(d)
-        download.ROOT = root
-        download.STATUS = root / "status.json"
-        download.MANIFEST = root / "model.json"
-        runtime.ROOT = root
-        runtime.MANIFEST = root / "model.json"
-        payload = {
-            download.QUANT["Q4_K_M"][1]: b"gguf-model-test-content",
-            download.PROJECTOR: b"gguf-projector-test-content",
-        }
-        specs = {}
-        for name, content in payload.items():
-            (root / name).write_bytes(content)
-            specs[name] = {"size": len(content), "sha256":
-                           hashlib.sha256(content).hexdigest()}
-        manifest = {"repo": download.REPO, "revision": "a" * 40,
-                    "quant": "Q4_K_M", "alias": "MiniCPM-V-4.7-1B",
-                    "files": specs}
-        download.write_json(download.MANIFEST, manifest)
+        root=Path(d)
+        download.ROOT=root
+        download.STATUS=root/"status.json"
+        download.MANIFEST=root/"model.json"
+        runtime.ROOT=root
+        runtime.MANIFEST=root/"model.json"
+        body=b"synthetic small test GGUF"
+        digest=hashlib.sha256(body).hexdigest()
+        download.PINNED_SHA=runtime.PINNED_SHA=digest
+        (root/download.MODEL_FILE).write_bytes(body)
+        manifest={"repo":download.REPO,"revision":download.REVISION,
+                  "quant":"Q4_K_M","alias":"LFM2.5-350M",
+                  "files":{download.MODEL_FILE:{"size":len(body),"sha256":digest}}}
+        download.write_json(download.MANIFEST,manifest)
         assert download.verified_local_install()
-        model, mmproj = runtime.select_files(manifest)
-        assert model.name == download.QUANT["Q4_K_M"][1]
-        assert mmproj.name == download.PROJECTOR
-        # Installed boot must NOT reach Hugging Face when files are verified.
-        with patch.object(download, "live", return_value=False), \
-             patch.object(download, "mem_gib", return_value=4.0), \
-             patch.object(download, "official_files",
-                          side_effect=AssertionError("Unnecessary online API")):
-            assert download.provision() == 0
-        assert json.loads(download.STATUS.read_text())["phase"] == "ready"
-        # Tampering is detected, not silently accepted as an installed model.
-        (root / model.name).write_bytes(b"tampered")
+        assert runtime.select_files(manifest)==root/download.MODEL_FILE
+        with patch.object(download,"live",return_value=False), \
+             patch.object(download,"mem_gib",return_value=2.0), \
+             patch.object(download,"official_files",side_effect=AssertionError("internet")):
+            assert download.provision()==0
+        assert json.loads(download.STATUS.read_text())["phase"]=="ready"
+        (root/download.MODEL_FILE).write_bytes(b"corrupt")
         assert not download.verified_local_install()
         try:
             runtime.select_files(manifest)
+            raise AssertionError("Tampered GGUF accepted")
         except ValueError:
             pass
-        else:
-            raise AssertionError("Tampered GGUF was accepted")
+    download.PINNED_SHA="7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4"
+    with patch.object(download,"get_json",return_value=[
+        {"path":download.MODEL_FILE,"size":229000000,"lfs":{"oid":"f"*64}}
+    ]):
+        try:
+            download.official_files()
+            raise AssertionError("Remote hash mismatch accepted")
+        except RuntimeError:
+            pass
+    with patch.object(download,"get_json",return_value=[
+        {"path":download.MODEL_FILE,"size":229000000}
+    ]):
+        revision,files=download.official_files()
+        assert revision==download.REVISION
+        assert files[download.MODEL_FILE]["sha256"]==download.PINNED_SHA
+    assert "--mmproj" not in (BASE/"xorriso-run-model.py").read_text()
+    print("PASS: LFM2.5-350M SHA256, offline reuse, RAM and no vision projector")
 
-    assert runtime.REPO == "openbmb/MiniCPM-V-4.7-1B-gguf"
-    assert "35B" not in (BASE / "xorriso-model-provision.py").read_text()
-    assert "35B" not in (BASE / "xorriso-run-model.py").read_text()
-    print("PASS: first installed boot downloads 1B, offline reuse, SHA256 and RAM safety")
-
-if __name__ == "__main__":
+if __name__=="__main__":
     main()

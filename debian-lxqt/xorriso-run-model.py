@@ -1,65 +1,56 @@
 #!/usr/bin/env python3
-"""Load SHA256-verified local MiniCPM V 4.7 1B in an isolated llama-server."""
+"""Verify and run the text-only LiquidAI LFM2.5-350M GGUF on localhost."""
 import hashlib
 import json
 import os
 from pathlib import Path
-import re
 import sys
 
-ROOT = Path("/var/lib/xorriso-model")
-MANIFEST = ROOT / "model.json"
-BINARY = Path("/opt/xorriso/llama-server")
-MODEL = {"Q4_K_M": "MiniCPM-V-4_7-1B-Q4_K_M.gguf"}
-PROJECTOR = "mmproj-model-f16-4x.gguf"
-REPO = "openbmb/MiniCPM-V-4.7-1B-gguf"
+ROOT=Path("/var/lib/xorriso-model")
+MANIFEST=ROOT/"model.json"
+BINARY=Path("/opt/xorriso/llama-server")
+MODEL_FILE="LFM2.5-350M-Q4_K_M.gguf"
+REPO="LiquidAI/LFM2.5-350M-GGUF"
+REVISION="bb7ee58b243e4cede04187e323e760b04f8a0091"
+PINNED_SHA="7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4"
 
 def sha256(path):
-    h = hashlib.sha256()
-    with path.open("rb") as source:
-        for chunk in iter(lambda: source.read(8 * 1024 * 1024), b""):
+    h=hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(8*1024*1024),b""):
             h.update(chunk)
     return h.hexdigest()
 
-def select_files(manifest):
-    if manifest.get("repo") != REPO:
-        raise ValueError("Repositorio de modelo incorreto")
-    quant = manifest.get("quant")
-    if quant not in MODEL or not re.fullmatch("[a-f0-9]{40}", manifest.get("revision", "")):
-        raise ValueError("Manifesto da IA nao autenticado")
-    expected = {MODEL[quant], PROJECTOR}
-    files = manifest.get("files", {})
-    if not isinstance(files, dict) or set(files) != expected:
-        raise ValueError("Arquivos esperados nao coincidem com o manifesto")
-    for name in expected:
-        file = ROOT / name
-        spec = files[name]
-        if (file.is_symlink() or not file.is_file() or
-                not isinstance(spec.get("size"), int) or
-                not isinstance(spec.get("sha256"), str) or
-                not re.fullmatch("[a-f0-9]{64}", spec["sha256"]) or
-                file.stat().st_size != spec["size"] or
-                sha256(file) != spec["sha256"]):
-            raise ValueError("GGUF invalido/corrompido: " + name)
-    return ROOT / MODEL[quant], ROOT / PROJECTOR
+def select_files(info):
+    if info.get("repo")!=REPO or info.get("revision")!=REVISION:
+        raise ValueError("Repositorio/revisao de modelo nao autorizados")
+    if info.get("quant")!="Q4_K_M" or not isinstance(info.get("files"),dict):
+        raise ValueError("Quantizacao/manifesto nao autorizados")
+    if set(info["files"])!={MODEL_FILE}:
+        raise ValueError("O modelo deve conter somente um GGUF oficial")
+    spec=info["files"][MODEL_FILE]
+    path=ROOT/MODEL_FILE
+    if (path.is_symlink() or not path.is_file() or
+        not isinstance(spec.get("size"),int) or
+        spec.get("sha256")!=PINNED_SHA or
+        path.stat().st_size!=spec["size"] or
+        sha256(path)!=PINNED_SHA):
+        raise ValueError("GGUF nao verificado ou corrompido")
+    return path
 
 def main():
-    if not BINARY.is_file() or not os.access(str(BINARY), os.X_OK):
-        raise RuntimeError("Motor llama-server nao instalado na ISO")
+    if not BINARY.is_file() or not os.access(str(BINARY),os.X_OK):
+        raise RuntimeError("Motor llama-server nao incluido na ISO")
     if MANIFEST.is_symlink() or not MANIFEST.is_file():
-        raise RuntimeError("Modelo ainda nao provisionado")
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    model, projector = select_files(manifest)
-    os.execv(str(BINARY), [str(BINARY), "-m", str(model),
-                          "--mmproj", str(projector),
-                          "--host", "127.0.0.1", "--port", "8080",
-                          "--alias", "MiniCPM-V-4.7-1B",
-                          "--ctx-size", "2048", "-t", "4",
-                          "-ngl", "0"])
+        raise RuntimeError("Modelo LFM2.5-350M ainda nao baixado")
+    model=select_files(json.loads(MANIFEST.read_text(encoding="utf-8")))
+    os.execv(str(BINARY),[str(BINARY),"-m",str(model),
+              "--host","127.0.0.1","--port","8080",
+              "--alias","LFM2.5-350M","--ctx-size","4096","-t","4","-ngl","0"])
 
-if __name__ == "__main__":
+if __name__=="__main__":
     try:
         main()
     except Exception as exc:
-        print("xorriso-model: " + str(exc), file=sys.stderr)
+        print("xorriso-model: "+str(exc),file=sys.stderr)
         sys.exit(1)

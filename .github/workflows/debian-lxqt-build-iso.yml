@@ -61,7 +61,7 @@ jobs:
           python3 debian-lxqt/xorriso-ui.py --selftest
           grep -q 'XORRISO_LXQT_DESKTOP_READY' debian-lxqt/020-xorriso-user.hook.chroot
           grep -q 'XORRISO_LXQT_DESKTOP_READY' debian-lxqt/test-debian-qemu.py
-      - name: Build pinned MiniCPM 4.7 compatible llama-server
+      - name: Build pinned LFM2-compatible llama-server
         run: timeout 20m bash debian-lxqt/build-llama-runtime.sh
       - name: Build Debian 13 LXQt live ISO
         run: timeout 55m bash debian-lxqt/build.sh

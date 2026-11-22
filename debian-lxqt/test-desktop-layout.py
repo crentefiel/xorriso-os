@@ -37,9 +37,10 @@ model_server = (root / "xorriso-run-model.py").read_text(encoding="utf-8")
 model_svc = (root / "xorriso-model.service").read_text(encoding="utf-8")
 provision_svc = (root / "xorriso-model-provision.service").read_text(encoding="utf-8")
 runtime_build = (root / "build-llama-runtime.sh").read_text(encoding="utf-8")
-assert "openbmb/MiniCPM-V-4.7-1B-gguf" in model_provision
-assert "MiniCPM-V-4_7-1B-Q4_K_M.gguf" in model_provision
-assert "mmproj-model-f16-4x.gguf" in model_provision
+assert "LiquidAI/LFM2.5-350M-GGUF" in model_provision
+assert "LFM2.5-350M-Q4_K_M.gguf" in model_provision
+assert "PROJECTOR" not in model_provision
+assert "7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4" in model_provision
 assert "sha256_file" in model_provision and "verified_local_install" in model_provision
 assert "ConditionKernelCommandLine=!boot=live" in model_svc
 assert "ConditionKernelCommandLine=!boot=live" in provision_svc
@@ -47,8 +48,9 @@ assert "Restart=on-failure" in provision_svc
 assert "OnSuccess=xorriso-model.service" in provision_svc
 assert "User=xorriso-model" in model_svc and "User=xorriso-model" in provision_svc
 assert "127.0.0.1" in model_server and '"8080"' in model_server
-assert "openbmb/MiniCPM-V-4.7-1B-gguf" in model_server
-assert "35B" not in model_provision and "35B" not in model_server
+assert "LiquidAI/LFM2.5-350M-GGUF" in model_server
+assert "--mmproj" not in model_server
+assert "MiniCPM" not in model_provision and "MiniCPM" not in model_server
 assert "XORRISO_DATA" not in model_provision and "XORRISO_RUNTIME" not in model_provision
 assert "xorriso-volumes.service /etc/systemd/system/multi-user.target.wants" not in hook
 assert "xorriso-model-provision.service /etc/systemd/system/multi-user.target.wants" in hook
@@ -56,6 +58,7 @@ assert "opt/xorriso/llama-server" in build
 assert "model-provision.py" in build and "run-model.py" in build
 assert "xorriso-model.conf" in build and "xorriso-model-provision.service" in build
 assert "GGML_NATIVE=OFF" in runtime_build and "SOURCE_COMMIT=" in runtime_build
+assert "LLM_ARCH_LFM2" in runtime_build
 assert (root / "test-model-provision.py").is_file()
 
 # Live-to-HD installation: Calamares is launched only by a deliberate,

@@ -56,7 +56,7 @@ mkdir -p config/includes.chroot/usr/lib/sysusers.d config/includes.chroot/opt/xo
 install -m 644 "$ROOT/xorriso-model-sysusers.conf" config/includes.chroot/usr/lib/sysusers.d/xorriso-model.conf
 # llama-server must actually be in the ISO: source built at pinned revision by CI.
 test -x "$ROOT/runtime-dist/llama-server" || {
-  echo 'MiniCPM runtime missing. Build first: bash debian-lxqt/build-llama-runtime.sh' >&2; exit 8;
+  echo 'LFM2.5 runtime missing. Build first: bash debian-lxqt/build-llama-runtime.sh' >&2; exit 8;
 }
 install -m 755 "$ROOT/runtime-dist/llama-server" config/includes.chroot/opt/xorriso/llama-server
 install -m 755 "$ROOT/xorriso-install-mode.sh" config/includes.chroot/usr/local/libexec/xorriso/install-mode.sh

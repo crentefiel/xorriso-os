@@ -308,7 +308,7 @@ def test_real_http_planning():
     from http.server import BaseHTTPRequestHandler, HTTPServer
 
     seen = []
-    class MockLocalMiniCPM(BaseHTTPRequestHandler):
+    class MockLocalLFM(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
         def do_POST(self):
@@ -326,7 +326,7 @@ def test_real_http_planning():
             self.end_headers()
             self.wfile.write(data)
 
-    server = HTTPServer(("127.0.0.1", 0), MockLocalMiniCPM)
+    server = HTTPServer(("127.0.0.1", 0), MockLocalLFM)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         endpoint = "http://127.0.0.1:" + str(server.server_port) + "/v1"

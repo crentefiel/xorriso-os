@@ -1,5 +1,5 @@
 [Unit]
-Description=xorriso - download oficial verificado MiniCPM-V 4.7 1B para HD
+Description=xorriso - download oficial verificado LFM2.5-350M para HD
 ConditionKernelCommandLine=!boot=live
 After=network-online.target systemd-sysusers.service
 Wants=network-online.target

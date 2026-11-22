@@ -44,7 +44,7 @@ class Desktop:
         else:
             tk.Button(self.root, text="Terminal root (requer sua senha)",
                       command=self.open_root_terminal).pack(fill="x", padx=12, pady=(0, 10))
-        self.post("xorriso", "Interface pronta. Verificando o MiniCPM local...")
+        self.post("xorriso", "Interface pronta. Verificando o LFM2.5-350M local...")
         self._model_last_report = ""
         self.entry.focus_set()
         self.model_watchdog()
@@ -67,19 +67,19 @@ class Desktop:
                 filename = pathlib.Path(str(data.get("file", ""))).name
                 if isinstance(amount, int) and isinstance(total, int) and total > 0:
                     percent = min(100, max(0, round(100 * amount / total)))
-                    return "Baixando MiniCPM 1B: " + filename + " (" + str(percent) + "%)."
-                return "Baixando MiniCPM 1B pelo Hugging Face..."
+                    return "Baixando LFM2.5-350M: " + filename + " (" + str(percent) + "%)."
+                return "Baixando LFM2.5-350M pelo Hugging Face..."
             if phase == "checking":
-                return "Conferindo RAM, disco e arquivos oficiais do MiniCPM 1B..."
+                return "Conferindo RAM, disco e arquivos oficiais do LFM2.5-350M..."
             if phase == "ready":
-                return "MiniCPM 1B baixado e verificado; aguardando o servidor iniciar."
+                return "LFM2.5-350M baixado e verificado; aguardando o servidor iniciar."
             if phase == "error":
                 return ("Nao foi possivel instalar a IA: " + str(data.get("detail", ""))[:210] +
                         ". O sistema tentara novamente. Use o terminal para consultar "
                         "journalctl -u xorriso-model-provision.")
         except (OSError, ValueError, TypeError):
             pass
-        return "MiniCPM 1B sera baixado automaticamente no HD. Aguarde ou verifique a internet."
+        return "LFM2.5-350M sera baixado automaticamente no HD. Aguarde ou verifique a internet."
 
     def check_model(self):
         """Show only observed API readiness and actual installation progress."""
@@ -90,11 +90,11 @@ class Desktop:
             if not available:
                 message = "Servidor local conectado, mas ainda nao anunciou um modelo."
             else:
-                message = "IA local funcionando: " + ", ".join(available)[:160]
+                message = "Modelo carregado localmente: " + ", ".join(available)[:160]
         except (OSError, ValueError, KeyError, TypeError):
             if agent.is_live_session():
                 message = ("Modo Live ativo. Instale o xorriso no HD/SSD para "
-                           "baixar o MiniCPM-V 4.7 1B pela internet e iniciar a IA.")
+                           "baixar o LFM2.5-350M pela internet e iniciar a IA.")
             else:
                 message = self.installation_status()
         self.root.after(0, lambda: self.update_model_report(message))
@@ -124,7 +124,7 @@ class Desktop:
         return confirmed[0]
 
     def recheck_model(self):
-        self.post("xorriso", "Verificando novamente o MiniCPM...")
+        self.post("xorriso", "Verificando novamente o LFM2.5-350M...")
         threading.Thread(target=self.check_model, daemon=True).start()
 
     def execute_command(self):
@@ -221,7 +221,7 @@ class Desktop:
                 if agent.is_live_session():
                     response = ("A IA ainda nao esta provisionada nesta sessao Live. "
                                 "Instale o xorriso no HD para iniciar o download "
-                                "automatico do MiniCPM-V 4.7 1B.")
+                                "automatico do LFM2.5-350M.")
                 else:
                     response = (self.installation_status() +
                                 "\nDetalhe da solicitacao: " + str(exc)[:200])
