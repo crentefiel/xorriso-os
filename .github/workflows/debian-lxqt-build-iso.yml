@@ -18,6 +18,14 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             live-build debootstrap debian-archive-keyring xorriso squashfs-tools \
             syslinux-common isolinux mtools grub-pc-bin grub-efi-amd64-bin python3-tk python3-pil qemu-system-x86
+      - name: Fix legacy Ubuntu live-build Debian Contents URL
+        run: |
+          # Ubuntu 24.04 ships an old live-build helper looking in /dists/trixie/Contents-amd64.gz.
+          # Debian 13 publishes this index under /dists/trixie/main/Contents-amd64.gz.
+          script=/usr/lib/live/build/lb_chroot_linux-image
+          test -f "$script"
+          sudo sed -i 's|/dists/${LB_DISTRIBUTION}/Contents-|/dists/${LB_DISTRIBUTION}/main/Contents-|g; s|/dists/${LB_PARENT_DISTRIBUTION}/Contents-|/dists/${LB_PARENT_DISTRIBUTION}/main/Contents-|g' "$script"
+          grep -F 'main/Contents-' "$script"
       - name: Check scripts and desktop app
         run: |
           bash -n debian-lxqt/build.sh
