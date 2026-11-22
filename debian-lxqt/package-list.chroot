@@ -1,0 +1,17 @@
+live-boot
+live-config
+systemd-sysv
+linux-image-amd64
+xorg
+lxqt-core
+sddm
+network-manager
+dbus-user-session
+sudo
+curl
+jq
+ca-certificates
+fonts-dejavu-core
+locales
+console-setup
+keyboard-configuration
