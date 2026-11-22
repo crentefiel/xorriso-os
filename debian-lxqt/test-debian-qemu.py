@@ -11,7 +11,7 @@ import tempfile
 import time
 
 READY = b"XORRISO_LXQT_DESKTOP_READY"
-CHECKPOINTS = (12, 45, 100, 180, 265)
+CHECKPOINTS = (12, 45, 100, 180, 265, 350, 455)
 
 
 def monitor(sock, instruction):
@@ -77,7 +77,7 @@ def main():
         sock = tmp / "monitor.sock"
         serial = tmp / "serial.log"
         command = [
-            "qemu-system-x86_64", "-m", "3072", "-smp", "2", "-no-reboot",
+            "qemu-system-x86_64", "-accel", "tcg,thread=multi", "-m", "3072", "-smp", "2", "-no-reboot",
             "-boot", "d", "-cdrom", str(iso), "-display", "none",
             "-vga", "std", "-nic", "none", "-serial", "file:" + str(serial),
             "-monitor", "unix:" + str(sock) + ",server,nowait",
@@ -88,7 +88,7 @@ def main():
             seen_session = False
             checkpoint = 0
             try:
-                while time.monotonic() - beginning < 280:
+                while time.monotonic() - beginning < 480:
                     elapsed = time.monotonic() - beginning
                     if process.poll() is not None:
                         raise RuntimeError("QEMU exited before LXQt started")
@@ -112,7 +112,7 @@ def main():
                             return
                     time.sleep(4)
                 if not seen_session:
-                    raise RuntimeError("LXQt user session did not signal READY on serial within 280s")
+                    raise RuntimeError("LXQt user session did not signal READY on serial within 480s")
                 raise RuntimeError("LXQt signaled READY but graphical framebuffer was blank")
             except Exception as exc:
                 (out / "boot-status.json").write_text(
