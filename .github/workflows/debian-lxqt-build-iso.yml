@@ -16,7 +16,7 @@ jobs:
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             live-build debootstrap debian-archive-keyring xorriso squashfs-tools \
-            syslinux-common isolinux mtools grub-pc-bin grub-efi-amd64-bin python3-tk
+            syslinux-common isolinux mtools grub-pc-bin grub-efi-amd64-bin python3-tk python3-pil qemu-system-x86
       - name: Check scripts and desktop app
         run: |
           bash -n debian-lxqt/build.sh
@@ -27,6 +27,8 @@ jobs:
           python3 debian-lxqt/xorriso-ui.py --selftest
       - name: Build Debian 13 LXQt live ISO
         run: timeout 55m bash debian-lxqt/build.sh
+      - name: Boot ISO and check graphical framebuffer in QEMU
+        run: timeout 210s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
       - name: Validate ISO image
         run: |
           test -s debian-lxqt/work/live-image-amd64.hybrid.iso
