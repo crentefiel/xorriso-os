@@ -182,3 +182,16 @@ A ISO Live **não tem senha root predefinida**, nem fornece senha mestra. O erro
 A interface xorriso, quando não está em Live, mostra **Terminal root (requer sua senha)** e a IA conhece a ferramenta `open_root_terminal`. A ação exige uma confirmação explícita e abre o QTerminal com o comando fixo `su -` para a **pessoa** digitar sua senha root interativamente. A IA **não** lê essa senha, não injeta comandos no prompt root e **não** permanece executando como root. Para operações administrativas solicitadas por conversa, usar as ferramentas de autorização existentes (`install_package` e `manage_service`) com confirmação e `pkexec` de escopo restrito. Não armazenar `root` em texto plano, usar NOPASSWD indiscriminado ou entregar execução shell root arbitrária ao MiniCPM.
 
 **Estado de teste:** integração e verificações de regressão do terminal/root estão submetidas ao CI; o login root real no HD precisa ser validado com a senha escolhida pelo usuário e em VM descartável, sem os dois VDIs protegidos. Não alegar sucesso do Terminal root antes da autenticação real.
+
+## Erro na criação de senha do Calamares — XOS-012 (22/11/2026)
+
+**Sintoma reportado com imagem do VirtualBox:** na página de usuários do instalador Calamares, as duas senhas foram digitadas, mas apareceu o X vermelho e o erro `A senha falhou na verificação do dicionário - error loading dictionary`. Não se deve concluir que o usuário escolheu uma senha fraca nem sugerir desabilitar verificações de senha.
+
+**Causa técnica provável e evidência externa:** a ISO minimalista usa `--apt-recommends false`, o que deixa de instalar `cracklib-runtime` e listas de palavras necessárias ao `libpam-pwquality`. O Debian trixie registrou exatamente o mesmo sintoma no bug #1086182: falta de `/var/cache/cracklib/cracklib_dict.pwd` ao instalar sem Recommends. Referências:
+- https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1086182
+- https://packages.debian.org/trixie/admin/cracklib-runtime
+- https://manpages.debian.org/trixie/cracklib-runtime/update-cracklib.8.en.html
+
+**Correção aplicada no PR #27:** incluir explicitamente `libpam-pwquality`, `cracklib-runtime`, `wamerican` em `package-list.chroot`; executar `update-cracklib` no hook depois dos pacotes e exigir o dicionário real `/var/cache/cracklib/cracklib_dict.{pwd,pwi,hwm}`; exigir esses arquivos no SquashFS e pacotes no manifesto do build. Adicionar asserts de regressão em `test-desktop-layout.py`. Caso persistam falhas, investigar se a limpeza do live-build remove o cache do SquashFS e adaptar o build sem desabilitar o verificador.
+
+**Não resolvido apenas por código:** aguardar check básico, compilação da ISO, boot QEMU, artefato e teste real do Calamares com criação de senha na VM descartável antes de afirmar resolução. A ISO antiga do usuário continuará com a falha; baixar a próxima ISO aprovada. Manter `XORRISO_DATA` e `XORRISO_RUNTIME` desconectados, jamais montar com escrita ou formatar. Esse erro está no banco cumulativo `errors.json` como `XOS-012`.
