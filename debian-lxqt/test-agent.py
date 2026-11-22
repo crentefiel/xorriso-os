@@ -143,6 +143,46 @@ def test_nonblocking_file_manager_launch():
         assert "shell" not in mock_popen.call_args.kwargs
 
 
+def test_safe_terminal_commands():
+    # No shell, no root, and no raw arbitrary executable from model output.
+    terminal = agent.xorriso_terminal
+    assert agent.TOOLS["run_terminal_command"]
+    assert agent.TOOLS["open_terminal"]
+    out = agent.action("run_terminal_command", {"command": "whoami"}, lambda _:False)
+    assert out["exit_code"] == 0
+    assert out["argv"] == ["whoami"]
+    for command in (
+        "sudo id", "su -", "bash -c whoami", "sh -c whoami",
+        "rm -rf /", "ls /data", "ls /runtime-data", "ls /etc",
+        "ls -R", "whoami; rm -rf /", "python3 -c print(1)",
+        "systemctl stop sddm.service", "ip link set eth0 down",
+        "journalctl --vacuum-time=1s", "df -h ; echo x",
+    ):
+        try:
+            terminal.checked_argv(command)
+            raise AssertionError("Comando inseguro aceito: " + command)
+        except ValueError:
+            pass
+    assert terminal.checked_argv("df -h") == ["df", "-h"]
+    assert terminal.checked_argv("ls -la") == ["ls", "-la"]
+
+def test_interactive_terminal_requires_approval():
+    from unittest.mock import patch
+    terminal = agent.xorriso_terminal
+    with patch.object(terminal.shutil, "which", return_value="/usr/bin/qterminal"), \
+         patch.object(terminal.subprocess, "Popen") as popen, \
+         patch.object(terminal.time, "sleep"):
+        declined = agent.action("open_terminal", {}, lambda _:False)
+        assert declined["approved"] is False
+        assert popen.call_count == 0
+        popen.return_value.pid = 314
+        popen.return_value.poll.return_value = None
+        approved = agent.action("open_terminal", {}, lambda _:True)
+        assert approved["launch_requested"] and approved["pid"] == 314
+        assert popen.call_args.args[0] == ["/usr/bin/qterminal"]
+        assert popen.call_args.kwargs.get("shell") is not True
+
+
 def test_real_http_planning():
     import json
     import threading
@@ -190,5 +230,7 @@ if __name__ == "__main__":
     test_install_is_not_shell()
     test_linux_inspection_tools()
     test_nonblocking_file_manager_launch()
+    test_safe_terminal_commands()
+    test_interactive_terminal_requires_approval()
     test_real_http_planning()
     print("PASS: multi-etapas, observacao, autorizacao, filesystem, pkexec, comandos sem shell")
