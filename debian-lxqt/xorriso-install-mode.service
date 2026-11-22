@@ -1,0 +1,10 @@
+[Unit]
+Description=xorriso Live installer authorization and installed-login cleanup
+After=local-fs.target
+Before=display-manager.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/xorriso/install-mode.sh
+NoNewPrivileges=yes
+[Install]
+WantedBy=multi-user.target
