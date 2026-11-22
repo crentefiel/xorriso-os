@@ -11,6 +11,7 @@ if grep -Eq '(^|[[:space:]])boot=live([[:space:]]|$)' /proc/cmdline; then
     mkdir -p /etc/polkit-1/rules.d
     install -m 0644 "$TEMPLATE" "$RULE"
     echo 'XORRISO_INSTALL_MODE_LIVE: scoped Calamares authentication ready'
+    echo 'XORRISO_INSTALL_MODE_LIVE' > /dev/ttyS0 2>/dev/null || true
 else
     # This is installed OS; never retain the Live user's autologin.
     rm -f -- "$AUTLOGIN" "$RULE"
