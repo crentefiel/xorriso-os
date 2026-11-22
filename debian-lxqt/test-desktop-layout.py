@@ -9,7 +9,7 @@ packages = (root / "package-list.chroot").read_text(encoding="utf-8").splitlines
 build = (root / "build.sh").read_text(encoding="utf-8")
 agent = (root / "xorriso-agent.py").read_text(encoding="utf-8")
 
-shortcuts = re.findall(r"cat > /home/xorriso/Desktop/([^ ]+) <<'EOF'", hook)
+shortcuts = re.findall(r"cat > /etc/skel/Desktop/([^ ]+) <<'EOF'", hook)
 assert sorted(shortcuts) == ["arquivos.desktop", "xorriso.desktop"], shortcuts
 assert "Name=Arquivos\n" in hook and "Exec=pcmanfm-qt\n" in hook
 assert "Name=xorriso IA\n" in hook
@@ -18,6 +18,13 @@ assert "xorriso-ui.desktop" in hook and "OnlyShowIn=LXQt;" in hook
 assert "WallpaperMode=color\n" in hook
 assert "pcmanfm-qt" in packages
 assert "username=xorriso" in build
+assert "user-setup" in packages
+assert "useradd -m" not in hook
+assert "passwd -l xorriso" not in hook
+assert "mkdir -p /etc/skel/.config" in hook
+assert "etc/skel/Desktop/xorriso.desktop" in build
+assert "usr/lib/live/config/0030-user-setup" in build
+assert "XORRISO_LXQT_DESKTOP_TIMEOUT" in hook
 # Ubuntu 24.04 live-build 3.x ignores config/hooks/normal: require legacy detection.
 assert "HOOK_HELPER=/usr/lib/live/build/lb_chroot_hooks" in build
 assert "HOOK_DEST=config/hooks" in build
