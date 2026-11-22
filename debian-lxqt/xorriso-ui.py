@@ -153,6 +153,33 @@ class Desktop:
 
 def selftest():
     import tempfile
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class MockModel(BaseHTTPRequestHandler):
+        def log_message(self, *_args):
+            pass
+
+        def do_POST(self):
+            req = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            assert req["messages"][1]["role"] == "user"
+            # An ability question is answered without any filesystem action.
+            body = json.dumps({"choices":[{"message":{"content":json.dumps({
+                "action":"none","message":"Sim, posso criar pastas, mas nenhuma foi criada."})}}]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = HTTPServer(("127.0.0.1", 0), MockModel)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        answer = ask_model("Voce consegue criar uma pasta?", endpoint="http://127.0.0.1:" + str(server.server_port) + "/v1")
+        assert answer["action"] == "none"
+        assert "nenhuma foi criada" in perform(answer, lambda _: False)
+    finally:
+        server.shutdown()
+        server.server_close()
     global DOCS
     with tempfile.TemporaryDirectory() as directory:
         DOCS = pathlib.Path(directory) / "Documentos"
