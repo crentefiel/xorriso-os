@@ -40,10 +40,14 @@ mkdir -p config/includes.chroot/usr/local/bin
 install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorriso-ui.py
 install -m 755 "$ROOT/xorriso-agent.py" config/includes.chroot/usr/local/bin/xorriso-agent.py
 install -m 755 "$ROOT/xorriso_terminal.py" config/includes.chroot/usr/local/bin/xorriso_terminal.py
+install -m 755 "$ROOT/xorriso-install.sh" config/includes.chroot/usr/local/bin/xorriso-install
 mkdir -p config/includes.chroot/usr/local/libexec/xorriso config/includes.chroot/etc/systemd/system
 install -m 755 "$ROOT/admin-package.py" config/includes.chroot/usr/local/libexec/xorriso/admin-package
 install -m 755 "$ROOT/mount-volumes.sh" config/includes.chroot/usr/local/libexec/xorriso/mount-volumes.sh
 install -m 755 "$ROOT/start-model.sh" config/includes.chroot/usr/local/libexec/xorriso/start-model.sh
+install -m 755 "$ROOT/xorriso-install-mode.sh" config/includes.chroot/usr/local/libexec/xorriso/install-mode.sh
+install -m 644 "$ROOT/live-calamares.rules" config/includes.chroot/usr/local/share/xorriso/live-calamares.rules
+install -m 644 "$ROOT/xorriso-install-mode.service" config/includes.chroot/etc/systemd/system/xorriso-install-mode.service
 install -m 644 "$ROOT/xorriso-volumes.service" config/includes.chroot/etc/systemd/system/xorriso-volumes.service
 install -m 644 "$ROOT/xorriso-model.service" config/includes.chroot/etc/systemd/system/xorriso-model.service
 test -x "$HOOK_DEST/020-xorriso-user.hook.chroot"
@@ -106,6 +110,12 @@ for expected in \
   etc/skel/.config/autostart/xorriso-trust-launchers.desktop \
   usr/local/bin/xorriso-desktop-ready \
   usr/local/bin/xorriso_terminal.py \
+  usr/local/bin/xorriso-install \
+  usr/local/libexec/xorriso/install-mode.sh \
+  usr/local/share/xorriso/live-calamares.rules \
+  etc/systemd/system/xorriso-install-mode.service \
+  etc/calamares/settings.conf \
+  usr/bin/calamares \
   usr/local/bin/xorriso-trust-launchers \
   usr/share/plymouth/themes/tribar/tribar.plymouth \
   usr/lib/live/config/0030-user-setup; do
@@ -124,6 +134,7 @@ awk -F': ' '/^Package: / { package=$2 }
              /^Status: install ok installed$/ { if (package != "") print package }' \
     "$STATUS_FILE" | LC_ALL=C sort -u > "$MANIFEST"
 for needed in sddm sddm-theme-maui lxqt-core lxqt-session xfwm4 xdg-user-dirs pcmanfm-qt \
+  calamares calamares-settings-debian grub-pc-bin grub-efi-amd64-bin efibootmgr \
   qterminal gvfs live-boot live-config user-setup xorg \
   xserver-xorg-video-all xserver-xorg-input-all python3-tk \
   plymouth plymouth-themes polkitd pkexec; do
