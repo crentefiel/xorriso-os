@@ -19,6 +19,7 @@ locales
 console-setup
 keyboard-configuration
 
+procps
 python3
 python3-tk
 polkitd
