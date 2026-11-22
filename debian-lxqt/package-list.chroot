@@ -39,6 +39,11 @@ polkitd
 pkexec
 lxqt-policykit
 libgtk-3-bin
+# Password strength checking is required by Calamares and passwd.
+# With --apt-recommends false, the cracklib dictionary vanishes unless explicit.
+libpam-pwquality
+cracklib-runtime
+wamerican
 # Graphical Live-to-disk installer (no unattended partitioning).
 calamares
 calamares-settings-debian
