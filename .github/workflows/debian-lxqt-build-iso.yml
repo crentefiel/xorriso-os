@@ -20,7 +20,7 @@ jobs:
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             live-build debootstrap debian-archive-keyring xorriso squashfs-tools \
-            syslinux-common syslinux-utils isolinux mtools cpio librsvg2-bin grub-pc-bin grub-efi-amd64-bin python3-tk python3-pil qemu-system-x86
+            syslinux-common syslinux-utils isolinux mtools cpio librsvg2-bin grub-pc-bin grub-efi-amd64-bin python3-tk python3-pil qemu-system-x86 cmake ninja-build build-essential pkg-config
       - name: Verify ISO bootloader tools
         run: |
           command -v isohybrid
@@ -52,12 +52,15 @@ jobs:
           sh -n debian-lxqt/020-xorriso-user.hook.chroot
           sh -n debian-lxqt/xorriso-install.sh
           sh -n debian-lxqt/xorriso-install-mode.sh
-          python3 -m py_compile debian-lxqt/xorriso-ui.py debian-lxqt/xorriso-agent.py debian-lxqt/admin-package.py debian-lxqt/admin-service.py debian-lxqt/xorriso_terminal.py
+          bash -n debian-lxqt/build-llama-runtime.sh
+          python3 -m py_compile debian-lxqt/xorriso-ui.py debian-lxqt/xorriso-agent.py debian-lxqt/admin-package.py debian-lxqt/admin-service.py debian-lxqt/xorriso_terminal.py debian-lxqt/xorriso-model-provision.py debian-lxqt/xorriso-run-model.py
           python3 debian-lxqt/test-agent.py
           python3 debian-lxqt/test-desktop-layout.py
           python3 debian-lxqt/xorriso-ui.py --selftest
           grep -q 'XORRISO_LXQT_DESKTOP_READY' debian-lxqt/020-xorriso-user.hook.chroot
           grep -q 'XORRISO_LXQT_DESKTOP_READY' debian-lxqt/test-debian-qemu.py
+      - name: Build pinned MiniCPM 4.7 compatible llama-server
+        run: timeout 20m bash debian-lxqt/build-llama-runtime.sh
       - name: Build Debian 13 LXQt live ISO
         run: timeout 55m bash debian-lxqt/build.sh
       - name: Boot ISO and verify LXQt desktop session in QEMU
