@@ -15,15 +15,26 @@ fi
 lb config --mode debian --distribution trixie --architectures amd64 \
   --binary-images iso-hybrid --debian-installer false --initsystem systemd \
   --archive-areas "main" --apt-indices false --security false --bootappend-live "boot=live components username=xorriso console=ttyS0,115200n8 console=tty0"
+# Ubuntu 24.04 bundles live-build 3.0, which only processes config/hooks/*.chroot.
+# Newer live-build expects config/hooks/normal/*.hook.chroot.
+# Select the layout by inspecting the actual installed build helper.
+HOOK_HELPER=/usr/lib/live/build/lb_chroot_hooks
+test -f "$HOOK_HELPER" || { echo "Missing live-build chroot hook runner" >&2; exit 4; }
+if grep -Fq 'config/hooks/*.chroot' "$HOOK_HELPER"; then
+  HOOK_DEST=config/hooks
+else
+  HOOK_DEST=config/hooks/normal
+fi
+echo "Using live-build hook directory: $HOOK_DEST"
 mkdir -p config/package-lists config/includes.chroot/etc/sddm.conf.d \
-  config/hooks/normal config/includes.chroot/usr/local/share/xorriso
+  "$HOOK_DEST" config/includes.chroot/usr/local/share/xorriso
 mkdir -p config/archives
 # live-build on Ubuntu 24.04 uses an obsolete trixie/updates URL. Override safely.
 # Debian 13 security suite is trixie-security under /debian-security.
 printf '%s\n' 'deb http://security.debian.org/debian-security trixie-security main' > config/archives/debian-security.list.chroot
 cp "$ROOT/package-list.chroot" config/package-lists/xorriso.list.chroot
 cp "$ROOT/10-xorriso-autologin.conf" config/includes.chroot/etc/sddm.conf.d/10-xorriso-autologin.conf
-cp "$ROOT/020-xorriso-user.hook.chroot" config/hooks/normal/020-xorriso-user.hook.chroot
+install -m 755 "$ROOT/020-xorriso-user.hook.chroot" "$HOOK_DEST/020-xorriso-user.hook.chroot"
 cp "$ROOT/README.md" config/includes.chroot/usr/local/share/xorriso/MIGRATION.md
 mkdir -p config/includes.chroot/usr/local/bin
 install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorriso-ui.py
@@ -34,7 +45,7 @@ install -m 755 "$ROOT/mount-volumes.sh" config/includes.chroot/usr/local/libexec
 install -m 755 "$ROOT/start-model.sh" config/includes.chroot/usr/local/libexec/xorriso/start-model.sh
 install -m 644 "$ROOT/xorriso-volumes.service" config/includes.chroot/etc/systemd/system/xorriso-volumes.service
 install -m 644 "$ROOT/xorriso-model.service" config/includes.chroot/etc/systemd/system/xorriso-model.service
-chmod +x config/hooks/normal/020-xorriso-user.hook.chroot
+test -x "$HOOK_DEST/020-xorriso-user.hook.chroot"
 # Ubuntu 24.04 live-build ships old Syslinux symlinks incompatible with Debian 13 paths.
 # Ship ordinary, matched Ubuntu Syslinux v6 BIOS files in a local bootloader template.
 # The Debian guest remains the full target OS; these are only BIOS ISO boot records.
@@ -80,6 +91,17 @@ if [ -f config/bootloaders/isolinux/splash.svg ]; then
 fi
 echo "Building Debian LXQt live ISO in $OUT"
 sudo lb build
+# An ISO without these files is merely uncustomized Debian; reject it.
+for expected in \
+  home/xorriso/Desktop/xorriso.desktop \
+  home/xorriso/Desktop/arquivos.desktop \
+  home/xorriso/.config/autostart/xorriso-ui.desktop \
+  usr/local/bin/xorriso-desktop-ready; do
+  test -s "$OUT/chroot/$expected" || {
+    echo "xorriso customization missing in built chroot: $expected" >&2; exit 6;
+  }
+done
+printf '%s\\n' 'PASS: xorriso user hook actually customized the root filesystem.'
 # Ubuntu 24.04's legacy live-build names the resulting file binary.hybrid.iso,
 # whereas current live-build uses live-image-amd64.hybrid.iso. Normalize to
 # one documented CI artifact name and fail early if no real ISO was created.
