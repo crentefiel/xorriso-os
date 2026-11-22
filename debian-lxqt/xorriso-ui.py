@@ -5,6 +5,7 @@ import json
 import pathlib
 import sys
 import threading
+import urllib.request
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 
@@ -27,8 +28,24 @@ class Desktop:
         self.entry.bind("<Return>", lambda _event: self.send())
         self.send_button = tk.Button(bar, text="Enviar", command=self.send)
         self.send_button.pack(side="left", padx=(8,0))
-        self.post("xorriso", "IA local. Consultas sao executadas no Linux real. Alteracoes pedem sua confirmacao.")
+        self.post("xorriso", "Interface pronta. Verificando o servidor local MiniCPM...")
         self.entry.focus_set()
+        threading.Thread(target=self.check_model, daemon=True).start()
+
+    def check_model(self):
+        """Show real local API health without blocking the desktop UI."""
+        try:
+            with urllib.request.urlopen("http://127.0.0.1:8080/v1/models", timeout=3) as response:
+                models = json.load(response).get("data", [])
+            available = [m.get("id", "") for m in models if isinstance(m, dict)]
+            if not available:
+                message = "Servidor respondeu, mas nao anunciou nenhum modelo. Verifique o MiniCPM."
+            else:
+                message = "Modelo local detectado: " + ", ".join(available)[:160]
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            message = ("IA local ainda indisponivel. O desktop e o gerenciador de arquivos "
+                       "continuam funcionando. Detalhe: " + str(exc)[:180])
+        self.root.after(0, lambda: self.post("xorriso", message))
 
     def post(self, name, text):
         self.history.configure(state="normal")
