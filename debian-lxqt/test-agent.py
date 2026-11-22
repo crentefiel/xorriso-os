@@ -166,6 +166,34 @@ def test_safe_terminal_commands():
     assert terminal.checked_argv("df -h") == ["df", "-h"]
     assert terminal.checked_argv("ls -la") == ["ls", "-la"]
 
+def test_terminal_mkdir_requires_consent_and_stays_in_documents():
+    terminal = agent.xorriso_terminal
+    with tempfile.TemporaryDirectory() as tmp:
+        previous_home, previous_docs = terminal.HOME, terminal.DOCUMENTS
+        try:
+            terminal.HOME = pathlib.Path(tmp).resolve()
+            terminal.DOCUMENTS = terminal.HOME / "Documentos"
+            denied = terminal.run_command("mkdir teste", lambda _:False)
+            assert denied["approved"] is False
+            assert not terminal.DOCUMENTS.exists()
+            allowed = terminal.run_command("mkdir teste", lambda _:True)
+            assert allowed["exit_code"] == 0 and allowed["created"]
+            assert (terminal.DOCUMENTS / "teste").is_dir()
+            try:
+                terminal.run_command("mkdir teste", lambda _:True)
+                raise AssertionError("mkdir overwrote existing directory")
+            except FileExistsError:
+                pass
+            for name in ("../tmp", "/data", "-p", "foo/bar", ";echo"):
+                try:
+                    terminal.run_command("mkdir " + name, lambda _:True)
+                    raise AssertionError("Unsafe mkdir name accepted: " + name)
+                except ValueError:
+                    pass
+        finally:
+            terminal.HOME, terminal.DOCUMENTS = previous_home, previous_docs
+
+
 def test_interactive_terminal_requires_approval():
     from unittest.mock import patch
     terminal = agent.xorriso_terminal
@@ -231,6 +259,7 @@ if __name__ == "__main__":
     test_linux_inspection_tools()
     test_nonblocking_file_manager_launch()
     test_safe_terminal_commands()
+    test_terminal_mkdir_requires_consent_and_stays_in_documents()
     test_interactive_terminal_requires_approval()
     test_real_http_planning()
     print("PASS: multi-etapas, observacao, autorizacao, filesystem, pkexec, comandos sem shell")
