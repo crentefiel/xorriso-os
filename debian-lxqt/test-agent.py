@@ -211,6 +211,34 @@ def test_interactive_terminal_requires_approval():
         assert popen.call_args.kwargs.get("shell") is not True
 
 
+def test_root_terminal_is_human_only_and_never_live():
+    from unittest.mock import patch
+    terminal = agent.xorriso_terminal
+    assert "open_root_terminal" in agent.TOOLS
+    with patch.object(terminal.shutil, "which", side_effect=lambda p, path=None:
+                      "/usr/bin/" + p), \
+         patch.object(terminal.subprocess, "Popen") as popen, \
+         patch.object(terminal.time, "sleep"):
+        # Directly simulate Live without depending on runner's kernel.
+        rejected = terminal.open_root_terminal(lambda _: True, installed=False)
+        assert rejected["approved"] is False and popen.call_count == 0
+        cancelled = terminal.open_root_terminal(lambda _: False, installed=True)
+        assert cancelled["approved"] is False and popen.call_count == 0
+        popen.return_value.pid = 555
+        popen.return_value.poll.return_value = None
+        allowed = terminal.open_root_terminal(lambda _: True, installed=True)
+        assert allowed["launch_requested"] and allowed["pid"] == 555
+        args = popen.call_args.args[0]
+        assert args == ["/usr/bin/qterminal", "-e", "/usr/bin/su", "-"]
+        assert popen.call_args.kwargs.get("shell") is not True
+        assert "password" not in str(args).lower()
+    with patch.object(agent, "is_live_session", return_value=True), \
+         patch.object(terminal, "open_root_terminal") as openroot:
+        denied = agent.action("open_root_terminal", {}, lambda _: True)
+        assert denied["approved"] is False
+        assert openroot.call_args.kwargs["installed"] is False
+
+
 def test_authenticated_admin_service_management():
     from unittest.mock import patch
     assert "manage_service" in agent.TOOLS
@@ -325,6 +353,7 @@ if __name__ == "__main__":
     test_safe_terminal_commands()
     test_terminal_mkdir_requires_consent_and_stays_in_documents()
     test_interactive_terminal_requires_approval()
+    test_root_terminal_is_human_only_and_never_live()
     test_authenticated_admin_service_management()
     test_installer_requires_explicit_live_consent()
     test_real_http_planning()
