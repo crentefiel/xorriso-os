@@ -227,8 +227,11 @@ WantedBy=multi-user.target
 EOF
 mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf ../xorriso-boot-diagnostics.service /etc/systemd/system/multi-user.target.wants/xorriso-boot-diagnostics.service
-# Enable optional, read-only volume discovery and local model service.
+# The 1B model now lives in the installed HD's /var/lib/xorriso-model.
+# No automatic access to the protected legacy VDI volumes is needed.
+# Provisioning starts at installed-system boot, asynchronously; reuses verified
+# local files across offline reboots. Live mode does not download transient GBs.
 mkdir -p /etc/systemd/system/multi-user.target.wants
-ln -sf ../xorriso-volumes.service /etc/systemd/system/multi-user.target.wants/xorriso-volumes.service
+ln -sf ../xorriso-model-provision.service /etc/systemd/system/multi-user.target.wants/xorriso-model-provision.service
 ln -sf ../xorriso-model.service /etc/systemd/system/multi-user.target.wants/xorriso-model.service
 echo 'XORRISO_CHROOT_HOOK_EXECUTED'
