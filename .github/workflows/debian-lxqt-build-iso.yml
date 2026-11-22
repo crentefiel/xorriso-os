@@ -61,7 +61,8 @@ jobs:
             -extract /isolinux/isolinux.cfg /tmp/xorriso-isolinux/isolinux.cfg \
             -extract /isolinux/live.cfg /tmp/xorriso-isolinux/live.cfg
           grep -Eq '^[[:space:]]*timeout[[:space:]]+50' /tmp/xorriso-isolinux/isolinux.cfg
-          test "$(grep -ic '^[[:space:]]*menu default[[:space:]]*
+          test "$(grep -ic '^[[:space:]]*menu default[[:space:]]*$' /tmp/xorriso-isolinux/live.cfg)" -eq 1
+      - name: Boot ISO and verify LXQt desktop session in QEMU
         run: timeout 330s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
       - name: Upload QEMU boot failure diagnostics
         if: failure()
