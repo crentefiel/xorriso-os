@@ -1,0 +1,10 @@
+// Installed by systemd ONLY in the writable overlay when boot=live.
+// Require local active xorriso user and own authentication for Calamares only.
+polkit.addRule(function(action, subject) {
+    if (action.id === "org.freedesktop.policykit.exec" &&
+        action.lookup("program") === "/usr/bin/calamares" &&
+        subject.user === "xorriso" &&
+        subject.active && subject.local) {
+        return polkit.Result.AUTH_SELF;
+    }
+});
