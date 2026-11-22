@@ -41,26 +41,65 @@ class Desktop:
         if agent.is_live_session():
             tk.Button(self.root, text="Instalar xorriso no HD / SSD",
                       command=self.open_installer).pack(fill="x", padx=12, pady=(0, 10))
-        self.post("xorriso", "Interface pronta. Verificando o servidor local MiniCPM...")
+        self.post("xorriso", "Interface pronta. Verificando o MiniCPM local...")
+        self._model_last_report = ""
         self.entry.focus_set()
+        self.model_watchdog()
+
+    def model_watchdog(self):
+        # The UI is responsive even while the first HD boot downloads the model.
         threading.Thread(target=self.check_model, daemon=True).start()
+        self.root.after(15000, self.model_watchdog)
+
+    @staticmethod
+    def installation_status():
+        try:
+            path = pathlib.Path("/var/lib/xorriso-model/status.json")
+            with path.open(encoding="utf-8") as stream:
+                data = json.load(stream)
+            phase = data.get("phase")
+            if phase == "downloading":
+                total = data.get("bytes_total", 0)
+                amount = data.get("bytes_received", 0)
+                filename = pathlib.Path(str(data.get("file", ""))).name
+                if isinstance(amount, int) and isinstance(total, int) and total > 0:
+                    percent = min(100, max(0, round(100 * amount / total)))
+                    return "Baixando MiniCPM 1B: " + filename + " (" + str(percent) + "%)."
+                return "Baixando MiniCPM 1B pelo Hugging Face..."
+            if phase == "checking":
+                return "Conferindo RAM, disco e arquivos oficiais do MiniCPM 1B..."
+            if phase == "ready":
+                return "MiniCPM 1B baixado e verificado; aguardando o servidor iniciar."
+            if phase == "error":
+                return ("Nao foi possivel instalar a IA: " + str(data.get("detail", ""))[:210] +
+                        ". O sistema tentara novamente. Use o terminal para consultar "
+                        "journalctl -u xorriso-model-provision.")
+        except (OSError, ValueError, TypeError):
+            pass
+        return "MiniCPM 1B sera baixado automaticamente no HD. Aguarde ou verifique a internet."
 
     def check_model(self):
-        """Show real local API health without blocking the desktop UI."""
+        """Show only observed API readiness and actual installation progress."""
         try:
             with urllib.request.urlopen("http://127.0.0.1:8080/v1/models", timeout=3) as response:
                 models = json.load(response).get("data", [])
             available = [m.get("id", "") for m in models if isinstance(m, dict)]
             if not available:
-                message = "Servidor respondeu, mas nao anunciou nenhum modelo. Verifique o MiniCPM."
+                message = "Servidor local conectado, mas ainda nao anunciou um modelo."
             else:
-                message = "Modelo local detectado: " + ", ".join(available)[:160]
-        except (OSError, ValueError, KeyError, TypeError) as exc:
-            message = ("MiniCPM local indisponivel. Conecte COPIAS dos VDIs "
-                       "XORRISO_DATA e XORRISO_RUNTIME sem formatar, e confira o "
-                       "servico xorriso-model. Terminal e Arquivos funcionam "
-                       "sem IA. Detalhe: " + str(exc)[:180])
-        self.root.after(0, lambda: self.post("xorriso", message))
+                message = "IA local funcionando: " + ", ".join(available)[:160]
+        except (OSError, ValueError, KeyError, TypeError):
+            if agent.is_live_session():
+                message = ("Modo Live ativo. Instale o xorriso no HD/SSD para "
+                           "baixar o MiniCPM-V 4.7 1B pela internet e iniciar a IA.")
+            else:
+                message = self.installation_status()
+        self.root.after(0, lambda: self.update_model_report(message))
+
+    def update_model_report(self, message):
+        if message != self._model_last_report:
+            self._model_last_report = message
+            self.post("xorriso", message)
 
     def post(self, name, text):
         self.history.configure(state="normal")
