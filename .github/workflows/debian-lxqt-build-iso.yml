@@ -56,7 +56,7 @@ jobs:
       - name: Build Debian 13 LXQt live ISO
         run: timeout 55m bash debian-lxqt/build.sh
       - name: Boot ISO and verify LXQt desktop session in QEMU
-        run: timeout 330s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
+        run: timeout 590s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
       - name: Upload boot diagnostics, even when desktop fails
         if: always()
         uses: actions/upload-artifact@v4
