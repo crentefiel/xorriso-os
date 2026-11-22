@@ -13,7 +13,7 @@ if [[ -e config ]]; then
   exit 3
 fi
 lb config --mode debian --distribution trixie --architectures amd64 \
-  --binary-images iso-hybrid --debian-installer none \
+  --binary-images iso-hybrid --debian-installer none --initsystem systemd \
   --archive-areas "main" --apt-indices false --security false --bootappend-live "boot=live components quiet"
 mkdir -p config/package-lists config/includes.chroot/etc/sddm.conf.d \
   config/hooks/normal config/includes.chroot/usr/local/share/xorriso
