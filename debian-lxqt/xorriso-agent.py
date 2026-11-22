@@ -6,6 +6,7 @@ import pathlib
 import re
 import shutil
 import subprocess
+import time
 from urllib import request
 from urllib.parse import urlsplit
 
@@ -22,6 +23,10 @@ TOOLS = {
     "create_file": "Cria arquivo texto sem sobrescrever, com autorizacao",
     "read_file": "Le arquivo texto existente ate 16 KiB",
     "system_info": "Mostra kernel, usuario e informacoes do sistema",
+    "system_resources": "Consulta memoria e espaco do disco principal, sem modificar o Linux",
+    "network_info": "Consulta interfaces de rede sem alterar configuracoes",
+    "list_applications": "Lista aplicativos instalados por seus arquivos .desktop",
+    "service_status": "Consulta o estado de um servico permitido do Debian, sem modifica-lo",
     "find_command": "Localiza um comando instalado, sem executa-lo",
     "package_info": "Consulta apt-cache policy para um pacote Debian",
     "install_package": "Pede autorizacao e autenticacao administrativa via pkexec para instalar pacote",
@@ -85,11 +90,42 @@ def desktop_path(name):
             return candidate
     raise FileNotFoundError("Aplicativo nao instalado: " + name)
 
+def start_file_manager():
+    """Request the graphical file manager without blocking the assistant chat."""
+    executable = shutil.which("pcmanfm-qt")
+    if not executable:
+        return {"application": "pcmanfm-qt", "error": "Gerenciador de arquivos nao instalado"}
+    # PCManFM-Qt may remain open for hours. Do not use subprocess.run(timeout=15).
+    # This launch uses only desktop-user privileges and no shell command string.
+    process = subprocess.Popen([executable, str(pathlib.Path.home())],
+                               stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL, start_new_session=True)
+    time.sleep(0.2)
+    code = process.poll()
+    return {"application": "pcmanfm-qt", "launch_requested": code is None or code == 0,
+            "pid": process.pid, "exit_code": code}
+
+
 def action(tool, args, approve, runner=run_readonly):
     if not isinstance(args, dict):
         raise ValueError("Argumentos JSON invalidos")
     if tool == "system_info":
         return runner(["uname", "-a"])
+    if tool == "system_resources":
+        return {"memory": runner(["free", "-h"]), "disk": runner(["df", "-h", "/"])}
+    if tool == "network_info":
+        return runner(["ip", "-brief", "address"])
+    if tool == "list_applications":
+        bases = (pathlib.Path("/usr/share/applications"), pathlib.Path("/usr/local/share/applications"))
+        ids = sorted({p.name for base in bases if base.is_dir()
+                      for p in base.glob("*.desktop") if p.is_file() and not p.is_symlink()})
+        return {"desktop_ids": ids[:120], "truncated": len(ids) > 120}
+    if tool == "service_status":
+        service = args.get("service")
+        allowed = {"sddm", "NetworkManager", "xorriso-model", "xorriso-volumes"}
+        if not isinstance(service, str) or service not in allowed:
+            raise ValueError("Servico nao permitido; consulte o catalogo")
+        return {"service": service, **runner(["systemctl", "is-active", service + ".service"])}
     if tool == "list_files":
         DOCUMENTS.mkdir(parents=True, exist_ok=True)
         return {"files": sorted(p.name for p in DOCUMENTS.iterdir() if not p.is_symlink())[:100]}
@@ -130,10 +166,8 @@ def action(tool, args, approve, runner=run_readonly):
         result = runner(["pkexec", ADMIN_HELPER, name], timeout=180)
         return {"package": name, **result, "installed": result["exit_code"] == 0}
     if tool == "open_file_manager":
-        # User-requested navigation never uses a root shell. The GUI manages
-        # files with the same permissions as the logged-in desktop user.
-        result = runner(["pcmanfm-qt", str(pathlib.Path.home())], timeout=15)
-        return {"application": "pcmanfm-qt", **result, "launched": result["exit_code"] == 0}
+        # This is a desktop-user operation, never a privileged root command.
+        return start_file_manager()
     if tool == "open_application":
         name = args.get("desktop_id")
         desktop_path(name)
