@@ -1,4 +1,39 @@
-# xorriso OS — Alpha 0.15 (IA inicia sozinha + primeiras acoes reais)
+# xorriso OS — Linux experimental centrado em IA
+
+O **xorriso OS** é um projeto experimental de sistema Linux com assistente de inteligência artificial local. Há duas linhas de desenvolvimento: a **Alpha 0.15**, com interface própria em modo texto, e a **Alpha 0.16 (Debian 13 + LXQt)**, com desktop gráfico e agente de tarefas. A Alpha 0.16 ainda está em avaliação e **não foi incorporada à branch principal**.
+
+## Alpha 0.16 — ISO experimental disponível para teste
+
+**Download da imagem:** [xorriso Debian/LXQt — artefato GitHub Actions](https://github.com/crentefiel/xorriso-os/actions/runs/45023369804/artifacts/14755136054). O GitHub fornece um **arquivo ZIP contendo a ISO**, não um instalador do Windows. É necessário entrar no GitHub para baixar artefatos do Actions. O arquivo tem retenção de 14 dias, com expiração prevista para **6 de dezembro de 2026**; após essa data, confira as [execuções mais recentes](https://github.com/crentefiel/xorriso-os/actions).
+
+- **Origem do código:** [PR #26 — agente Alpha 0.16](https://github.com/crentefiel/xorriso-os/pull/26) sobre a base [PR #25 — Debian/LXQt](https://github.com/crentefiel/xorriso-os/pull/25). PR experimental, ainda não integrado ao `main`.
+- **Base:** Debian 13 (Trixie), LXQt, login gráfico automático e desktop minimalista com o ícone **xorriso IA**.
+- **Assistente:** janela em Python/Tk conectada à API local compatível com OpenAI em `127.0.0.1:8080/v1`, destinada ao MiniCPM local quando modelo e motor estiverem disponíveis.
+- **Ações delimitadas:** consultar o sistema, listar/ler/criar arquivos e pastas em espaço controlado, consultar pacotes, propor instalação de aplicativos e abri-los. O agente recebe observações reais, tem limite de etapas e não recebe um terminal root irrestrito.
+- **Verificação já concluída:** compilação da ISO, validação da estrutura da imagem e teste automatizado no QEMU com framebuffer gráfico não preto. **Isso não comprova, por si só, que o LXQt, a janela da IA, o MiniCPM ou a instalação de aplicativos funcionem corretamente no VirtualBox.**
+
+### Como testar a Alpha 0.16 no VirtualBox
+
+1. Baixe o artefato no link acima e **extraia o ZIP** para obter o arquivo `.iso`.
+2. Crie **uma nova VM descartável** no VirtualBox (Linux Debian 64 bits; recomenda-se começar com pelo menos 4 GiB de RAM e 2 CPUs, se o computador permitir).
+3. Anexe a ISO como unidade óptica virtual e inicialize a VM **sem conectar inicialmente os seus discos VDI antigos**.
+4. Verifique se o sistema abre o desktop LXQt e exibe o ícone **xorriso IA**. Abra o ícone e confira se a janela aparece.
+5. Só depois de validar a interface, experimente cópias dos volumes, nunca os discos originais como primeiro teste. Registre falhas de boot, teclado, janela e inicialização do MiniCPM em uma [issue](https://github.com/crentefiel/xorriso-os/issues).
+
+**Proteja os dados existentes:** não formate, converta, substitua ou use como destino de instalação os discos `XORRISO_DATA` e `XORRISO_RUNTIME`. Na implementação Debian, eles são detectados por label e montados **somente para leitura** quando presentes. O teste inicial mais seguro é sem esses discos.
+
+### Limitações importantes da Alpha 0.16
+
+- **MiniCPM real:** o funcionamento do modelo GGUF e do `llama-server` com os volumes reais continua dependendo de teste prático; sem esses componentes, a IA poderá indicar indisponibilidade.
+- **Instalação administrativa:** a interface exige consentimento para instalação de pacotes e o helper usa `pkexec`, mas a conta live `xorriso` está com senha bloqueada e **não há ainda configuração inicial de credenciais administrativas**. Portanto, a instalação de aplicativos **não está funcional por padrão**.
+- **Persistência:** a sessão Live usa armazenamento temporário. Aplicações e modificações feitas durante a sessão **não persistem necessariamente após reiniciar**.
+- **Segurança e acabamento:** sem homologação no VirtualBox, sem teste integral da IA real e sem garantias para dados sensíveis. Esta ISO é para experimentação, não para uso como sistema principal.
+
+Para detalhes técnicos, veja a [documentação da nova base na branch experimental](https://github.com/crentefiel/xorriso-os/blob/feat/alpha-016-ai-admin-agent/debian-lxqt/README.md).
+
+---
+
+## Linha anterior — Alpha 0.15 (interface textual)
 
 Sistema operacional Linux experimental centrado em IA, desenvolvido para testar no VirtualBox.
 
