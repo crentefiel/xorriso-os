@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import time
+import xorriso_terminal
 from urllib import request
 from urllib.parse import urlsplit
 
@@ -32,6 +33,8 @@ TOOLS = {
     "install_package": "Pede autorizacao e autenticacao administrativa via pkexec para instalar pacote",
     "open_application": "Abre um aplicativo instalado pelo seu arquivo .desktop, com autorizacao",
     "open_file_manager": "Abre o gerenciador de arquivos PCManFM-Qt na pasta pessoal, sem privilegios root",
+    "run_terminal_command": "Executa comando de consulta em terminal sem shell/root: args.command; apenas lista segura de diagnosticos",
+    "open_terminal": "Abre terminal interativo QTerminal como usuario comum; requer confirmacao",
     "finish": "Conclui a tarefa em portugues, sem afirmar resultados nao observados",
 }
 SYSTEM = (
@@ -47,6 +50,10 @@ SYSTEM = (
     "Nao repita uma acao que ja foi negada. Em install_package args.package, somente nome do pacote apt. "
     "Em open_application args.desktop_id, arquivo .desktop instalado. "
     "Para mostrar os arquivos e pastas ao usuario, use open_file_manager com args vazios. "
+    "Para comandos Linux de consulta permitidos, use run_terminal_command com args.command. "
+    "Nunca use shell, sudo, bash, rm, dd, mkfs ou scripts como parametro do terminal da IA; "
+    "para outros comandos oriente a pessoa a abrir o QTerminal manualmente. "
+    "Nao confunda permissao para diagnosticar com permissao para alterar o sistema. "
     "Em create_folder/create_file/read_file args.filename, sem barras; create_file args.content. "
     "Em find_command args.name, em package_info args.package. "
     "Nao execute shell arbitrario. No maximo seis etapas."
@@ -168,6 +175,10 @@ def action(tool, args, approve, runner=run_readonly):
     if tool == "open_file_manager":
         # This is a desktop-user operation, never a privileged root command.
         return start_file_manager()
+    if tool == "run_terminal_command":
+        return xorriso_terminal.run_readonly(args.get("command"))
+    if tool == "open_terminal":
+        return xorriso_terminal.open_terminal(approve)
     if tool == "open_application":
         name = args.get("desktop_id")
         desktop_path(name)
