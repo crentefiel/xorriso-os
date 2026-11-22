@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """xorriso IA: desktop chat; model plans are untrusted, tools verify results."""
 import json
+import importlib.util
 import os
 import pathlib
 import platform
@@ -10,6 +11,11 @@ import threading
 import tkinter as tk
 from tkinter import messagebox, scrolledtext, simpledialog
 from urllib import request
+
+AGENT_PATH = pathlib.Path(__file__).with_name("xorriso-agent.py")
+SPEC = importlib.util.spec_from_file_location("xorriso_agent", AGENT_PATH)
+AGENT = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(AGENT)
 
 HOME = pathlib.Path.home()
 DOCS = HOME / "Documentos"
@@ -129,12 +135,27 @@ class Desktop:
         self.send_button.configure(state="disabled")
         def worker():
             try:
-                plan = ask_model(text)
-                self.root.after(0, lambda: self.execute(plan))
+                result = AGENT.solve(text, self.confirm_from_worker)
+                trace = "\\n".join(step["tool"] + ": " + json.dumps(step["result"], ensure_ascii=False)[:750]
+                                  for step in result["steps"])
+                answer = (trace + "\\n" if trace else "") + result["answer"]
+                self.root.after(0, lambda: self.finish(answer))
             except Exception as exc:
                 msg = "Falha na API local: " + str(exc) + "\nConfira se o MiniCPM esta ativo."
                 self.root.after(0, lambda: self.finish(msg))
         threading.Thread(target=worker, daemon=True).start()
+
+    def confirm_from_worker(self, prompt):
+        ready = threading.Event()
+        answer = [False]
+        def ask():
+            try:
+                answer[0] = messagebox.askyesno("Autorizar operacao xorriso", prompt, parent=self.root)
+            finally:
+                ready.set()
+        self.root.after(0, ask)
+        ready.wait()
+        return answer[0]
 
     def execute(self, plan):
         try:
