@@ -26,14 +26,6 @@ cp "$ROOT/10-xorriso-autologin.conf" config/includes.chroot/etc/sddm.conf.d/10-x
 cp "$ROOT/020-xorriso-user.hook.chroot" config/hooks/normal/020-xorriso-user.hook.chroot
 cp "$ROOT/README.md" config/includes.chroot/usr/local/share/xorriso/MIGRATION.md
 mkdir -p config/includes.chroot/usr/local/bin
-# Old live-build invokes 'rsvg' inside the Debian chroot during ISO boot graphics
-# generation. Debian 13 ships 'rsvg-convert' only; include a compatible argv wrapper.
-mkdir -p config/includes.chroot/usr/bin
-cat > config/includes.chroot/usr/bin/rsvg <<'RSVG'
-#!/bin/sh
-exec /usr/bin/rsvg-convert "$@"
-RSVG
-chmod 755 config/includes.chroot/usr/bin/rsvg
 install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorriso-ui.py
 install -m 755 "$ROOT/xorriso-agent.py" config/includes.chroot/usr/local/bin/xorriso-agent.py
 mkdir -p config/includes.chroot/usr/local/libexec/xorriso config/includes.chroot/etc/systemd/system
@@ -64,14 +56,19 @@ for item in \
 done
 test -s config/bootloaders/isolinux/isolinux.bin
 test -s config/bootloaders/isolinux/vesamenu.c32
-# Debian 13 librsvg2-bin supplies rsvg-convert, not the removed 'rsvg' alias
-# still invoked by Ubuntu's older live-build bootloader graphics template.
-# A local wrapper preserves the old command name without modifying Debian.
-# This build executes on an isolated CI runner; create a temporary host alias.
-# It is removed on exit and never copied into the ISO.
-if ! command -v rsvg >/dev/null 2>&1; then
-  sudo ln -s /usr/bin/rsvg-convert /usr/local/bin/rsvg
-  trap 'sudo rm -f /usr/local/bin/rsvg' EXIT
+# Ubuntu 24.04 live-build calls the obsolete "rsvg" converter with TWO
+# positional filenames. Debian 13 rsvg-convert needs "-o" instead.
+# Pre-render the splash on the build host and remove the SVG to prevent
+# the old conversion code from running inside the chroot at all.
+if [ -f config/bootloaders/isolinux/splash.svg ]; then
+  command -v rsvg-convert >/dev/null || {
+    echo "Build host needs librsvg2-bin (rsvg-convert)." >&2; exit 4;
+  }
+  rsvg-convert --format png --height 480 --width 640 \
+    config/bootloaders/isolinux/splash.svg \
+    -o config/bootloaders/isolinux/splash.png
+  test -s config/bootloaders/isolinux/splash.png || exit 4
+  rm config/bootloaders/isolinux/splash.svg
 fi
 echo "Building Debian LXQt live ISO in $OUT"
 sudo lb build
