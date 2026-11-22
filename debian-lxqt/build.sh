@@ -56,6 +56,14 @@ for item in \
 done
 test -s config/bootloaders/isolinux/isolinux.bin
 test -s config/bootloaders/isolinux/vesamenu.c32
+# Ubuntu live-build's Syslinux step unconditionally reads 'bootlogo' as a CPIO
+# archive in Debian mode, but only generates it in Ubuntu mode. Provide an
+# empty, valid archive so the extraction step succeeds without touching disks.
+command -v cpio >/dev/null || { echo 'Missing cpio on build host.' >&2; exit 4; }
+printf '' | cpio -o -H newc > config/bootloaders/isolinux/bootlogo 2>/dev/null
+test -s config/bootloaders/isolinux/bootlogo || {
+  echo 'Could not create Syslinux bootlogo archive.' >&2; exit 4;
+}
 # Ubuntu 24.04 live-build calls the obsolete "rsvg" converter with TWO
 # positional filenames. Debian 13 rsvg-convert needs "-o" instead.
 # Pre-render the splash on the build host and remove the SVG to prevent
