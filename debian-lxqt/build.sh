@@ -107,6 +107,7 @@ for expected in \
   etc/skel/Desktop/arquivos.desktop \
   etc/skel/.config/lxqt/session.conf \
   etc/skel/.config/autostart/xorriso-ui.desktop \
+  etc/xdg/autostart/xorriso-ui.desktop \
   etc/skel/.config/autostart/xorriso-trust-launchers.desktop \
   usr/local/bin/xorriso-desktop-ready \
   usr/local/bin/xorriso_terminal.py \
