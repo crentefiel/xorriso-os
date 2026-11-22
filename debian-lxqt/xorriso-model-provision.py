@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provision verified MiniCPM-V 4.7 35B-A3B GGUFs on the INSTALLED HD.
+"""Automatically provision verified MiniCPM-V 4.7 1B GGUFs on the INSTALLED HD.
 
 No shell, no block-device commands, no VDI writes, no root privileges.
 Downloads only two pinned-revision official files into systemd StateDirectory.
@@ -16,16 +16,15 @@ import time
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-REPO = "openbmb/MiniCPM-V-4.7-35B-A3B-gguf"
+REPO = "openbmb/MiniCPM-V-4.7-1B-gguf"
 API_ROOT = "https://huggingface.co/api/models/" + REPO
 ROOT = Path("/var/lib/xorriso-model")
 STATUS = ROOT / "status.json"
 MANIFEST = ROOT / "model.json"
-PROJECTOR = "mmproj-model-f16.gguf"
+PROJECTOR = "mmproj-model-f16-4x.gguf"
 QUANT = {
-    # (system RAM in GiB, file name) — model is 35B in both variants.
-    "Q4_K_M": (32, "MiniCPM-V-4_7-35B-A3B-Q4_K_M.gguf"),
-    "IQ3_XS": (20, "MiniCPM-V-4_7-35B-A3B-IQ3_XS.gguf"),
+    # Official 1B GGUF. Keep a consistent quantization; never fall back to 35B.
+    "Q4_K_M": (3, "MiniCPM-V-4_7-1B-Q4_K_M.gguf"),
 }
 MIN_FREE_BUFFER = 5 * 1024**3
 SHA_RE = re.compile(r"^[a-f0-9]{64}$")
@@ -46,12 +45,9 @@ def mem_gib(meminfo=None):
 def choose_quant(memory):
     if memory >= QUANT["Q4_K_M"][0]:
         return "Q4_K_M", QUANT["Q4_K_M"][1]
-    if memory >= QUANT["IQ3_XS"][0]:
-        return "IQ3_XS", QUANT["IQ3_XS"][1]
     raise RuntimeError(
-        "O MiniCPM-V 4.7 35B-A3B precisa de cerca de 20 GiB de RAM "
-        "na quantizacao menor, ou 32 GiB para Q4_K_M. "
-        "Nao e possivel iniciar o 35B nesta maquina com seguranca.")
+        "O MiniCPM-V 4.7 1B com projetor visual precisa de pelo menos "
+        "3 GiB de RAM, preferencialmente 4 GiB ou mais.")
 
 def protected_connected(runner=subprocess.run):
     proc = runner(["/usr/bin/lsblk", "-rno", "LABEL"],
@@ -82,7 +78,7 @@ def write_json(target, data):
     os.replace(temp, target)
 
 def set_status(phase, **kwargs):
-    write_json(STATUS, {"phase": phase, "model": "MiniCPM-V-4.7-35B-A3B",
+    write_json(STATUS, {"phase": phase, "model": "MiniCPM-V-4.7-1B",
                         "updated_at": int(time.time()), **kwargs})
 
 def get_json(url):
@@ -108,7 +104,7 @@ def official_files():
         meta = item.get("lfs", {})
         digest = meta.get("oid", "") or meta.get("sha256", "")
         size = item.get("size")
-        if (name in {PROJECTOR, QUANT["Q4_K_M"][1], QUANT["IQ3_XS"][1]}
+        if (name in {PROJECTOR, QUANT["Q4_K_M"][1]}
                 and isinstance(size, int) and size > 10_000_000
                 and SHA_RE.fullmatch(digest)):
             specs[name] = {"sha256": digest, "size": size}
@@ -126,7 +122,7 @@ def validated(path, spec):
            path.stat().st_size == spec["size"] and sha256_file(path) == spec["sha256"]
 
 def fetch_verified(name, spec, revision, root=ROOT):
-    if name not in {PROJECTOR, QUANT["Q4_K_M"][1], QUANT["IQ3_XS"][1]}:
+    if name not in {PROJECTOR, QUANT["Q4_K_M"][1]}:
         raise ValueError("Arquivo de modelo nao aprovado")
     target = root / name
     if validated(target, spec):
@@ -174,15 +170,32 @@ def fetch_verified(name, spec, revision, root=ROOT):
     os.replace(part, target)
     return target
 
+def verified_local_install():
+    """Offline reuse: valid, pinned local models do not require an HTTP request."""
+    if MANIFEST.is_symlink() or not MANIFEST.is_file():
+        return False
+    try:
+        spec = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        if spec.get("repo") != REPO or spec.get("quant") != "Q4_K_M" or not COMMIT_RE.fullmatch(spec.get("revision", "")):
+            return False
+        names = (QUANT["Q4_K_M"][1], PROJECTOR)
+        return set(spec.get("files", {})) == set(names) and all(
+            validated(ROOT / name, spec["files"][name]) for name in names)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return False
+
 def provision():
     if live():
-        print("Modo Live: download de dezenas de GB desativado, instale no HD primeiro.")
+        print("Modo Live: instale no HD. O MiniCPM 1B sera baixado automaticamente no primeiro boot instalado.")
         return 0
-    if protected_connected():
-        raise RuntimeError("VDIs protegidos detectados: desconecte-os para provisionar no HD")
     ensure_destination()
     memory = mem_gib()
     quant, model_file = choose_quant(memory)
+    if verified_local_install():
+        set_status("ready", quant=quant, model_file=model_file,
+                   memory_gib=round(memory, 1), source="local_verified_cache")
+        print("PASS: MiniCPM-V 4.7 1B carregara de cache verificado, sem internet.")
+        return 0
     set_status("checking", memory_gib=round(memory, 1), quant=quant)
     commit, specs = official_files()
     for name in (model_file, PROJECTOR):
@@ -200,13 +213,13 @@ def provision():
                    bytes_received=0, bytes_total=specs[name]["size"])
         fetch_verified(name, specs[name], commit)
     manifest = {"repo": REPO, "revision": commit, "quant": quant,
-                "alias": "MiniCPM-V-4.7-35B-A3B", "files": {
+                "alias": "MiniCPM-V-4.7-1B", "files": {
                     name: {"sha256": specs[name]["sha256"], "size": specs[name]["size"]}
                     for name in (model_file, PROJECTOR)}}
     write_json(MANIFEST, manifest)
     set_status("ready", quant=quant, model_file=model_file,
                size_bytes=total, memory_gib=round(memory, 1))
-    print("PASS: modelo 35B-A3B GGUF e mmproj oficiais verificados.")
+    print("PASS: MiniCPM-V 4.7 1B GGUF e mmproj 4x oficiais verificados.")
     return 0
 
 def main():
