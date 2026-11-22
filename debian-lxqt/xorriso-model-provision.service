@@ -1,8 +1,9 @@
 [Unit]
-Description=xorriso - download oficial verificado MiniCPM-V 4.7 35B-A3B para HD
+Description=xorriso - download oficial verificado MiniCPM-V 4.7 1B para HD
 ConditionKernelCommandLine=!boot=live
 After=network-online.target systemd-sysusers.service
 Wants=network-online.target
+StartLimitIntervalSec=0
 OnSuccess=xorriso-model.service
 
 [Service]
@@ -12,6 +13,8 @@ Group=xorriso-model
 UMask=0022
 ExecStart=/usr/local/libexec/xorriso/model-provision.py
 TimeoutStartSec=infinity
+Restart=on-failure
+RestartSec=90
 StateDirectory=xorriso-model
 StateDirectoryMode=0755
 NoNewPrivileges=yes
