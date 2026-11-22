@@ -72,3 +72,13 @@ permanecem disponíveis; os dois VDI existentes não são alterados.
 
 A compilação automática verifica a presença do mapa. Ainda é necessário
 validar fisicamente no VirtualBox as teclas Ç, acentos, barra e interrogação.
+
+## Alpha 0.16 experimental (PR #27) — banco persistente de erros
+
+O caminho **Debian 13 + LXQt** é experimental, separado do histórico Alpha 0.15 descrito acima. Leia `debian-lxqt/README.md` e, **antes de qualquer correção**, consulte `debian-lxqt/errors.json`, o banco de erros versionado do projeto. Ele registra IDs `XOS-001` etc., sintomas, logs, causa confirmada ou hipótese, correções, resultados e links de evidência. Atualize-o sempre que ocorrer um novo erro ou teste. Os checks do GitHub verificam sua integridade básica.
+
+A redução de tamanho com `--apt-recommends false` retirou indevidamente o gerenciador de janelas XFWM4 e gerou tela preta no QEMU, embora o SDDM autenticava `xorriso`. A correção no PR #27 restaura `xfwm4`, configura `window_manager=xfwm4` e exige processos reais antes de aceitar READY. **Sem novo QEMU aprovado, não declarar ISO corrigida.**
+
+PR: https://github.com/crentefiel/xorriso-os/pull/27
+
+Preserve **sem alterações e sem formatação** os VDI `XORRISO_DATA` e `XORRISO_RUNTIME`. Não faça merge automático.
