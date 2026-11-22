@@ -4,6 +4,9 @@ on:
     branches: [feat/debian-lxqt-foundation, feat/alpha-016-ai-admin-agent, feat/alpha-016-file-manager-desktop]
   pull_request:
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
