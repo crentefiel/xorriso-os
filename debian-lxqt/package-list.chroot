@@ -39,3 +39,9 @@ polkitd
 pkexec
 lxqt-policykit
 libgtk-3-bin
+# Graphical Live-to-disk installer (no unattended partitioning).
+calamares
+calamares-settings-debian
+grub-pc-bin
+grub-efi-amd64-bin
+efibootmgr
