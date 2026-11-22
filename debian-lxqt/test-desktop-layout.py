@@ -18,6 +18,8 @@ assert "xorriso-ui.desktop" in hook and "OnlyShowIn=LXQt;" in hook
 assert "WallpaperMode=color\n" in hook
 assert "pcmanfm-qt" in packages
 assert "username=xorriso" in build
+# Avoid Debian Live component that grants unconditional root via passwordless sudo.
+assert "live-config.nocomponents=sudo" in build
 assert "user-setup" in packages
 assert "useradd -m" not in hook
 assert "passwd -l xorriso" not in hook
