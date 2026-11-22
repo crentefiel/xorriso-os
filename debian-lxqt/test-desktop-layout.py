@@ -22,7 +22,7 @@ assert "username=xorriso" in build
 assert "HOOK_HELPER=/usr/lib/live/build/lb_chroot_hooks" in build
 assert "HOOK_DEST=config/hooks" in build
 assert "HOOK_DEST=config/hooks/normal" in build
-assert 'test -s "$OUT/chroot/$expected"' in build
+assert 'unsquashfs -cat "$SQUASHFS" "$expected"' in build
 assert "XORRISO_CHROOT_HOOK_EXECUTED" in hook
 assert "After=graphical.target" not in hook
 assert '"open_file_manager"' in agent
