@@ -14,7 +14,7 @@ if [[ -e config ]]; then
 fi
 lb config --mode debian --distribution trixie --architectures amd64 \
   --binary-images iso-hybrid --debian-installer false --initsystem systemd \
-  --archive-areas "main" --apt-indices false --security false --bootappend-live "boot=live components username=xorriso console=ttyS0,115200n8 console=tty0"
+  --archive-areas "main" --apt-indices false --security false --bootappend-live "boot=live components live-config.nocomponents=sudo username=xorriso console=ttyS0,115200n8 console=tty0"
 # Ubuntu 24.04 bundles live-build 3.0, which only processes config/hooks/*.chroot.
 # Newer live-build expects config/hooks/normal/*.hook.chroot.
 # Select the layout by inspecting the actual installed build helper.
