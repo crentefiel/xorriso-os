@@ -101,6 +101,7 @@ test -s "$SQUASHFS" || {
 for expected in \
   etc/skel/Desktop/xorriso.desktop \
   etc/skel/Desktop/arquivos.desktop \
+  etc/skel/.config/lxqt/session.conf \
   etc/skel/.config/autostart/xorriso-ui.desktop \
   etc/skel/.config/autostart/xorriso-trust-launchers.desktop \
   usr/local/bin/xorriso-desktop-ready \
@@ -122,7 +123,7 @@ unsquashfs -cat "$SQUASHFS" var/lib/dpkg/status > "$STATUS_FILE"
 awk -F': ' '/^Package: / { package=$2 }
              /^Status: install ok installed$/ { if (package != "") print package }' \
     "$STATUS_FILE" | LC_ALL=C sort -u > "$MANIFEST"
-for needed in sddm sddm-theme-maui lxqt-core lxqt-session pcmanfm-qt \
+for needed in sddm sddm-theme-maui lxqt-core lxqt-session xfwm4 xdg-user-dirs pcmanfm-qt \
   qterminal gvfs live-boot live-config user-setup xorg \
   xserver-xorg-video-all xserver-xorg-input-all python3-tk \
   plymouth plymouth-themes polkitd pkexec; do
