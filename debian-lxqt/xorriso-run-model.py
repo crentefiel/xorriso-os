@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Load a SHA256-verified local MiniCPM 35B model in isolated llama-server."""
+"""Load SHA256-verified local MiniCPM V 4.7 1B in an isolated llama-server."""
 import hashlib
 import json
 import os
@@ -10,10 +10,9 @@ import sys
 ROOT = Path("/var/lib/xorriso-model")
 MANIFEST = ROOT / "model.json"
 BINARY = Path("/opt/xorriso/llama-server")
-MODEL = {"Q4_K_M": "MiniCPM-V-4_7-35B-A3B-Q4_K_M.gguf",
-         "IQ3_XS": "MiniCPM-V-4_7-35B-A3B-IQ3_XS.gguf"}
-PROJECTOR = "mmproj-model-f16.gguf"
-REPO = "openbmb/MiniCPM-V-4.7-35B-A3B-gguf"
+MODEL = {"Q4_K_M": "MiniCPM-V-4_7-1B-Q4_K_M.gguf"}
+PROJECTOR = "mmproj-model-f16-4x.gguf"
+REPO = "openbmb/MiniCPM-V-4.7-1B-gguf"
 
 def sha256(path):
     h = hashlib.sha256()
@@ -54,8 +53,7 @@ def main():
     os.execv(str(BINARY), [str(BINARY), "-m", str(model),
                           "--mmproj", str(projector),
                           "--host", "127.0.0.1", "--port", "8080",
-                          "--alias", "MiniCPM-V-4.7-35B-A3B",
-                          "--reasoning", "off",
+                          "--alias", "MiniCPM-V-4.7-1B",
                           "--ctx-size", "2048", "-t", "4",
                           "-ngl", "0"])
 
