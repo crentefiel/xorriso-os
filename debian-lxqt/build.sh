@@ -46,6 +46,16 @@ install -m 755 "$ROOT/admin-package.py" config/includes.chroot/usr/local/libexec
 install -m 755 "$ROOT/admin-service.py" config/includes.chroot/usr/local/libexec/xorriso/admin-service
 install -m 755 "$ROOT/mount-volumes.sh" config/includes.chroot/usr/local/libexec/xorriso/mount-volumes.sh
 install -m 755 "$ROOT/start-model.sh" config/includes.chroot/usr/local/libexec/xorriso/start-model.sh
+install -m 755 "$ROOT/xorriso-run-model.py" config/includes.chroot/usr/local/libexec/xorriso/run-model.py
+install -m 755 "$ROOT/xorriso-model-provision.py" config/includes.chroot/usr/local/libexec/xorriso/model-provision.py
+install -m 644 "$ROOT/xorriso-model-provision.service" config/includes.chroot/etc/systemd/system/xorriso-model-provision.service
+mkdir -p config/includes.chroot/usr/lib/sysusers.d config/includes.chroot/opt/xorriso
+install -m 644 "$ROOT/xorriso-model-sysusers.conf" config/includes.chroot/usr/lib/sysusers.d/xorriso-model.conf
+# llama-server must actually be in the ISO: source built at pinned revision by CI.
+test -x "$ROOT/runtime-dist/llama-server" || {
+  echo 'MiniCPM runtime missing. Build first: bash debian-lxqt/build-llama-runtime.sh' >&2; exit 8;
+}
+install -m 755 "$ROOT/runtime-dist/llama-server" config/includes.chroot/opt/xorriso/llama-server
 install -m 755 "$ROOT/xorriso-install-mode.sh" config/includes.chroot/usr/local/libexec/xorriso/install-mode.sh
 install -m 644 "$ROOT/live-calamares.rules" config/includes.chroot/usr/local/share/xorriso/live-calamares.rules
 install -m 644 "$ROOT/xorriso-install-mode.service" config/includes.chroot/etc/systemd/system/xorriso-install-mode.service
@@ -115,6 +125,11 @@ for expected in \
   usr/local/bin/xorriso-install \
   usr/local/libexec/xorriso/install-mode.sh \
   usr/local/libexec/xorriso/admin-service \
+  usr/local/libexec/xorriso/model-provision.py \
+  usr/local/libexec/xorriso/run-model.py \
+  opt/xorriso/llama-server \
+  usr/lib/sysusers.d/xorriso-model.conf \
+  etc/systemd/system/xorriso-model-provision.service \
   usr/local/share/xorriso/live-calamares.rules \
   etc/systemd/system/xorriso-install-mode.service \
   etc/calamares/settings.conf \
