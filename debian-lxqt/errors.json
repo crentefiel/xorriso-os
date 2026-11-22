@@ -245,6 +245,27 @@
         "https://github.com/crentefiel/xorriso-os/pull/27",
         "https://github.com/crentefiel/xorriso-os/actions/runs/45066931115"
       ]
+    },
+    {
+      "id": "XOS-011",
+      "title": "Teste do Terminal root usou MagicMock como retorno em vez da função real",
+      "fingerprint": [
+        "AssertionError",
+        "test_root_terminal_is_human_only_and_never_live",
+        "denied[\"approved\"] is False"
+      ],
+      "status": "correção aplicada; revalidação CI pendente",
+      "root_cause_status": "confirmada pelo Traceback e inspeção do teste",
+      "cause": "Ao simular a rejeição do terminal root no Live, test-agent.py fez patch da própria função que deveria executar. O retorno foi MagicMock e não um dicionário com approved=False.",
+      "fix": "Simular somente a detecção de boot Live (`is_live_session`) e chamar a implementação real `open_root_terminal`, verificando bloqueio sem execução de subprocesso.",
+      "evidence": [
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45071732512",
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45071732505"
+      ],
+      "verification": "Aguardar foundation checks e build do commit 6d74de35d7950c0a6eaee04d89d4e62769207759 ou sucessor; ainda não houve teste manual do root terminal após login no HD.",
+      "references": [
+        "https://github.com/crentefiel/xorriso-os/commit/6d74de35d7950c0a6eaee04d89d4e62769207759"
+      ]
     }
   ]
 }
