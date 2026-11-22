@@ -54,6 +54,37 @@ jobs:
           grep -q 'XORRISO_LXQT_DESKTOP_READY' debian-lxqt/test-debian-qemu.py
       - name: Build Debian 13 LXQt live ISO
         run: timeout 55m bash debian-lxqt/build.sh
+      - name: Verify unattended normal Live boot configuration
+        run: |
+          mkdir -p /tmp/xorriso-isolinux
+          xorriso -osirrox on -indev debian-lxqt/work/live-image-amd64.hybrid.iso \
+            -extract /isolinux/isolinux.cfg /tmp/xorriso-isolinux/isolinux.cfg \
+            -extract /isolinux/live.cfg /tmp/xorriso-isolinux/live.cfg
+          grep -Eq '^[[:space:]]*timeout[[:space:]]+50' /tmp/xorriso-isolinux/isolinux.cfg
+          test "$(grep -ic '^[[:space:]]*menu default[[:space:]]*
+        run: timeout 330s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
+      - name: Upload QEMU boot failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xorriso-lxqt-boot-diagnostics
+          path: debian-lxqt/work/boot-diagnostics/
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Validate ISO image
+        run: |
+          test -s debian-lxqt/work/live-image-amd64.hybrid.iso
+          xorriso -indev debian-lxqt/work/live-image-amd64.hybrid.iso -report_el_torito plain
+          sha256sum debian-lxqt/work/live-image-amd64.hybrid.iso | tee debian-lxqt/work/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xorriso-debian-lxqt-EXPERIMENTAL
+          path: |
+            debian-lxqt/work/live-image-amd64.hybrid.iso
+            debian-lxqt/work/SHA256SUMS
+          retention-days: 14
+          if-no-files-found: error
+ /tmp/xorriso-isolinux/live.cfg)" -eq 1
       - name: Boot ISO and verify LXQt desktop session in QEMU
         run: timeout 330s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
       - name: Upload QEMU boot failure diagnostics
