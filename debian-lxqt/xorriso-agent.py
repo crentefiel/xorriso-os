@@ -33,7 +33,7 @@ TOOLS = {
     "install_package": "Pede autorizacao e autenticacao administrativa via pkexec para instalar pacote",
     "open_application": "Abre um aplicativo instalado pelo seu arquivo .desktop, com autorizacao",
     "open_file_manager": "Abre o gerenciador de arquivos PCManFM-Qt na pasta pessoal, sem privilegios root",
-    "run_terminal_command": "Executa comando de consulta em terminal sem shell/root: args.command; apenas lista segura de diagnosticos",
+    "run_terminal_command": "Executa comandos Linux reais sem shell/root: consultas permitidas ou mkdir NOME em Documentos com confirmacao; args.command",
     "open_terminal": "Abre terminal interativo QTerminal como usuario comum; requer confirmacao",
     "finish": "Conclui a tarefa em portugues, sem afirmar resultados nao observados",
 }
@@ -56,6 +56,7 @@ SYSTEM = (
     "Nao confunda permissao para diagnosticar com permissao para alterar o sistema. "
     "Em create_folder/create_file/read_file args.filename, sem barras; create_file args.content. "
     "Em find_command args.name, em package_info args.package. "
+    "Para criar pasta via terminal, use mkdir NOME e espere confirmacao. "
     "Nao execute shell arbitrario. No maximo seis etapas."
 )
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9+._-]{0,79}$")
@@ -176,7 +177,7 @@ def action(tool, args, approve, runner=run_readonly):
         # This is a desktop-user operation, never a privileged root command.
         return start_file_manager()
     if tool == "run_terminal_command":
-        return xorriso_terminal.run_readonly(args.get("command"))
+        return xorriso_terminal.run_command(args.get("command"), approve)
     if tool == "open_terminal":
         return xorriso_terminal.open_terminal(approve)
     if tool == "open_application":
