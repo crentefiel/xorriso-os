@@ -26,6 +26,14 @@ cp "$ROOT/10-xorriso-autologin.conf" config/includes.chroot/etc/sddm.conf.d/10-x
 cp "$ROOT/020-xorriso-user.hook.chroot" config/hooks/normal/020-xorriso-user.hook.chroot
 cp "$ROOT/README.md" config/includes.chroot/usr/local/share/xorriso/MIGRATION.md
 mkdir -p config/includes.chroot/usr/local/bin
+# Old live-build invokes 'rsvg' inside the Debian chroot during ISO boot graphics
+# generation. Debian 13 ships 'rsvg-convert' only; include a compatible argv wrapper.
+mkdir -p config/includes.chroot/usr/bin
+cat > config/includes.chroot/usr/bin/rsvg <<'RSVG'
+#!/bin/sh
+exec /usr/bin/rsvg-convert "$@"
+RSVG
+chmod 755 config/includes.chroot/usr/bin/rsvg
 install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorriso-ui.py
 install -m 755 "$ROOT/xorriso-agent.py" config/includes.chroot/usr/local/bin/xorriso-agent.py
 mkdir -p config/includes.chroot/usr/local/libexec/xorriso config/includes.chroot/etc/systemd/system
