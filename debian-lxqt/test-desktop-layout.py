@@ -19,6 +19,8 @@ assert "WallpaperMode=color\n" in hook
 assert "pcmanfm-qt" in packages
 assert "username=xorriso" in build
 assert '"open_file_manager"' in agent
-assert 'runner(["pcmanfm-qt", str(pathlib.Path.home())], timeout=15)' in agent
+assert "def start_file_manager():" in agent
+assert 'subprocess.Popen([executable, str(pathlib.Path.home())]' in agent
+assert 'return start_file_manager()' in agent
 assert "mkfs" not in hook and "wipefs" not in hook
 print("PASS: two visible shortcuts, file manager installed, Live username and basic disk safety")
