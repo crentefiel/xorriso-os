@@ -74,3 +74,11 @@ O manual oficial do Debian descreve os **hooks de build**, o uso de `/etc/skel` 
 Fontes: https://live-team.pages.debian.net/live-manual/html/live-manual/customizing-contents.en.html ; https://sources.debian.org/src/live-config/11.0.3/components/0030-user-setup/ ; https://manpages.debian.org/trixie/live-config-doc/live-config.7.en.html
 
 **Ainda depende de boot real:** o CI deve comprovar conta criada, SDDM ativo, LXQt iniciado, janela de IA e dois atalhos. Sem isso, não anunciar ISO corrigida ou solução do VirtualBox.
+
+## Corrigido após o teste 45037305528 — sinaleiro LXQt
+
+O QEMU mostrou **LXQt com a janela xorriso IA aberta** na captura `boot-455s.png`, mas o workflow marcou falha após 480 segundos. O motivo confirmado no hook era `printf '%s\\\\n'` (emissão dos caracteres literais barra invertida e n) em vez de `printf '%s\\n'` (quebra de linha real); consequentemente, a checagem `grep -Fxq` do marcador não era satisfeita. O hook foi corrigido e o teste de layout passou a executar os comandos `printf` extraídos do shell para impedir regressão.
+
+A ausência de `XORRISO_DATA` / `XORRISO_RUNTIME` no QEMU é esperada: o script de montagem não falha quando o rótulo não existe. **Os volumes continuam somente leitura** quando presentes, e não há criação, formatação ou escrita automática. Sem volumes, a interface deve apenas informar indisponibilidade da IA local. O teste no VirtualBox e a execução real do MiniCPM continuam pendentes.
+
+Execução diagnóstica: https://github.com/crentefiel/xorriso-os/actions/runs/45037305528
