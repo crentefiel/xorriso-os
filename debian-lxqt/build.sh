@@ -56,6 +56,15 @@ for item in \
 done
 test -s config/bootloaders/isolinux/isolinux.bin
 test -s config/bootloaders/isolinux/vesamenu.c32
+# Debian 13 librsvg2-bin supplies rsvg-convert, not the removed 'rsvg' alias
+# still invoked by Ubuntu's older live-build bootloader graphics template.
+# A local wrapper preserves the old command name without modifying Debian.
+# This build executes on an isolated CI runner; create a temporary host alias.
+# It is removed on exit and never copied into the ISO.
+if ! command -v rsvg >/dev/null 2>&1; then
+  sudo ln -s /usr/bin/rsvg-convert /usr/local/bin/rsvg
+  trap 'sudo rm -f /usr/local/bin/rsvg' EXIT
+fi
 echo "Building Debian LXQt live ISO in $OUT"
 sudo lb build
 echo "Check $OUT for live-image-amd64.hybrid.iso; boot-test before distribution."
