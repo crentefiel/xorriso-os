@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""Bounded agent loop. Model requests are untrusted; every tool returns observations."""
+import json
+import os
+import pathlib
+import re
+import shutil
+import subprocess
+from urllib import request
+from urllib.parse import urlsplit
+
+MODEL = os.environ.get("XORRISO_MODEL", "MiniCPM-V-4.7-1B")
+API = os.environ.get("XORRISO_API_URL", "http://127.0.0.1:8080/v1")
+DOCUMENTS = pathlib.Path.home() / "Documentos"
+MAX_STEPS = 6
+MAX_RESPONSE = 12000
+ADMIN_HELPER = "/usr/local/libexec/xorriso/admin-package"
+
+TOOLS = {
+    "list_files": "Lista arquivos reais na pasta Documentos",
+    "create_folder": "Cria uma pasta na pasta Documentos, somente com autorizacao",
+    "create_file": "Cria arquivo texto sem sobrescrever, com autorizacao",
+    "read_file": "Le arquivo texto existente ate 16 KiB",
+    "system_info": "Mostra kernel, usuario e informacoes do sistema",
+    "find_command": "Localiza um comando instalado, sem executa-lo",
+    "package_info": "Consulta apt-cache policy para um pacote Debian",
+    "install_package": "Pede autorizacao e autenticacao administrativa via pkexec para instalar pacote",
+    "open_application": "Abre um aplicativo instalado pelo seu arquivo .desktop, com autorizacao",
+    "finish": "Conclui a tarefa em portugues, sem afirmar resultados nao observados",
+}
+SYSTEM = (
+    "Voce e o agente administrador do xorriso OS, Debian LXQt. O usuario fala portugues do Brasil. "
+    "Planeje UMA proxima ferramenta por vez, com base nas observacoes reais que receber. "
+    "Responda SOMENTE JSON puro no formato "
+    "{\"tool\":\"finish\",\"args\":{},\"message\":\"resposta\"}. "
+    "Ferramentas disponiveis: " + json.dumps(TOOLS, ensure_ascii=False) + ". "
+    "Perguntas sobre capacidade NAO autorizam operacoes: responda com finish. "
+    "Somente ordens explicitas de instalar/criar/abrir permitem ferramentas que alteram estado. "
+    "Nao invente sucesso; consulte observacoes e somente afirme resultados verificados. "
+    "Se uma acao falhar, explique o erro ou use ferramentas de leitura para investigar. "
+    "Nao repita uma acao que ja foi negada. Em install_package args.package, somente nome do pacote apt. "
+    "Em open_application args.desktop_id, arquivo .desktop instalado. "
+    "Em create_folder/create_file/read_file args.filename, sem barras; create_file args.content. "
+    "Em find_command args.name, em package_info args.package. "
+    "Nao execute shell arbitrario. No maximo seis etapas."
+)
+NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9+._-]{0,79}$")
+DESKTOP_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,110}\\.desktop$")
+
+def simple_name(name):
+    if not isinstance(name, str) or not name or len(name) > 120:
+        raise ValueError("Nome ausente ou longo demais")
+    if name in {".", ".."} or "/" in name or "\\" in name or any(ord(c) < 32 for c in name):
+        raise ValueError("Somente um nome simples, sem caminhos")
+    return name
+
+def filename_path(name):
+    name = simple_name(name)
+    DOCUMENTS.mkdir(mode=0o700, parents=True, exist_ok=True)
+    directory = DOCUMENTS.resolve()
+    path = directory / name
+    if path.is_symlink():
+        raise ValueError("Links simbolicos nao sao permitidos")
+    return path
+
+def package_name(name):
+    if not isinstance(name, str) or not NAME_PATTERN.fullmatch(name):
+        raise ValueError("Nome de pacote Debian invalido")
+    if name.startswith("-"):
+        raise ValueError("Opcoes de linha de comando nao sao pacotes")
+    return name
+
+def run_readonly(argv, timeout=8):
+    out = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False)
+    return {"exit_code": out.returncode, "output": (out.stdout + out.stderr)[:3500]}
+
+def desktop_path(name):
+    if not isinstance(name, str) or not DESKTOP_PATTERN.fullmatch(name):
+        raise ValueError("ID .desktop invalido")
+    for base in (pathlib.Path("/usr/share/applications"), pathlib.Path("/usr/local/share/applications")):
+        candidate = base / name
+        if candidate.is_file() and not candidate.is_symlink():
+            return candidate
+    raise FileNotFoundError("Aplicativo nao instalado: " + name)
+
+def action(tool, args, approve, runner=run_readonly):
+    if not isinstance(args, dict):
+        raise ValueError("Argumentos JSON invalidos")
+    if tool == "system_info":
+        return runner(["uname", "-a"])
+    if tool == "list_files":
+        DOCUMENTS.mkdir(parents=True, exist_ok=True)
+        return {"files": sorted(p.name for p in DOCUMENTS.iterdir() if not p.is_symlink())[:100]}
+    if tool == "find_command":
+        name = args.get("name", "")
+        if not isinstance(name, str) or not NAME_PATTERN.fullmatch(name):
+            raise ValueError("Nome de comando invalido")
+        return {"name": name, "path": shutil.which(name)}
+    if tool == "package_info":
+        name = package_name(args.get("package"))
+        return runner(["apt-cache", "policy", name])
+    if tool in ("create_folder", "create_file", "read_file"):
+        target = filename_path(args.get("filename"))
+        if tool == "read_file":
+            if not target.is_file() or target.stat().st_size > 16384:
+                raise ValueError("Arquivo ausente ou maior que 16 KiB")
+            return {"filename": target.name, "content": target.read_text(encoding="utf-8")}
+        if target.exists():
+            raise FileExistsError("Arquivo ou pasta ja existe; nada foi sobrescrito")
+        content = args.get("content", "")
+        if tool == "create_file" and (not isinstance(content, str) or len(content.encode("utf-8")) > 16384):
+            raise ValueError("Conteudo invalido ou maior que 16 KiB")
+        if not approve("Autoriza criar " + str(target) + "?"):
+            return {"approved": False, "error": "Pessoa cancelou a operacao"}
+        if tool == "create_folder":
+            target.mkdir(mode=0o700)
+            return {"created": target.is_dir(), "path": str(target)}
+        with target.open("x", encoding="utf-8") as out:
+            out.write(content)
+        return {"created": target.is_file(), "path": str(target)}
+    if tool == "install_package":
+        name = package_name(args.get("package"))
+        # Package name only, NEVER a model-authored shell string.
+        if not approve("Instalar pacote Debian " + name + " com privilegios administrativos?"):
+            return {"approved": False, "error": "Pessoa cancelou a instalacao"}
+        if not pathlib.Path(ADMIN_HELPER).is_file():
+            return {"approved": True, "error": "Instalador administrativo nao esta instalado"}
+        result = runner(["pkexec", ADMIN_HELPER, name], timeout=180)
+        return {"package": name, **result, "installed": result["exit_code"] == 0}
+    if tool == "open_application":
+        name = args.get("desktop_id")
+        desktop_path(name)
+        if not approve("Abrir aplicativo instalado " + name + "?"):
+            return {"approved": False, "error": "Pessoa cancelou a abertura"}
+        # gtk-launch takes a DESKTOP file identifier, not executable shell text.
+        result = runner(["gtk-launch", name], timeout=15)
+        return {"desktop_id": name, **result, "launched": result["exit_code"] == 0}
+    raise ValueError("Ferramenta indisponivel: " + str(tool))
+
+def local_api_url(base):
+    parsed = urlsplit(base)
+    if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost"}:
+        raise ValueError("Por seguranca, somente API HTTP local e aceita nesta versao")
+    if parsed.username or parsed.password or parsed.query or parsed.fragment or not parsed.port:
+        raise ValueError("URL da API malformada")
+    if parsed.path not in ("", "/", "/v1", "/v1/"):
+        raise ValueError("Base da API deve terminar em /v1")
+    return "http://" + parsed.netloc + "/v1/chat/completions"
+
+def next_plan(messages, endpoint=API, model=MODEL):
+    payload = json.dumps({"model": model, "temperature": 0, "stream": False,
+                          "messages": messages}, ensure_ascii=False).encode("utf-8")
+    req = request.Request(local_api_url(endpoint), data=payload,
+                          headers={"Content-Type": "application/json"}, method="POST")
+    with request.urlopen(req, timeout=100) as result:
+        data = result.read(150000)
+    raw = json.loads(data)["choices"][0]["message"]["content"]
+    if not isinstance(raw, str) or len(raw) > MAX_RESPONSE:
+        raise ValueError("Resposta invalida ou extensa demais")
+    try:
+        plan = json.loads(raw)
+    except ValueError as exc:
+        raise ValueError("MiniCPM nao forneceu JSON valido") from exc
+    if not isinstance(plan, dict) or plan.get("tool") not in TOOLS:
+        raise ValueError("Ferramenta da IA nao reconhecida")
+    return plan
+
+def solve(prompt, approve, planner=next_plan, execute=action):
+    if not isinstance(prompt, str) or not prompt.strip():
+        raise ValueError("Pedido vazio")
+    messages = [{"role": "system", "content": SYSTEM},
+                {"role": "user", "content": prompt}]
+    trace = []
+    for step in range(MAX_STEPS):
+        plan = planner(messages)
+        tool = plan["tool"]
+        if tool == "finish":
+            reply = plan.get("message", "")
+            return {"answer": reply if isinstance(reply, str) else "", "steps": trace, "finished": True}
+        args = plan.get("args", {})
+        try:
+            result = execute(tool, args, approve)
+        except (OSError, ValueError, subprocess.TimeoutExpired) as exc:
+            result = {"error": str(exc)}
+        trace.append({"tool": tool, "result": result})
+        messages.append({"role": "assistant", "content": json.dumps(plan, ensure_ascii=False)})
+        messages.append({"role": "user", "content": "OBSERVACAO REAL DA FERRAMENTA: " +
+                         json.dumps(result, ensure_ascii=False)[:4500]})
+        if result.get("approved") is False:
+            return {"answer": "Operacao cancelada. Nenhuma nova acao sera executada.",
+                    "steps": trace, "finished": False}
+    return {"answer": "Limite de seis etapas alcancado. Confira os resultados antes de continuar.",
+            "steps": trace, "finished": False}
