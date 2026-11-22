@@ -196,8 +196,13 @@ class Desktop:
                     for i,step in enumerate(result["steps"]))
                 response = (steps + "\n" if steps else "") + result["answer"]
             except Exception as exc:
-                response = "O agente nao concluiu o pedido: " + str(exc) + (
-                    "\nVerifique se o servidor MiniCPM local esta ativo em 127.0.0.1:8080.")
+                if agent.is_live_session():
+                    response = ("A IA ainda nao esta provisionada nesta sessao Live. "
+                                "Instale o xorriso no HD para iniciar o download "
+                                "automatico do MiniCPM-V 4.7 1B.")
+                else:
+                    response = (self.installation_status() +
+                                "\nDetalhe da solicitacao: " + str(exc)[:200])
             self.root.after(0, lambda: self.finish(response))
         threading.Thread(target=worker, daemon=True).start()
 
