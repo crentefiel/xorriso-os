@@ -1,5 +1,5 @@
 [Unit]
-Description=xorriso - MiniCPM-V 4.7 35B-A3B local localhost:8080
+Description=xorriso - MiniCPM-V 4.7 1B local localhost:8080
 ConditionKernelCommandLine=!boot=live
 ConditionPathExists=/var/lib/xorriso-model/model.json
 After=xorriso-model-provision.service
