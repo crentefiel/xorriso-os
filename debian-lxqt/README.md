@@ -35,3 +35,19 @@ O build deverá produzir `debian-lxqt/work/live-image-amd64.hybrid.iso` quando b
 6. Implementar backend administrativo root com política por tarefa, logs de auditoria e confirmação confiável, além de instalação de programas, gerenciamento de janelas e sequência de ações da IA.
 
 A etapa atual é um protótipo técnico, não uma versão final ou pronta para confiar dados sensíveis.
+
+
+## Alpha 0.16 — agente Linux administrativo (PR experimental)
+
+A janela `xorriso IA` agora chama `xorriso-agent.py`, que consulta o MiniCPM local para selecionar ferramentas **por significado** e, depois de cada ferramenta, devolve ao modelo uma observação real. O ciclo tem limite de seis etapas. Não existem regras de texto que associem frases fixas a comandos; há um catálogo pequeno de ferramentas validadas, para não executar texto arbitrário da IA como root.
+
+Ferramentas: `system_info`, `list_files`, `read_file`, `create_folder`, `create_file`, `find_command`, `package_info`, `install_package`, `open_application`, `finish`. A interface mostra os resultados verificados, não apenas uma resposta generativa.
+
+Instalar programas é um fluxo de **duas autorizações**: a pessoa confirma o nome exato do pacote na GUI e o `pkexec` solicita autenticação de administrador por PolicyKit. O helper `admin-package` é um programa separado, com argumentos validados, chama `apt-get install` sem shell e confere a instalação via `dpkg-query`. Nenhuma autorização é dada diretamente ao MiniCPM.
+
+**Limitação bloqueante no protótipo live:** a conta `xorriso` é criada com senha bloqueada. Sem a configuração posterior de uma credencial administrativa válida, a autenticação do `pkexec` falhará e o agente **não poderá instalar aplicativos** na VM. A Alpha 0.16 ainda não tem um assistente seguro de primeira inicialização para configurar credenciais; isso precisa ser resolvido antes de uma release utilizável.
+
+**Persistência:** a imagem Debian Live utiliza uma camada temporária. Instalações via APT nesta sessão **não são garantidas após reiniciar**. Não escrevemos em `XORRISO_DATA` ou `XORRISO_RUNTIME` para persistir pacotes, porque os VDIs foram preservados somente para leitura. Uma camada persistente própria ou instalação em um terceiro disco deve ser implementada e testada depois.
+
+Os testes de agente usam um modelo e executor simulados para verificar a sequência pacote → instalação → abertura, observações, cancelamento, proteção de caminhos e que não se executa `sh -c` como root. **Não comprovam ainda** que o MiniCPM real gerará os JSONs corretos nem que o PolicyKit autentica no VirtualBox.
+
