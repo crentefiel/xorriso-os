@@ -23,7 +23,7 @@ STATUS = ROOT / "status.json"
 MANIFEST = ROOT / "model.json"
 PROJECTOR = "mmproj-model-f16-4x.gguf"
 QUANT = {
-    # Official 1B GGUF. Keep a consistent quantization; never fall back to 35B.
+    # Official 1B GGUF. Keep a consistent quantization.
     "Q4_K_M": (3, "MiniCPM-V-4_7-1B-Q4_K_M.gguf"),
 }
 MIN_FREE_BUFFER = 5 * 1024**3
@@ -56,7 +56,9 @@ def protected_connected(runner=subprocess.run):
         raise RuntimeError("Nao foi possivel identificar os discos")
     return bool({"XORRISO_DATA", "XORRISO_RUNTIME"} & set(proc.stdout.splitlines()))
 
-def ensure_destination(path=ROOT):
+def ensure_destination(path=None):
+    if path is None:
+        path = ROOT
     if path.is_symlink() or (path.exists() and not path.is_dir()):
         raise RuntimeError("Armazenamento do modelo nao e diretorio confiavel")
     path.mkdir(mode=0o755, parents=True, exist_ok=True)
@@ -101,7 +103,7 @@ def official_files():
     specs = {}
     for item in files:
         name = item.get("path", "")
-        meta = item.get("lfs", {})
+        meta = item.get("lfs") or {}
         digest = meta.get("oid", "") or meta.get("sha256", "")
         size = item.get("size")
         if (name in {PROJECTOR, QUANT["Q4_K_M"][1]}
