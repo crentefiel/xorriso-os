@@ -290,6 +290,31 @@
         "https://packages.debian.org/trixie/admin/cracklib-runtime",
         "https://github.com/crentefiel/xorriso-os/pull/27"
       ]
+    },
+    {
+      "id": "XOS-013",
+      "title": "Modelo padrao trocado de MiniCPM-V 4.7 1B para LFM2.5-350M; projetor e alias antigos nao servem",
+      "fingerprint": [
+        "MiniCPM-V-4.7-1B",
+        "--mmproj",
+        "LFM2.5-350M",
+        "model.json antigo",
+        "Connection refused 127.0.0.1:8080"
+      ],
+      "status": "troca codificada; tests build/boot e inferencia real no HD pendentes",
+      "root_cause_status": "migracao solicitada pelo usuario, nao defeito comprovado na nova ISO",
+      "cause": "MiniCPM era multimodal com um projetor, LFM2.5-350M e um GGUF so para texto. O sistema anterior esperava dois arquivos e alias antigo.",
+      "fix": "Repositorio LiquidAI oficial com revisao e SHA256 fixados, downloader de um unico GGUF, runner sem mmproj, UI/agente/systemd e testes sincronizados. Nao apagar pesos legados.",
+      "evidence": [
+        "Pedido do usuario em 22/11/2026",
+        "https://huggingface.co/LiquidAI/LFM2.5-350M-GGUF/blob/bb7ee58b243e4cede04187e323e760b04f8a0091/LFM2.5-350M-Q4_K_M.gguf",
+        "llama.cpp pinned 5bacb7c8 contem LLM_ARCH_LFM2"
+      ],
+      "verification": "Foundation checks+ISO/QEMU do mesmo SHA e depois primeiro download real, HTTP /v1/models, POST oi e execucao autorizada no HD VirtualBox.",
+      "references": [
+        "https://github.com/crentefiel/xorriso-os/pull/27",
+        "https://www.liquid.ai/blog/lfm2-5-350m-no-size-left-behind"
+      ]
     }
   ]
 }
