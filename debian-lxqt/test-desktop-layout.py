@@ -19,6 +19,30 @@ assert "DesktopShortcuts=\n" in hook
 assert "xorriso-ui.desktop" in hook and "OnlyShowIn=LXQt;" in hook
 assert "WallpaperMode=color\n" in hook
 assert "pcmanfm-qt" in packages
+# Live-to-HD installation: Calamares is launched only by a deliberate,
+# consented IA action, without exposing a third desktop shortcut.
+assert all(x in packages for x in ("calamares", "calamares-settings-debian",
+                                  "grub-pc-bin", "grub-efi-amd64-bin", "efibootmgr"))
+assert all(x in build for x in ("usr/bin/calamares", "etc/calamares/settings.conf",
+                               "xorriso-install.sh", "xorriso-install-mode.sh",
+                               "xorriso-install-mode.service", "live-calamares.rules"))
+assert "open_installer" in agent and "is_live_session" in agent
+installer = (root / "xorriso-install.sh").read_text(encoding="utf-8")
+bootmode = (root / "xorriso-install-mode.sh").read_text(encoding="utf-8")
+policy = (root / "live-calamares.rules").read_text(encoding="utf-8")
+service = (root / "xorriso-install-mode.service").read_text(encoding="utf-8")
+assert "boot=live" in installer and "boot=live" in bootmode
+assert "XORRISO_DATA" in installer and "XORRISO_RUNTIME" in installer
+assert "/usr/bin/pkexec /usr/bin/calamares" in installer
+assert "polkit.Result.AUTH_SELF" in policy
+assert 'action.lookup("program") === "/usr/bin/calamares"' in policy
+assert 'subject.user === "xorriso"' in policy
+assert "rm -f --" in bootmode and "10-xorriso-autologin.conf" in bootmode
+assert "Before=display-manager.service" in service
+assert "Hidden=true" in hook and "calamares-desktop-icon.desktop" in hook
+assert "mkfs" not in installer and "wipefs" not in installer
+assert "parted " not in installer and "dd if=" not in installer
+
 # Minimal ISO still needs a real X11 window manager. The prior build dropped
 # XFWM4 and produced an X11 login with a black framebuffer.
 assert "xfwm4" in packages and "xdg-user-dirs" in packages
