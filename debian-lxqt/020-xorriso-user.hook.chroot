@@ -67,6 +67,17 @@ if [ -n "${DISPLAY:-}" ] && pgrep -u "$(id -u)" -x lxqt-session >/dev/null 2>&1 
     fi
 fi
 EOF
+# The assistant window is the main user interface; a desktop shortcut remains
+# available for relaunching it after a user closes the window.
+cat > /home/xorriso/.config/autostart/xorriso-ui.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=xorriso IA (iniciar com o desktop)
+Exec=/usr/local/bin/xorriso-ui
+Terminal=false
+OnlyShowIn=LXQt;
+X-LXQt-Need-Tray=false
+EOF
 cat > /home/xorriso/.config/autostart/xorriso-desktop-ready.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
