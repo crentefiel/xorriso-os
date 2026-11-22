@@ -17,6 +17,12 @@ jobs:
         run: |
           bash -n debian-lxqt/build.sh
           sh -n debian-lxqt/020-xorriso-user.hook.chroot
+          sh -n debian-lxqt/mount-volumes.sh
+          sh -n debian-lxqt/start-model.sh
+          grep -q 'ro,noload,nosuid,nodev,noexec' debian-lxqt/mount-volumes.sh
+          grep -q '^NoNewPrivileges=yes' debian-lxqt/xorriso-model.service
+          grep -q 'EXPECTED_MODEL=' debian-lxqt/start-model.sh
+          grep -q 'xorriso-model.service' debian-lxqt/build.sh
           python3 -m py_compile debian-lxqt/xorriso-ui.py
           python3 debian-lxqt/xorriso-ui.py --selftest
           grep -q 'xorriso-ui.py' debian-lxqt/build.sh
