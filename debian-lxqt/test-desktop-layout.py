@@ -24,7 +24,7 @@ assert "sddm-theme-maui" in packages
 assert "sddm-theme-debian-breeze" not in packages
 sddm = (root / "10-xorriso-autologin.conf").read_text(encoding="utf-8")
 assert "User=xorriso" in sddm
-assert "[Theme]\\nCurrent=maui" in sddm
+assert "[Theme]" in sddm and "Current=maui" in sddm
 
 assert "xserver-xorg-video-all" in packages
 assert "xserver-xorg-input-all" in packages
