@@ -95,6 +95,11 @@ Terminal=false
 OnlyShowIn=LXQt;
 X-LXQt-Need-Tray=false
 EOF
+# Global LXQt autostart survives an HD install even if the chosen user's
+# home directory was created without copying the Live /etc/skel template.
+# The per-user copy has the same desktop ID and wins under XDG autostart.
+mkdir -p /etc/xdg/autostart
+cp /etc/skel/.config/autostart/xorriso-ui.desktop /etc/xdg/autostart/xorriso-ui.desktop
 cat > /etc/skel/.config/autostart/xorriso-desktop-ready.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
