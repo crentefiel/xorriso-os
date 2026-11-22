@@ -14,7 +14,7 @@ if [[ -e config ]]; then
 fi
 lb config --mode debian --distribution trixie --architectures amd64 \
   --binary-images iso-hybrid --debian-installer false --initsystem systemd \
-  --archive-areas "main" --apt-indices false --security false --bootappend-live "boot=live components live-config.nocomponents=sudo username=xorriso quiet splash console=ttyS0,115200n8 console=tty0"
+  --archive-areas "main" --apt-indices false --apt-recommends false --security false --bootappend-live "boot=live components live-config.nocomponents=sudo username=xorriso quiet splash console=ttyS0,115200n8 console=tty0"
 # Ubuntu 24.04 bundles live-build 3.0, which only processes config/hooks/*.chroot.
 # Newer live-build expects config/hooks/normal/*.hook.chroot.
 # Select the layout by inspecting the actual installed build helper.
@@ -114,6 +114,31 @@ for expected in \
   fi
 done
 printf '%s\\n' 'PASS: xorriso desktop customization verified in ISO SquashFS.'
+# Validate actual installed Debian packages, not just package-list intentions.
+# A missing theme or a recursive Plasma dependency is a failed minimal image.
+STATUS_FILE="$OUT/xorriso-dpkg-status.txt"
+MANIFEST="$OUT/package-manifest.txt"
+unsquashfs -cat "$SQUASHFS" var/lib/dpkg/status > "$STATUS_FILE"
+awk -F': ' '/^Package: / { package=$2 }
+             /^Status: install ok installed$/ { if (package != "") print package }' \
+    "$STATUS_FILE" | LC_ALL=C sort -u > "$MANIFEST"
+for needed in sddm sddm-theme-maui lxqt-core lxqt-session pcmanfm-qt \
+  qterminal gvfs live-boot live-config user-setup xorg \
+  xserver-xorg-video-all xserver-xorg-input-all python3-tk \
+  plymouth plymouth-themes polkitd pkexec; do
+  grep -Fxq "$needed" "$MANIFEST" || {
+    echo "Required package missing in built ISO: $needed" >&2; exit 7;
+  }
+done
+for unwanted in plasma-workspace plasma-desktop plasma-discover sddm-theme-debian-breeze; do
+  if grep -Fxq "$unwanted" "$MANIFEST"; then
+    echo "Unexpected KDE Plasma component still installed: $unwanted" >&2
+    exit 7
+  fi
+done
+echo "Verified minimal installed package count: $(wc -l < "$MANIFEST")"
+echo "PASS: LXQt runtime and lightweight SDDM without Plasma in SquashFS."
+
 # Ubuntu 24.04's legacy live-build names the resulting file binary.hybrid.iso,
 # whereas current live-build uses live-image-amd64.hybrid.iso. Normalize to
 # one documented CI artifact name and fail early if no real ISO was created.
