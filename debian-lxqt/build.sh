@@ -98,12 +98,13 @@ test -s "$SQUASHFS" || {
   echo "Built ISO is missing its Live root filesystem: $SQUASHFS" >&2; exit 6;
 }
 for expected in \
-  home/xorriso/Desktop/xorriso.desktop \
-  home/xorriso/Desktop/arquivos.desktop \
-  home/xorriso/.config/autostart/xorriso-ui.desktop \
-  usr/local/bin/xorriso-desktop-ready; do
+  etc/skel/Desktop/xorriso.desktop \
+  etc/skel/Desktop/arquivos.desktop \
+  etc/skel/.config/autostart/xorriso-ui.desktop \
+  usr/local/bin/xorriso-desktop-ready \
+  usr/lib/live/config/0030-user-setup; do
   if ! unsquashfs -cat "$SQUASHFS" "$expected" >/dev/null 2>&1; then
-    echo "xorriso customization missing in Live SquashFS: $expected" >&2
+    echo "xorriso desktop skeleton or live-config is missing from Live SquashFS: $expected" >&2
     exit 6
   fi
 done
