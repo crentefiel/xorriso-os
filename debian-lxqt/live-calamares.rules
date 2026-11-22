@@ -1,10 +1,13 @@
-// Installed by systemd ONLY in the writable overlay when boot=live.
-// Require local active xorriso user and own authentication for Calamares only.
+// Root-owned PolicyKit rule is copied at boot ONLY when boot=live.
+// This is an ephemeral Live installer, not a blanket root permission.
+// Calamares itself asks the user to select and confirm a target disk.
+// A separate root-owned wrapper refuses to run if protected VDI labels exist.
 polkit.addRule(function(action, subject) {
-    if (action.id === "org.freedesktop.policykit.exec" &&
-        action.lookup("program") === "/usr/bin/calamares" &&
-        subject.user === "xorriso" &&
-        subject.active && subject.local) {
-        return polkit.Result.AUTH_SELF;
+    if (action.id === "org.xorriso.install.launch" &&
+        action.lookup("program") === "/usr/local/libexec/xorriso/calamares-root" &&
+        subject.user === "xorriso" && subject.active && subject.local) {
+        // Debian Live may not have a usable password. Approve ONLY this
+        // fixed-purpose Live installer; never authorize arbitrary commands.
+        return polkit.Result.YES;
     }
 });
