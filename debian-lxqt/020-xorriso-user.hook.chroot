@@ -59,6 +59,34 @@ mkdir -p /etc/systemd/system/graphical.target.wants
 ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target
 ln -sf /usr/lib/systemd/system/sddm.service /etc/systemd/system/display-manager.service
 ln -sf /usr/lib/systemd/system/sddm.service /etc/systemd/system/graphical.target.wants/sddm.service
+# Debug-only report for live graphical boots: useful when a VM stays black.
+# Runs after the graphical target has been requested; never modifies disks.
+cat > /usr/local/bin/xorriso-boot-diagnostics <<'EOF'
+#!/bin/sh
+sleep 100
+{
+    echo 'XORRISO_BOOT_DIAGNOSTICS_BEGIN'
+    systemctl is-active display-manager.service || true
+    systemctl is-active sddm.service || true
+    systemctl get-default || true
+    ps -eo pid,user,comm,args | grep -E 'sddm|Xorg|Xwayland|lxqt-session' | grep -v grep || true
+    journalctl -b -u sddm.service --no-pager -n 35 || true
+    echo 'XORRISO_BOOT_DIAGNOSTICS_END'
+} > /dev/ttyS0 2>&1 || true
+EOF
+chmod 755 /usr/local/bin/xorriso-boot-diagnostics
+cat > /etc/systemd/system/xorriso-boot-diagnostics.service <<'EOF'
+[Unit]
+Description=xorriso graphical boot diagnostics for testing
+After=graphical.target
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/xorriso-boot-diagnostics
+[Install]
+WantedBy=multi-user.target
+EOF
+mkdir -p /etc/systemd/system/multi-user.target.wants
+ln -sf ../xorriso-boot-diagnostics.service /etc/systemd/system/multi-user.target.wants/xorriso-boot-diagnostics.service
 # Enable optional, read-only volume discovery and local model service.
 mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf ../xorriso-volumes.service /etc/systemd/system/multi-user.target.wants/xorriso-volumes.service
