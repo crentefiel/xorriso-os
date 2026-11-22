@@ -18,6 +18,14 @@ assert "DesktopShortcuts=\n" in hook
 assert "xorriso-ui.desktop" in hook and "OnlyShowIn=LXQt;" in hook
 assert "WallpaperMode=color\n" in hook
 assert "pcmanfm-qt" in packages
+# Minimal ISO still needs a real X11 window manager. The prior build dropped
+# XFWM4 and produced an X11 login with a black framebuffer.
+assert "xfwm4" in packages and "xdg-user-dirs" in packages
+assert "window_manager=xfwm4" in hook
+assert "etc/skel/.config/lxqt/session.conf" in build
+assert "lxqt-session" in hook and "pgrep -u" in hook
+assert "pcmanfm-qt" in hook
+assert "xfwm4" in build
 # The optimized image must not pull KDE Plasma through SDDM recommends.
 assert "--apt-recommends false" in build
 assert "sddm-theme-maui" in packages
