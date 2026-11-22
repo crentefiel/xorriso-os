@@ -34,5 +34,11 @@ test -s "$LIVE_ROOTFS" || {
     echo "Calamares: imagem Live corrompida ou ilegivel: $LIVE_ROOTFS" >&2
     exit 9
 }
+if [ -d /sys/firmware/efi/efivars ]; then
+    set -- grub-efi grub-efi-amd64
+else
+    set -- grub-pc
+fi
+/usr/local/libexec/xorriso/check-grub-media /run/live/medium "$@"
 # Calamares itself displays and asks confirmation of all target disk changes.
 exec /usr/bin/calamares

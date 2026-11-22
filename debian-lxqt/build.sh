@@ -33,6 +33,11 @@ mkdir -p config/archives
 # Debian 13 security suite is trixie-security under /debian-security.
 printf '%s\n' 'deb http://security.debian.org/debian-security trixie-security main' > config/archives/debian-security.list.chroot
 cp "$ROOT/package-list.chroot" config/package-lists/xorriso.list.chroot
+# Debian's Calamares sources-media helper installs the firmware-specific
+# package from the ISO's own APT repository. The front ends conflict when
+# installed together, so live-build resolves their download lists separately.
+printf '%s\n' grub-pc > config/package-lists/grub-bios.list.binary
+printf '%s\n' grub-efi > config/package-lists/grub-efi.list.binary
 cp "$ROOT/10-xorriso-autologin.conf" config/includes.chroot/etc/sddm.conf.d/10-xorriso-autologin.conf
 install -m 755 "$ROOT/020-xorriso-user.hook.chroot" "$HOOK_DEST/020-xorriso-user.hook.chroot"
 cp "$ROOT/README.md" config/includes.chroot/usr/local/share/xorriso/MIGRATION.md
@@ -47,6 +52,7 @@ mkdir -p config/includes.chroot/usr/local/libexec/xorriso config/includes.chroot
 install -m 755 "$ROOT/admin-package.py" config/includes.chroot/usr/local/libexec/xorriso/admin-package
 install -m 755 "$ROOT/admin-service.py" config/includes.chroot/usr/local/libexec/xorriso/admin-service
 install -m 755 "$ROOT/calamares-root.sh" config/includes.chroot/usr/local/libexec/xorriso/calamares-root
+install -m 755 "$ROOT/check-grub-media.sh" config/includes.chroot/usr/local/libexec/xorriso/check-grub-media
 install -m 755 "$ROOT/mount-volumes.sh" config/includes.chroot/usr/local/libexec/xorriso/mount-volumes.sh
 install -m 755 "$ROOT/start-model.sh" config/includes.chroot/usr/local/libexec/xorriso/start-model.sh
 install -m 755 "$ROOT/xorriso-run-model.py" config/includes.chroot/usr/local/libexec/xorriso/run-model.py
@@ -110,6 +116,7 @@ if [ -f config/bootloaders/isolinux/splash.svg ]; then
 fi
 echo "Building Debian LXQt live ISO in $OUT"
 sudo lb build
+sh "$ROOT/check-grub-media.sh" "$OUT/binary" grub-pc grub-efi grub-efi-amd64
 # live-build deletes its temporary chroot during lb build. Inspect the actual
 # compressed root filesystem that will ship inside the ISO, not OUT/chroot.
 SQUASHFS="$OUT/binary/live/filesystem.squashfs"
@@ -140,6 +147,10 @@ for expected in \
   etc/calamares/settings.conf \
   usr/bin/calamares \
   usr/bin/unsquashfs \
+  usr/sbin/grub-install \
+  usr/sbin/update-grub \
+  usr/share/grub/default/grub \
+  usr/local/libexec/xorriso/check-grub-media \
   usr/local/bin/xorriso-trust-launchers \
   usr/share/plymouth/themes/tribar/tribar.plymouth \
   usr/sbin/update-cracklib \
@@ -162,7 +173,7 @@ awk -F': ' '/^Package: / { package=$2 }
              /^Status: install ok installed$/ { if (package != "") print package }' \
     "$STATUS_FILE" | LC_ALL=C sort -u > "$MANIFEST"
 for needed in sddm sddm-theme-maui lxqt-core lxqt-session xfwm4 xdg-user-dirs pcmanfm-qt \
-  calamares calamares-settings-debian squashfs-tools grub-pc-bin grub-efi-amd64-bin efibootmgr \
+  calamares calamares-settings-debian squashfs-tools grub2-common grub-pc-bin grub-efi-amd64-bin efibootmgr \
   qterminal gvfs live-boot live-config user-setup xorg \
   xserver-xorg-video-all xserver-xorg-input-all python3-tk \
   plymouth plymouth-themes polkitd pkexec \

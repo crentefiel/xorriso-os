@@ -342,6 +342,22 @@
         "https://packages.debian.org/trixie/amd64/squashfs-tools/filelist",
         "https://github.com/crentefiel/xorriso-os/pull/27"
       ]
+    },
+    {
+      "id": "XOS-015",
+      "title": "Calamares termina com código 127 ao instalar o GRUB em modo BIOS",
+      "fingerprint": ["calamares-bootloader-config", "Package 'grub-pc' has no installation candidate", "/etc/default/grub", "/usr/sbin/update-grub", "127"],
+      "status": "correção na imagem e teste de regressão offline",
+      "root_cause_status": "confirmada pelo vídeo, pela composição da ISO anterior e pelo instalador do Debian",
+      "cause": "O Calamares instala grub-pc a partir do repositório APT da mídia em modo BIOS. A ISO anterior continha grub-pc-bin, porém não oferecia grub-pc no repositório nem trazia grub2-common no sistema a ser copiado.",
+      "fix": "Incluir grub2-common no sistema Live, distribuir grub-pc e grub-efi com suas dependências no repositório da ISO e conferir o índice e os arquivos antes de abrir o instalador.",
+      "evidence": ["20261122_202128.mp4, por volta de 4min58s e 5min09s, no VirtualBox em BIOS", "O instalador passou de unpackfs antes de falhar em bootloader-config."],
+      "verification": "O CI executa os auxiliares Debian de mídia e bootloader em QEMU sem placa de rede, instala GRUB num disco temporário e tenta iniciar pelo sistema ext4 depois de retirar a ISO. A instalação gráfica completa no VirtualBox é uma verificação separada.",
+      "references": [
+        "https://sources.debian.org/src/calamares-settings-debian/13.0.13-1/helpers/calamares-bootloader-config/",
+        "https://packages.debian.org/trixie/amd64/grub2-common/filelist",
+        "https://github.com/crentefiel/xorriso-os/pull/27"
+      ]
     }
   ]
 }

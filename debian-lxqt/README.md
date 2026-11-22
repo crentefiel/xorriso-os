@@ -215,3 +215,11 @@ Video do usuario `20261122_194919.mp4` (164 s), aos ~150 s: Calamares exibiu **F
 **Riscos:** no video o Calamares estava configurado para **Limpar disco /dev/sda (VBOX HARDDISK) de 21,87 GiB**. Isso pode ter criado/formatado particoes antes da falha. Continuar apenas com um HD virtual novo, vazio e descartavel; nunca usar `XORRISO_DATA` ou `XORRISO_RUNTIME`. Nao afirmar que o instalador ja instalou com sucesso: ainda exige um teste de instalacao no HD novo, usuario/senha, boot sem ISO, acesso a IA LFM2.5-350M e download real do GGUF.
 
 Fontes: https://github.com/calamares/calamares/blob/calamares/src/modules/unpackfs/main.py ; https://packages.debian.org/trixie/amd64/squashfs-tools/filelist .
+
+## XOS-015 — Falha ao instalar o GRUB no modo BIOS
+
+No vídeo `20261122_202128.mp4`, o Calamares chega à instalação do carregador de inicialização. Aos 4min58s aparece o código 127. Aos 5min09s o relatório mostra que o APT não encontrou `grub-pc` e que o sistema copiado para o disco não tinha `/usr/sbin/update-grub`.
+
+A imagem inclui `grub2-common` no sistema copiado e leva os pacotes de BIOS e EFI em seu próprio repositório APT. O instalador confere o índice e a presença dos arquivos para o modo de inicialização atual antes da tela de particionamento. O procedimento do Debian está no [auxiliar do Calamares](https://sources.debian.org/src/calamares-settings-debian/13.0.13-1/helpers/calamares-bootloader-config/).
+
+O teste `test-bios-install.sh` inicia a ISO em QEMU sem rede, usa os auxiliares do Calamares para preparar o GRUB em um disco vazio e inicia uma segunda VM somente com esse disco. A aprovação exige que o Linux montado a partir da partição ext4 confirme o primeiro boot. Para reproduzir o fluxo gráfico do vídeo, use o VirtualBox em modo BIOS com um VDI novo e vazio. Mantenha `XORRISO_DATA` e `XORRISO_RUNTIME` desconectados.

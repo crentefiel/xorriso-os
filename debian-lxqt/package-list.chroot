@@ -49,6 +49,8 @@ calamares
 calamares-settings-debian
 # Calamares unpackfs needs the executable inside the Live guest, not only in CI.
 squashfs-tools
+# The target needs grub-install and update-grub before its first boot.
+grub2-common
 grub-pc-bin
 grub-efi-amd64-bin
 efibootmgr
