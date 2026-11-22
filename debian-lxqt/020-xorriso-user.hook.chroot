@@ -1,19 +1,21 @@
 #!/bin/sh
 set -eu
-if ! id xorriso >/dev/null 2>&1; then
-    useradd -m -s /bin/bash -G audio,video,netdev,dialout xorriso
+# Debian live-config/user-setup creates the 'xorriso' user at BOOT, not build.
+# Pre-creating it here makes its user-setup component silently exit.
+# /etc/skel is copied into the real home by user-setup after account creation.
+if id xorriso >/dev/null 2>&1; then
+    echo 'Refusing to pre-create xorriso user in the Live image' >&2
+    exit 20
 fi
-# No passwordless root. The agent must request privilege via audited service.
-passwd -l xorriso
-mkdir -p /home/xorriso/.config/lxqt /home/xorriso/.config/autostart /home/xorriso/.config/pcmanfm-qt/lxqt /home/xorriso/Desktop /usr/local/bin
-cat > /home/xorriso/.config/lxqt/panel.conf <<'EOF'
+mkdir -p /etc/skel/.config/lxqt /etc/skel/.config/autostart /etc/skel/.config/pcmanfm-qt/lxqt /etc/skel/Desktop /usr/local/bin
+cat > /etc/skel/.config/lxqt/panel.conf <<'EOF'
 [General]
 __userfile__=true
 panels=0
 EOF
 # PCManFM-Qt manages the desktop AND provides a normal graphical file browser.
 # Keep both functions; only hide its built-in Home/Trash/Computer/Network icons.
-cat > /home/xorriso/.config/pcmanfm-qt/lxqt/settings.conf <<'EOF'
+cat > /etc/skel/.config/pcmanfm-qt/lxqt/settings.conf <<'EOF'
 [Behavior]
 UseTrash=true
 ConfirmDelete=true
@@ -26,7 +28,7 @@ FgColor=#ffffff
 MountOnStartup=false
 AutoRun=false
 EOF
-cat > /home/xorriso/Desktop/xorriso.desktop <<'EOF'
+cat > /etc/skel/Desktop/xorriso.desktop <<'EOF'
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -37,7 +39,7 @@ Icon=system-run
 Terminal=false
 Categories=Utility;
 EOF
-cat > /home/xorriso/Desktop/arquivos.desktop <<'EOF'
+cat > /etc/skel/Desktop/arquivos.desktop <<'EOF'
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -62,14 +64,13 @@ sleep 5
 if [ -n "${DISPLAY:-}" ] && pgrep -u "$(id -u)" -x lxqt-session >/dev/null 2>&1 &&
    /usr/bin/xset -q >/dev/null 2>&1; then
     printf '%s\\n' 'XORRISO_LXQT_DESKTOP_READY' > /tmp/xorriso-desktop-ready
-    if [ -w /dev/ttyS0 ]; then
-        printf '%s\\r\\n' 'XORRISO_LXQT_DESKTOP_READY' > /dev/ttyS0
-    fi
+    # The regular user may not have permission to write /dev/ttyS0.
+    # The independent root-owned boot-diagnostics service forwards it.
 fi
 EOF
 # The assistant window is the main user interface; a desktop shortcut remains
 # available for relaunching it after a user closes the window.
-cat > /home/xorriso/.config/autostart/xorriso-ui.desktop <<'EOF'
+cat > /etc/skel/.config/autostart/xorriso-ui.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=xorriso IA (iniciar com o desktop)
@@ -78,7 +79,7 @@ Terminal=false
 OnlyShowIn=LXQt;
 X-LXQt-Need-Tray=false
 EOF
-cat > /home/xorriso/.config/autostart/xorriso-desktop-ready.desktop <<'EOF'
+cat > /etc/skel/.config/autostart/xorriso-desktop-ready.desktop <<'EOF'
 [Desktop Entry]
 Type=Application
 Name=xorriso desktop verification
@@ -88,8 +89,9 @@ X-LXQt-Need-Tray=false
 OnlyShowIn=LXQt;
 EOF
 chmod 755 /usr/local/bin/xorriso-desktop-ready
-chmod 755 /usr/local/bin/xorriso-ui /home/xorriso/Desktop/xorriso.desktop /home/xorriso/Desktop/arquivos.desktop
-chown -R xorriso:xorriso /home/xorriso/.config /home/xorriso/Desktop
+chmod 755 /usr/local/bin/xorriso-ui /etc/skel/Desktop/xorriso.desktop /etc/skel/Desktop/arquivos.desktop
+# Do not chown the skeleton to a user that does not yet exist.
+# live-config/user-setup will copy and chown these files on first boot.
 # Old live-build can omit the display-manager enablement in a chroot.
 # Explicitly boot the graphical target and SDDM for live sessions.
 mkdir -p /etc/systemd/system/graphical.target.wants
@@ -114,6 +116,19 @@ sleep 60
     systemctl --failed --no-pager || true
     echo 'XORRISO_BOOT_DIAGNOSTICS_END'
 } > /dev/ttyS0 2>&1 || true
+# Forward the marker only AFTER the real LXQt X11 session created it.
+# This process is only a test probe; it never mounts or modifies disk volumes.
+attempt=0
+while [ "$attempt" -lt 170 ]; do
+    if [ -f /tmp/xorriso-desktop-ready ] && 
+       grep -Fxq 'XORRISO_LXQT_DESKTOP_READY' /tmp/xorriso-desktop-ready; then
+        printf '%s\\n' 'XORRISO_LXQT_DESKTOP_READY' > /dev/ttyS0 || true
+        exit 0
+    fi
+    attempt=$((attempt + 1))
+    sleep 3
+done
+echo 'XORRISO_LXQT_DESKTOP_TIMEOUT' > /dev/ttyS0 || true
 EOF
 chmod 755 /usr/local/bin/xorriso-boot-diagnostics
 cat > /etc/systemd/system/xorriso-boot-diagnostics.service <<'EOF'
