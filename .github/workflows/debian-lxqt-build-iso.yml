@@ -1,7 +1,8 @@
 name: xorriso Debian LXQt - build live ISO
 on:
   push:
-    branches: [feat/debian-lxqt-foundation]
+    branches: [feat/debian-lxqt-foundation, feat/alpha-016-ai-admin-agent]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,19 +17,61 @@ jobs:
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             live-build debootstrap debian-archive-keyring xorriso squashfs-tools \
-            syslinux-common isolinux mtools grub-pc-bin grub-efi-amd64-bin python3-tk python3-pil qemu-system-x86
+            syslinux-common syslinux-utils isolinux mtools cpio librsvg2-bin grub-pc-bin grub-efi-amd64-bin python3-tk python3-pil qemu-system-x86
+      - name: Verify ISO bootloader tools
+        run: |
+          command -v isohybrid
+          command -v xorriso
+          test -s /usr/lib/ISOLINUX/isolinux.bin
+      - name: Fix legacy Ubuntu live-build Debian Contents URL
+        run: |
+          # Ubuntu 24.04 ships an old live-build helper looking in /dists/trixie/Contents-amd64.gz.
+          # Debian 13 publishes this index under /dists/trixie/main/Contents-amd64.gz.
+          script=/usr/lib/live/build/lb_chroot_linux-image
+          test -f "$script"
+          sudo sed -i 's|/dists/${LB_DISTRIBUTION}/Contents-|/dists/${LB_DISTRIBUTION}/main/Contents-|g; s|/dists/${LB_PARENT_DISTRIBUTION}/Contents-|/dists/${LB_PARENT_DISTRIBUTION}/main/Contents-|g' "$script"
+          grep -F 'main/Contents-' "$script"
+      - name: Fix removed rsvg CLI in old live-build Syslinux template
+        run: |
+          script=/usr/lib/live/build/lb_binary_syslinux
+          test -f "$script"
+          # Ubuntu live-build 3.x invokes the removed command with a positional
+          # output file; Debian 13 rsvg-convert requires "-o" instead.
+          grep -F 'rsvg --format png --height 480 --width 640 splash.svg splash.png' "$script"
+          sudo sed -i 's|rsvg --format png --height 480 --width 640 splash.svg splash.png|rsvg-convert --format png --height 480 --width 640 splash.svg -o splash.png|g' "$script"
+          grep -F 'rsvg-convert --format png --height 480 --width 640 splash.svg -o splash.png' "$script"
+          ! grep -F 'rsvg --format png --height 480 --width 640 splash.svg splash.png' "$script"
       - name: Check scripts and desktop app
         run: |
           bash -n debian-lxqt/build.sh
           sh -n debian-lxqt/mount-volumes.sh
           sh -n debian-lxqt/start-model.sh
           sh -n debian-lxqt/020-xorriso-user.hook.chroot
-          python3 -m py_compile debian-lxqt/xorriso-ui.py
+          python3 -m py_compile debian-lxqt/xorriso-ui.py debian-lxqt/xorriso-agent.py debian-lxqt/admin-package.py
+          python3 debian-lxqt/test-agent.py
           python3 debian-lxqt/xorriso-ui.py --selftest
+          grep -q 'XORRISO_LXQT_DESKTOP_READY' debian-lxqt/020-xorriso-user.hook.chroot
+          grep -q 'XORRISO_LXQT_DESKTOP_READY' debian-lxqt/test-debian-qemu.py
       - name: Build Debian 13 LXQt live ISO
         run: timeout 55m bash debian-lxqt/build.sh
-      - name: Boot ISO and check graphical framebuffer in QEMU
-        run: timeout 210s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
+      - name: Verify unattended normal Live boot configuration
+        run: |
+          mkdir -p /tmp/xorriso-isolinux
+          xorriso -osirrox on -indev debian-lxqt/work/live-image-amd64.hybrid.iso \
+            -extract /isolinux/isolinux.cfg /tmp/xorriso-isolinux/isolinux.cfg \
+            -extract /isolinux/live.cfg /tmp/xorriso-isolinux/live.cfg
+          grep -Eq '^[[:space:]]*timeout[[:space:]]+50' /tmp/xorriso-isolinux/isolinux.cfg
+          test "$(grep -ic '^[[:space:]]*menu default[[:space:]]*$' /tmp/xorriso-isolinux/live.cfg)" -eq 1
+      - name: Boot ISO and verify LXQt desktop session in QEMU
+        run: timeout 330s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
+      - name: Upload QEMU boot failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xorriso-lxqt-boot-diagnostics
+          path: debian-lxqt/work/boot-diagnostics/
+          retention-days: 7
+          if-no-files-found: warn
       - name: Validate ISO image
         run: |
           test -s debian-lxqt/work/live-image-amd64.hybrid.iso

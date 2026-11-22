@@ -1,11 +1,11 @@
 #!/bin/sh
 set -eu
 if ! id xorriso >/dev/null 2>&1; then
-    useradd -m -s /bin/bash -G audio,video,netdev xorriso
+    useradd -m -s /bin/bash -G audio,video,netdev,dialout xorriso
 fi
 # No passwordless root. The agent must request privilege via audited service.
 passwd -l xorriso
-mkdir -p /home/xorriso/.config/lxqt /home/xorriso/Desktop /usr/local/bin
+mkdir -p /home/xorriso/.config/lxqt /home/xorriso/.config/autostart /home/xorriso/Desktop /usr/local/bin
 cat > /home/xorriso/.config/lxqt/panel.conf <<'EOF'
 [General]
 __userfile__=true
@@ -27,8 +27,66 @@ cat > /usr/local/bin/xorriso-ui <<'EOF'
 # Temporary launcher: never invent an AI answer or claim it executed a command.
 exec /usr/bin/python3 /usr/local/bin/xorriso-ui.py
 EOF
+# Boot diagnostic: only an actually running LXQt desktop session can emit
+# this serial marker. The QEMU smoke test must see it, not merely a lit BIOS screen.
+cat > /usr/local/bin/xorriso-desktop-ready <<'EOF'
+#!/bin/sh
+# Launched through the LXQt session's XDG autostart, not from system boot.
+sleep 5
+if [ -n "${DISPLAY:-}" ] && pgrep -u "$(id -u)" -x lxqt-session >/dev/null 2>&1 &&
+   /usr/bin/xset -q >/dev/null 2>&1; then
+    printf '%s\\n' 'XORRISO_LXQT_DESKTOP_READY' > /tmp/xorriso-desktop-ready
+    if [ -w /dev/ttyS0 ]; then
+        printf '%s\\r\\n' 'XORRISO_LXQT_DESKTOP_READY' > /dev/ttyS0
+    fi
+fi
+EOF
+cat > /home/xorriso/.config/autostart/xorriso-desktop-ready.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=xorriso desktop verification
+Exec=/usr/local/bin/xorriso-desktop-ready
+Terminal=false
+X-LXQt-Need-Tray=false
+OnlyShowIn=LXQt;
+EOF
+chmod 755 /usr/local/bin/xorriso-desktop-ready
 chmod 755 /usr/local/bin/xorriso-ui /home/xorriso/Desktop/xorriso.desktop
 chown -R xorriso:xorriso /home/xorriso/.config /home/xorriso/Desktop
+# Old live-build can omit the display-manager enablement in a chroot.
+# Explicitly boot the graphical target and SDDM for live sessions.
+mkdir -p /etc/systemd/system/graphical.target.wants
+ln -sf /usr/lib/systemd/system/graphical.target /etc/systemd/system/default.target
+ln -sf /usr/lib/systemd/system/sddm.service /etc/systemd/system/display-manager.service
+ln -sf /usr/lib/systemd/system/sddm.service /etc/systemd/system/graphical.target.wants/sddm.service
+# Debug-only report for live graphical boots: useful when a VM stays black.
+# Runs after the graphical target has been requested; never modifies disks.
+cat > /usr/local/bin/xorriso-boot-diagnostics <<'EOF'
+#!/bin/sh
+sleep 100
+{
+    echo 'XORRISO_BOOT_DIAGNOSTICS_BEGIN'
+    systemctl is-active display-manager.service || true
+    systemctl is-active sddm.service || true
+    systemctl get-default || true
+    ps -eo pid,user,comm,args | grep -E 'sddm|Xorg|Xwayland|lxqt-session' | grep -v grep || true
+    journalctl -b -u sddm.service --no-pager -n 35 || true
+    echo 'XORRISO_BOOT_DIAGNOSTICS_END'
+} > /dev/ttyS0 2>&1 || true
+EOF
+chmod 755 /usr/local/bin/xorriso-boot-diagnostics
+cat > /etc/systemd/system/xorriso-boot-diagnostics.service <<'EOF'
+[Unit]
+Description=xorriso graphical boot diagnostics for testing
+After=graphical.target
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/xorriso-boot-diagnostics
+[Install]
+WantedBy=multi-user.target
+EOF
+mkdir -p /etc/systemd/system/multi-user.target.wants
+ln -sf ../xorriso-boot-diagnostics.service /etc/systemd/system/multi-user.target.wants/xorriso-boot-diagnostics.service
 # Enable optional, read-only volume discovery and local model service.
 mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf ../xorriso-volumes.service /etc/systemd/system/multi-user.target.wants/xorriso-volumes.service
