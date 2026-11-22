@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xorriso OS — Desktop IA (protótipo)</title>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:#eaf0fa;background:#0a1120}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;overflow:hidden}
+.desktop{position:relative;height:100vh;min-height:440px;overflow:hidden;background:radial-gradient(ellipse at 80% 80%,#382650 0%,transparent 55%),linear-gradient(125deg,#172b3d 0%,#111826 42%,#10172a 100%)}
+.desktop:before,.desktop:after{content:"";position:absolute;pointer-events:none;inset:30% -20% -50%;border-radius:48% 52% 0 0;transform:rotate(-19deg);background:linear-gradient(80deg,#182e35aa,#262b4d88,#462c5888)}
+.desktop:after{inset:60% -25% -25%;transform:rotate(-12deg);background:linear-gradient(60deg,#1d393b66,#40335d88)}
+.brand{position:absolute;top:12%;width:100%;text-align:center;font-size:clamp(28px,4vw,56px);font-weight:650;letter-spacing:-.05em;text-shadow:0 4px 24px #0007}
+.brand small{font-size:.28em;vertical-align:top;letter-spacing:0;margin-left:4px}
+.shortcut{position:absolute;top:28%;left:12%;display:flex;align-items:center;flex-direction:column;gap:7px;width:92px;border:1px solid transparent;border-radius:12px;padding:10px 4px;background:transparent;color:white;cursor:pointer}
+.shortcut:hover,.shortcut:focus-visible{background:#fff2;border-color:#ffffff40;outline:none}
+.shortcut .symbol{font-size:35px;display:grid;place-items:center;width:60px;height:60px;border-radius:13px;background:linear-gradient(135deg,#36bde9,#2851a6);box-shadow:0 6px 20px #0008,inset 0 1px 2px #fff7}
+.taskbar{position:absolute;bottom:0;left:0;right:0;height:42px;background:#0c131bc9;border-top:1px solid #ffffff22;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:13px}
+.taskbutton{border:0;border-radius:7px;background:#ffffff17;color:#eaf0fa;padding:7px 12px;cursor:pointer}
+.taskbutton:hover{background:#ffffff35}
+.window{position:absolute;left:50%;top:49%;transform:translate(-50%,-50%);width:min(860px,92vw);height:min(580px,82vh);min-width:320px;min-height:300px;display:flex;flex-direction:column;background:#111824;border:1px solid #ffffff30;border-radius:14px;box-shadow:0 30px 80px #000b;overflow:hidden}
+.window.hidden{display:none}
+.window.maximized{left:12px!important;top:12px!important;transform:none;width:calc(100vw - 24px);height:calc(100vh - 62px)}
+.titlebar{height:46px;background:#192330;display:flex;align-items:center;justify-content:space-between;padding:0 13px;cursor:move;user-select:none}
+.titlebar strong{font-size:14px;font-weight:650}
+.controls{display:flex;gap:6px}
+.controls button{background:#ffffff13;border:0;border-radius:7px;color:white;width:31px;height:28px;cursor:pointer}
+.controls button:hover{background:#ffffff35}
+.app{display:flex;min-height:0;flex:1}
+.sidebar{width:194px;border-right:1px solid #ffffff18;background:#141d29;display:flex;flex-direction:column;padding:12px;gap:9px}
+.sidebar button{background:#ffffff12;color:white;border:0;border-radius:8px;padding:10px;text-align:left;cursor:pointer}
+.sidebar button:hover{background:#ffffff28}
+.history{overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:5px}
+.history button{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.main{display:flex;flex:1;flex-direction:column;min-width:0}
+.status{padding:10px 18px;border-bottom:1px solid #ffffff12;font-size:12px;color:#e0b771;background:#231f1d}
+.messages{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:15px}
+.message{max-width:85%;padding:11px 14px;border-radius:13px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5;font-size:14px}
+.message.user{background:#234d74;align-self:flex-end}
+.message.assistant{background:#202b3b;align-self:flex-start}
+.compose{display:flex;gap:8px;padding:13px;border-top:1px solid #ffffff17}
+.compose input{flex:1;min-width:0;padding:12px;border-radius:10px;background:#263244;border:1px solid #ffffff20;color:white;font:inherit}
+.compose input:focus{outline:2px solid #398bc3}
+.compose button{background:#2883bc;border:0;border-radius:10px;color:white;font-weight:bold;padding:0 16px;cursor:pointer}
+.compose button:hover{background:#379bd7}
+.note{padding:0 15px 12px;color:#a9b7c9;font-size:11px}
+@media(max-width:580px){.sidebar{width:125px;padding:7px}.messages{padding:12px}.brand{top:8%}.shortcut{left:6%;top:22%}.window{height:77vh}}
+</style>
+</head>
+<body>
+<div class="desktop">
+  <div class="brand">xorriso<small>OS</small></div>
+  <button class="shortcut" id="desktopAi" aria-label="Abrir a IA" title="Abrir a IA"><span class="symbol" aria-hidden="true">✦</span><span>IA</span></button>
+  <section class="window hidden" id="aiWindow" aria-label="Janela da IA">
+    <header class="titlebar" id="titlebar"><strong>✦ xorriso IA</strong><div class="controls">
+      <button id="minimize" title="Minimizar" aria-label="Minimizar">—</button>
+      <button id="maximize" title="Maximizar" aria-label="Maximizar">□</button>
+      <button id="close" title="Fechar" aria-label="Fechar">×</button>
+    </div></header>
+    <div class="app">
+      <nav class="sidebar" aria-label="Histórico"><button id="newChat">+ Nova conversa</button><div class="history" id="history"></div></nav>
+      <main class="main">
+        <div class="status" role="status">MiniCPM via serviço local — executor Linux desativado</div>
+        <div class="messages" id="messages" aria-live="polite"></div>
+        <form class="compose" id="form"><input id="prompt" placeholder="Digite sua mensagem..." autocomplete="off" aria-label="Mensagem"><button type="submit">Enviar</button></form>
+        <div class="note">Somente texto nesta etapa. A conexão à IA usa o serviço local; nenhuma ação Linux é executada.</div>
+      </main>
+    </div>
+  </section>
+  <footer class="taskbar"><span>xorriso OS</span><button class="taskbutton" id="taskAi">✦ IA</button></footer>
+</div>
+<script>
+(()=>{
+"use strict";
+const $=id=>document.getElementById(id);
+const windowEl=$("aiWindow"), messages=$("messages"), history=$("history"), prompt=$("prompt");
+const sessions=[];let current=null;
+function createSession(){const session={id:Date.now()+Math.random(),title:"Nova conversa",items:[{role:"assistant",text:"Olá! Sou a interface de texto do xorriso. Se o MiniCPM estiver funcionando no serviço local, podemos conversar aqui. Ainda não executo comandos Linux."}]};sessions.unshift(session);current=session;render();return session}
+function add(role,text){current.items.push({role,text});if(role==="user"&&current.title==="Nova conversa")current.title=text.slice(0,34);render()}
+function render(){messages.replaceChildren();for(const item of current.items){const el=document.createElement("div");el.className="message "+item.role;el.textContent=item.text;messages.append(el)}messages.scrollTop=messages.scrollHeight;history.replaceChildren();for(const s of sessions){const btn=document.createElement("button");btn.textContent=s.title;btn.title=s.title;btn.setAttribute("aria-current",String(s===current));btn.onclick=()=>{current=s;render()};history.append(btn)}}
+function show(){windowEl.classList.remove("hidden");prompt.focus()}
+function hide(){windowEl.classList.add("hidden")}
+$("desktopAi").addEventListener("click",show);$("taskAi").addEventListener("click",()=>windowEl.classList.contains("hidden")?show():hide());
+$("minimize").addEventListener("click",hide);$("close").addEventListener("click",hide);
+$("maximize").addEventListener("click",()=>{windowEl.classList.toggle("maximized");windowEl.style.left="";windowEl.style.top=""});
+$("newChat").addEventListener("click",()=>{createSession();prompt.focus()});
+$("form").addEventListener("submit",async event=>{event.preventDefault();const message=prompt.value.trim();if(!message)return;const historyCopy=current.items.slice(1).map(item=>({role:item.role,content:item.text}));prompt.value="";add("user",message);const btn=$("form").querySelector("button");btn.disabled=true;btn.textContent="...";try{const response=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message,history:historyCopy})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Falha na IA");add("assistant",data.answer)}catch(error){add("assistant","Não foi possível falar com o MiniCPM: "+error.message)}finally{btn.disabled=false;btn.textContent="Enviar";prompt.focus()}});
+let dragging=false,dx=0,dy=0;
+$("titlebar").addEventListener("pointerdown",event=>{if(event.target.closest("button")||windowEl.classList.contains("maximized"))return;dragging=true;const rect=windowEl.getBoundingClientRect();windowEl.style.transform="none";windowEl.style.left=rect.left+"px";windowEl.style.top=rect.top+"px";dx=event.clientX-rect.left;dy=event.clientY-rect.top;event.currentTarget.setPointerCapture(event.pointerId)});
+$("titlebar").addEventListener("pointermove",event=>{if(!dragging)return;windowEl.style.left=Math.max(0,Math.min(innerWidth-100,event.clientX-dx))+"px";windowEl.style.top=Math.max(0,Math.min(innerHeight-85,event.clientY-dy))+"px"});
+$("titlebar").addEventListener("pointerup",()=>dragging=false);
+createSession();
+})();
+</script>
+</body></html>

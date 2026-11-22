@@ -22,24 +22,34 @@ ensure_root() {
  fi
  [ -d "$ROOT" ] && [ ! -L "$ROOT" ] || return 3
 }
-create_folder() {
+# A folder name is DATA, not a shell command. Unicode UTF-8 bytes are allowed
+# so Brazilian Portuguese names work. Reject paths, controls and shell punctuation.
+valid_name() {
  name=$1
- [ "${#name}" -gt 0 ] && [ "${#name}" -le 64 ] || {
-  echo 'Nome deve ter de 1 a 64 caracteres.'; return 3;
+ [ -n "$name" ] && [ "${#name}" -le 120 ] || {
+  echo 'Nome deve ter de 1 a 120 bytes.'; return 3;
  }
- # Permit only simple human names; reject traversal, slashes, shell metacharacters.
- # No eval, no sh -c, no interpretation of model text.
- # Validate the ENTIRE string, including line breaks: grep may accept one
- # valid line of a malicious multi-line filename. No control characters.
  case "$name" in
-  [A-Za-z0-9]*) : ;;
-  *) echo 'Nome deve iniciar com letra ou numero.'; return 3 ;;
+  .*|*/*) echo 'Use apenas o nome da pasta, sem caminho nem nome oculto.'; return 3 ;;
  esac
- allowed=$(printf '%s' "$name" | LC_ALL=C tr -cd 'A-Za-z0-9 _-')
- if [ "$allowed" != "$name" ]; then
-  echo 'Nome invalido. Use letras sem acentos, numeros, espaco, _ ou -.'
+ # od+awk validate every byte, not only the first line. UTF-8 bytes >= 128
+ # are accepted as data; the model result is never interpreted by a shell.
+ if ! printf '%s' "$name" | od -An -tu1 | awk '
+  { for (i=1; i<=NF; i++) {
+    b=$i+0
+    if (!(b>=128 || (b>=48&&b<=57) || (b>=65&&b<=90) ||
+          (b>=97&&b<=122) || b==32 || b==45 || b==46 || b==95))
+      bad=1
+  }}
+  END { exit bad ? 1 : 0 }
+ '; then
+  echo 'Nome invalido. Use letras, acentos, numeros, espaco, ponto, _ ou -.'
   return 3
  fi
+}
+create_folder() {
+ name=$1
+ valid_name "$name" || return 3
  ensure_root || return 3
  target="$ROOT/$name"
  if [ -L "$target" ]; then echo 'Link simbolico nao permitido.'; return 3; fi
@@ -54,6 +64,17 @@ create_folder() {
   return 3
  fi
 }
+check_folder() {
+ name=$1
+ valid_name "$name" || return 3
+ ensure_root || return 3
+ if [ -d "$ROOT/$name" ] && [ ! -L "$ROOT/$name" ]; then
+  echo "Pasta existe e foi verificada: $ROOT/$name"
+ else
+  echo "Pasta nao encontrada: $ROOT/$name"
+  return 1
+ fi
+}
 list_folders() {
  ensure_root || return 3
  echo "Pastas em $ROOT:"
@@ -63,12 +84,69 @@ list_folders() {
   printf '%s\n' "${entry##*/}"
  done
 }
+# New files are created only inside the user document directory.
+# Contents are passed as an argument, never evaluated as shell code.
+create_file() {
+ name=$1
+ content=$2
+ valid_name "$name" || return 3
+ [ "${#content}" -le 4096 ] || {
+  echo 'Conteudo excede 4096 bytes.'; return 3;
+ }
+ ensure_root || return 3
+ target="$ROOT/$name"
+ if [ -e "$target" ] || [ -L "$target" ]; then
+  echo 'Ja existe um arquivo ou pasta com este nome; nada foi sobrescrito.'
+  return 3
+ fi
+ # noclobber rejects replacement even if another regular file appeared.
+ if (set -C; umask 077; printf '%s' "$content" > "$target") &&
+   [ -f "$target" ] && [ ! -L "$target" ]; then
+  echo "Arquivo criado e verificado: $target"
+ else
+  echo 'Nao foi possivel criar o arquivo.'
+  return 3
+ fi
+}
+read_file() {
+ name=$1
+ valid_name "$name" || return 3
+ ensure_root || return 3
+ target="$ROOT/$name"
+ if [ ! -f "$target" ] || [ -L "$target" ]; then
+  echo 'Arquivo nao encontrado ou acesso nao permitido.'
+  return 3
+ fi
+ size=$(wc -c < "$target") || return 3
+ [ "$size" -le 4096 ] || {
+  echo 'Arquivo maior que o limite de leitura atual de 4096 bytes.'; return 3;
+ }
+ printf 'Conteudo do arquivo %s:\n' "$target"
+ cat "$target"
+ printf '\n'
+}
+list_files() {
+ ensure_root || return 3
+ echo "Arquivos em $ROOT:"
+ for entry in "$ROOT"/*; do
+  [ -f "$entry" ] && [ ! -L "$entry" ] || continue
+  printf '%s\n' "${entry##*/}"
+ done
+}
 prompt=${1:-}
 case "$prompt" in
  --list|[Ll]iste\ minhas\ pastas*|[Mm]ostre\ minhas\ pastas*)
   list_folders ;;
  --create:*)
   create_folder "${prompt#--create:}" ;;
+ --check:*)
+  check_folder "${prompt#--check:}" ;;
+ --write:*)
+  create_file "${prompt#--write:}" "${2-}" ;;
+ --read:*)
+  read_file "${prompt#--read:}" ;;
+ --files)
+  list_files ;;
  [Cc]rie\ uma\ pasta\ chamada\ *|[Cc]riar\ uma\ pasta\ chamada\ *|[Qq]uero\ criar\ uma\ pasta\ chamada\ *)
   create_folder "${prompt#*chamada }" ;;
  [Cc]rie\ a\ pasta\ *)

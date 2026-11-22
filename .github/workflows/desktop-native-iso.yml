@@ -1,0 +1,42 @@
+name: xorriso desktop — native graphical ISO preflight
+
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'build-from-source.sh'
+      - 'tools/check-native-desktop.py'
+      - '.github/workflows/desktop-native-iso.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Python syntax
+        run: python3 -m py_compile tools/check-native-desktop.py
+      - name: Require actual native desktop, not an HTML-only prototype
+        run: python3 tools/check-native-desktop.py
+      - name: Test model-selected filesystem tools with mock API
+        run: |
+          command -v jq >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq jq; }
+          bash src/test-actions.sh
+      - name: Test root approval, cancellation, expiry and real command execution
+        run: |
+          command -v busybox >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq busybox-static; }
+          sh -n src/root-exec.sh src/chat-actions.sh
+          bash src/test-root-exec.sh
+      - name: Compile graphical PID1 wrapper and native desktop
+        run: |
+          gcc -std=gnu11 -Wall -Wextra -Werror -static -o /tmp/xorriso-gui-init src/xorriso-gui-init.c
+          gcc -std=gnu11 -Wall -Wextra -Werror -static -o /tmp/xorriso-desktop src/xorriso-desktop.c
+      - name: Exercise renderer with address and undefined behavior sanitizers
+        run: |
+          gcc -std=gnu11 -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined -o /tmp/xorriso-desktop-asan src/xorriso-desktop.c
+          /tmp/xorriso-desktop-asan --selftest
+

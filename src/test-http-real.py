@@ -17,7 +17,7 @@ class Handler(BaseHTTPRequestHandler):
         assert data['stream'] is False
         Handler.requests.append(data)
         system=data['messages'][0] if data['messages'][0]['role']=='system' else None
-        if system and 'planejador' in system['content']:
+        if system and 'write_note' in system['content'] and 'propose_command' in system['content']:
             response=json.dumps({'action':'write_note','filename':'teste.txt','content':'Ola do agente','message':'teste'})
         else:
             assert system and 'portugues brasileiro' in system['content']

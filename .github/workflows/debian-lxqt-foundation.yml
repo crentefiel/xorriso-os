@@ -1,0 +1,33 @@
+name: Debian LXQt foundation checks
+on:
+  push:
+    branches: [feat/debian-lxqt-foundation]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare GUI test runtime
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-tk
+      - name: Validate migration scripts and safety boundaries
+        run: |
+          bash -n debian-lxqt/build.sh
+          sh -n debian-lxqt/020-xorriso-user.hook.chroot
+          sh -n debian-lxqt/mount-volumes.sh
+          sh -n debian-lxqt/start-model.sh
+          grep -q 'ro,noload,nosuid,nodev,noexec' debian-lxqt/mount-volumes.sh
+          grep -q '^NoNewPrivileges=yes' debian-lxqt/xorriso-model.service
+          grep -q 'EXPECTED_MODEL=' debian-lxqt/start-model.sh
+          grep -q 'xorriso-model.service' debian-lxqt/build.sh
+          python3 -m py_compile debian-lxqt/xorriso-ui.py
+          python3 debian-lxqt/xorriso-ui.py --selftest
+          grep -q 'xorriso-ui.py' debian-lxqt/build.sh
+          grep -q 'xorriso-ui.py' debian-lxqt/020-xorriso-user.hook.chroot
+          grep -qx 'lxqt-core' debian-lxqt/package-list.chroot
+          grep -qx 'sddm' debian-lxqt/package-list.chroot
+          grep -q 'User=xorriso' debian-lxqt/10-xorriso-autologin.conf
+          ! grep -R -E 'mkfs|wipefs|dd if=' debian-lxqt/build.sh debian-lxqt/020-xorriso-user.hook.chroot

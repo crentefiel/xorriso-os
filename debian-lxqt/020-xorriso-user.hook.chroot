@@ -1,0 +1,35 @@
+#!/bin/sh
+set -eu
+if ! id xorriso >/dev/null 2>&1; then
+    useradd -m -s /bin/bash -G audio,video,netdev xorriso
+fi
+# No passwordless root. The agent must request privilege via audited service.
+passwd -l xorriso
+mkdir -p /home/xorriso/.config/lxqt /home/xorriso/Desktop /usr/local/bin
+cat > /home/xorriso/.config/lxqt/panel.conf <<'EOF'
+[General]
+__userfile__=true
+panels=0
+EOF
+cat > /home/xorriso/Desktop/xorriso.desktop <<'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=xorriso IA
+Comment=Abrir o assistente do xorriso
+Exec=/usr/local/bin/xorriso-ui
+Icon=system-run
+Terminal=false
+Categories=Utility;
+EOF
+cat > /usr/local/bin/xorriso-ui <<'EOF'
+#!/bin/sh
+# Temporary launcher: never invent an AI answer or claim it executed a command.
+exec /usr/bin/python3 /usr/local/bin/xorriso-ui.py
+EOF
+chmod 755 /usr/local/bin/xorriso-ui /home/xorriso/Desktop/xorriso.desktop
+chown -R xorriso:xorriso /home/xorriso/.config /home/xorriso/Desktop
+# Enable optional, read-only volume discovery and local model service.
+mkdir -p /etc/systemd/system/multi-user.target.wants
+ln -sf ../xorriso-volumes.service /etc/systemd/system/multi-user.target.wants/xorriso-volumes.service
+ln -sf ../xorriso-model.service /etc/systemd/system/multi-user.target.wants/xorriso-model.service
