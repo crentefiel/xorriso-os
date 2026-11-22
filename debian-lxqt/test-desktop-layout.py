@@ -70,9 +70,28 @@ policy = (root / "live-calamares.rules").read_text(encoding="utf-8")
 service = (root / "xorriso-install-mode.service").read_text(encoding="utf-8")
 assert "boot=live" in installer and "boot=live" in bootmode
 assert "XORRISO_DATA" in installer and "XORRISO_RUNTIME" in installer
-assert "/usr/bin/pkexec /usr/bin/calamares" in installer
-assert "polkit.Result.AUTH_SELF" in policy
-assert 'action.lookup("program") === "/usr/bin/calamares"' in policy
+assert "/usr/bin/pkexec /usr/local/libexec/xorriso/calamares-root" in installer
+assert "polkit.Result.YES" in policy and "polkit.Result.AUTH_SELF" not in policy
+assert 'action.id === "org.xorriso.install.launch"' in policy
+assert 'action.lookup("program") === "/usr/local/libexec/xorriso/calamares-root"' in policy
+assert 'subject.user === "xorriso"' in policy and "subject.active && subject.local" in policy
+root_installer = (root / "calamares-root.sh").read_text(encoding="utf-8")
+policy_xml = (root / "xorriso-calamares.policy").read_text(encoding="utf-8")
+assert "boot=live" in root_installer and "XORRISO_DATA" in root_installer
+assert "XORRISO_RUNTIME" in root_installer and "lsblk -rno LABEL" in root_installer
+assert 'exec /usr/bin/calamares' in root_installer
+assert 'id -u' in root_installer and '"$#" -ne 0' in root_installer
+assert 'action id="org.xorriso.install.launch"' in policy_xml
+assert '<allow_active>auth_admin</allow_active>' in policy_xml
+assert '<allow_any>no</allow_any>' in policy_xml
+assert '<allow_inactive>no</allow_inactive>' in policy_xml
+assert 'org.freedesktop.policykit.exec.allow_gui' in policy_xml
+assert 'org.freedesktop.policykit.exec.path' in policy_xml
+assert '/usr/local/libexec/xorriso/calamares-root' in policy_xml
+assert 'usr/local/libexec/xorriso/calamares-root' in build
+assert 'usr/share/polkit-1/actions/org.xorriso.install.policy' in build
+assert "mkfs" not in root_installer and "wipefs" not in root_installer
+assert "sudo" not in root_installer and "su " not in root_installer
 assert 'subject.user === "xorriso"' in policy
 assert "rm -f --" in bootmode and "10-xorriso-autologin.conf" in bootmode
 assert "Before=display-manager.service" in service
