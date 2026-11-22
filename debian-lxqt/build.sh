@@ -14,9 +14,13 @@ if [[ -e config ]]; then
 fi
 lb config --mode debian --distribution trixie --architectures amd64 \
   --binary-images iso-hybrid --debian-installer none \
-  --archive-areas "main" --bootappend-live "boot=live components quiet"
+  --archive-areas "main" --security false --bootappend-live "boot=live components quiet"
 mkdir -p config/package-lists config/includes.chroot/etc/sddm.conf.d \
   config/hooks/normal config/includes.chroot/usr/local/share/xorriso
+mkdir -p config/archives
+# live-build on Ubuntu 24.04 uses an obsolete trixie/updates URL. Override safely.
+# Debian 13 security suite is trixie-security under /debian-security.
+printf '%s\n' 'deb http://security.debian.org/debian-security trixie-security main' > config/archives/debian-security.list.chroot
 cp "$ROOT/package-list.chroot" config/package-lists/xorriso.list.chroot
 cp "$ROOT/10-xorriso-autologin.conf" config/includes.chroot/etc/sddm.conf.d/10-xorriso-autologin.conf
 cp "$ROOT/020-xorriso-user.hook.chroot" config/hooks/normal/020-xorriso-user.hook.chroot
