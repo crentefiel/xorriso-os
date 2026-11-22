@@ -17,7 +17,7 @@ jobs:
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             live-build debootstrap debian-archive-keyring xorriso squashfs-tools \
-            syslinux-common isolinux mtools librsvg2-bin grub-pc-bin grub-efi-amd64-bin python3-tk python3-pil qemu-system-x86
+            syslinux-common isolinux mtools cpio librsvg2-bin grub-pc-bin grub-efi-amd64-bin python3-tk python3-pil qemu-system-x86
       - name: Fix legacy Ubuntu live-build Debian Contents URL
         run: |
           # Ubuntu 24.04 ships an old live-build helper looking in /dists/trixie/Contents-amd64.gz.
