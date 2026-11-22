@@ -10,9 +10,12 @@ xserver-xorg-input-all
 xserver-xorg-video-all
 x11-xserver-utils
 lxqt-core
+# LXQt requires an external X11 window manager. No APT Recommends in this build.
+xfwm4
 pcmanfm-qt
 qterminal
 gvfs
+xdg-user-dirs
 sddm
 sddm-theme-maui
 network-manager
