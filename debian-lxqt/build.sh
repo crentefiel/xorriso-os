@@ -80,4 +80,21 @@ if [ -f config/bootloaders/isolinux/splash.svg ]; then
 fi
 echo "Building Debian LXQt live ISO in $OUT"
 sudo lb build
-echo "Check $OUT for live-image-amd64.hybrid.iso; boot-test before distribution."
+# Ubuntu 24.04's legacy live-build names the resulting file binary.hybrid.iso,
+# whereas current live-build uses live-image-amd64.hybrid.iso. Normalize to
+# one documented CI artifact name and fail early if no real ISO was created.
+ISO="$OUT/live-image-amd64.hybrid.iso"
+if [[ ! -s "$ISO" ]]; then
+  for candidate in "$OUT/binary.hybrid.iso" "$OUT/binary.iso"; do
+    if [[ -s "$candidate" ]]; then
+      mv "$candidate" "$ISO"
+      break
+    fi
+  done
+fi
+if [[ ! -s "$ISO" ]]; then
+  echo "No ISO output found. Candidates in build directory:" >&2
+  find "$OUT" -maxdepth 1 -type f -printf '%f (%s bytes)\\n' >&2
+  exit 5
+fi
+echo "Created ISO: $ISO ($(stat -c %s "$ISO") bytes). Boot-test before distribution."
