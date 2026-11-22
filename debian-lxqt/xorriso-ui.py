@@ -38,6 +38,9 @@ class Desktop:
         tk.Button(terminal_row, text="Terminal completo", command=self.open_terminal).pack(side="left", padx=(8,0))
         tk.Button(terminal_row, text="Arquivos", command=self.open_files).pack(side="left", padx=(8,0))
         tk.Button(terminal_row, text="Verificar IA", command=self.recheck_model).pack(side="left", padx=(8,0))
+        if agent.is_live_session():
+            tk.Button(self.root, text="Instalar xorriso no HD / SSD",
+                      command=self.open_installer).pack(fill="x", padx=12, pady=(0, 10))
         self.post("xorriso", "Interface pronta. Verificando o servidor local MiniCPM...")
         self.entry.focus_set()
         threading.Thread(target=self.check_model, daemon=True).start()
@@ -114,6 +117,30 @@ class Desktop:
         except Exception as exc:
             self.post("xorriso", "Falha ao abrir arquivos: " + str(exc))
 
+    def open_installer(self):
+        # This event runs on Tk's main thread: do not use self.confirm here.
+        if not agent.is_live_session():
+            self.post("xorriso", "Instalador disponivel apenas na sessao Live.")
+            return
+        accepted = messagebox.askyesno(
+            "Instalar xorriso OS no HD/SSD",
+            "O instalador Calamares vai pedir o disco de destino e "
+            "uma confirmacao final. A instalacao PODE APAGAR DADOS. "
+            "Desconecte XORRISO_DATA e XORRISO_RUNTIME. "
+            "Deseja abrir o instalador?", parent=self.root)
+        if not accepted:
+            self.post("xorriso", "Instalacao cancelada; nenhum disco alterado.")
+            return
+        try:
+            result = agent.action("open_installer", {}, lambda _msg: True)
+            if result.get("launch_requested"):
+                self.post("xorriso", "Calamares iniciado. Escolha o disco e "
+                          "confirme a instalacao somente apos revisar as particoes.")
+            else:
+                self.post("xorriso", "Instalador nao aberto: " + str(result))
+        except Exception as exc:
+            self.post("xorriso", "Falha ao iniciar instalador: " + str(exc))
+
     def send(self):
         message = self.entry.get().strip()
         if not message:
@@ -145,6 +172,7 @@ if __name__ == "__main__":
         assert "install_package" in agent.TOOLS
         assert "run_terminal_command" in agent.TOOLS
         assert "open_terminal" in agent.TOOLS
+        assert "open_installer" in agent.TOOLS
         assert "finish" in agent.TOOLS
         assert agent.MAX_STEPS <= 8
         print("PASS: interface e modulo do agente carregam sem exigir servidor ou display.")
