@@ -38,6 +38,7 @@ TOOLS = {
     "open_file_manager": "Abre o gerenciador de arquivos PCManFM-Qt na pasta pessoal, sem privilegios root",
     "run_terminal_command": "Executa comandos Linux reais sem shell/root: consultas permitidas ou mkdir NOME em Documentos com confirmacao; args.command",
     "open_terminal": "Abre terminal interativo QTerminal como usuario comum; requer confirmacao",
+    "open_root_terminal": "Abre um terminal interativo de root SOMENTE no sistema instalado no HD, após confirmação; a pessoa digita a própria senha root diretamente no terminal",
     "open_installer": "Abre o instalador grafico Calamares SOMENTE no modo Live, com consentimento; a pessoa escolhe o HD/SSD e confirma a instalacao",
     "finish": "Conclui a tarefa em portugues, sem afirmar resultados nao observados",
 }
@@ -60,6 +61,8 @@ SYSTEM = (
     "Nunca use shell, sudo, bash, rm, dd, mkfs ou scripts como parametro do terminal da IA; "
     "para outros comandos oriente a pessoa a abrir o QTerminal manualmente. "
     "Nao confunda permissao para diagnosticar com permissao para alterar o sistema. "
+    "O root terminal exige senha humana; NUNCA peça, capture, armazene ou transmita senhas. "
+    "O modelo nao recebe shell root, apenas abre o prompt humano apos aprovacao. "
     "Em create_folder/create_file/read_file args.filename, sem barras; create_file args.content. "
     "Em find_command args.name, em package_info args.package. "
     "Para criar pasta via terminal, use mkdir NOME e espere confirmacao. "
@@ -242,6 +245,8 @@ def action(tool, args, approve, runner=run_readonly):
         return xorriso_terminal.run_command(args.get("command"), approve)
     if tool == "open_terminal":
         return xorriso_terminal.open_terminal(approve)
+    if tool == "open_root_terminal":
+        return xorriso_terminal.open_root_terminal(approve, installed=not is_live_session())
     if tool == "open_installer":
         if not is_live_session():
             return {"error": "Instalacao em HD disponivel somente no modo Live"}
