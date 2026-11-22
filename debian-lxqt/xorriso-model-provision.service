@@ -1,0 +1,30 @@
+[Unit]
+Description=xorriso - download oficial verificado MiniCPM-V 4.7 35B-A3B para HD
+ConditionKernelCommandLine=!boot=live
+After=network-online.target systemd-sysusers.service
+Wants=network-online.target
+OnSuccess=xorriso-model.service
+
+[Service]
+Type=oneshot
+User=xorriso-model
+Group=xorriso-model
+UMask=0022
+ExecStart=/usr/local/libexec/xorriso/model-provision.py
+TimeoutStartSec=infinity
+StateDirectory=xorriso-model
+StateDirectoryMode=0755
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateDevices=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictNamespaces=yes
+
+[Install]
+WantedBy=multi-user.target
