@@ -232,11 +232,10 @@ def test_root_terminal_is_human_only_and_never_live():
         assert args == ["/usr/bin/qterminal", "-e", "/usr/bin/su", "-"]
         assert popen.call_args.kwargs.get("shell") is not True
         assert "password" not in str(args).lower()
-    with patch.object(agent, "is_live_session", return_value=True), \
-         patch.object(terminal, "open_root_terminal") as openroot:
+    with patch.object(agent, "is_live_session", return_value=True):
         denied = agent.action("open_root_terminal", {}, lambda _: True)
         assert denied["approved"] is False
-        assert openroot.call_args.kwargs["installed"] is False
+        assert "somente apos instalar" in denied["error"]
 
 
 def test_authenticated_admin_service_management():
