@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Non-privileged terminal bridge for xorriso. NEVER invokes a shell or root."""
+"""Non-privileged AI commands; optional human-operated root login via su."""
 import os
 import pathlib
 import re
