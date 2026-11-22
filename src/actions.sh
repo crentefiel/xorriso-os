@@ -54,6 +54,21 @@ create_folder() {
   return 3
  fi
 }
+check_folder() {
+ name=$1
+ # Apply identical name validation via a dedicated, read-only check.
+ [ "${#name}" -gt 0 ] && [ "${#name}" -le 64 ] || return 3
+ case "$name" in [A-Za-z0-9]*) : ;; *) return 3 ;; esac
+ allowed=$(printf '%s' "$name" | LC_ALL=C tr -cd 'A-Za-z0-9 _-')
+ [ "$allowed" = "$name" ] || return 3
+ ensure_root || return 3
+ if [ -d "$ROOT/$name" ] && [ ! -L "$ROOT/$name" ]; then
+  echo "Pasta existe e foi verificada: $ROOT/$name"
+ else
+  echo "Pasta nao encontrada: $ROOT/$name"
+  return 1
+ fi
+}
 list_folders() {
  ensure_root || return 3
  echo "Pastas em $ROOT:"
@@ -69,6 +84,8 @@ case "$prompt" in
   list_folders ;;
  --create:*)
   create_folder "${prompt#--create:}" ;;
+ --check:*)
+  check_folder "${prompt#--check:}" ;;
  [Cc]rie\ uma\ pasta\ chamada\ *|[Cc]riar\ uma\ pasta\ chamada\ *|[Qq]uero\ criar\ uma\ pasta\ chamada\ *)
   create_folder "${prompt#*chamada }" ;;
  [Cc]rie\ a\ pasta\ *)

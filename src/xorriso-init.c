@@ -26,6 +26,8 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <sys/ioctl.h>
+#include <linux/kd.h>
 
 #define MAX_CMD 767
 static struct termios original, raw;
@@ -53,6 +55,25 @@ static void setup_tty(void) {
   if(fd>STDERR_FILENO)close(fd);
  }
  tty_fd=STDIN_FILENO;
+ /* Boot-time pt-BR ABNT2 Linux VT keymap, including accent compose tables.
+  * loadkeys acts on /dev/tty0 before raw mode; never run model text as root. */
+ pid_t keyloader=fork();
+ if(keyloader==0) {
+  execl("/usr/bin/loadkeys","loadkeys","-q","-u","-C","/dev/tty0",
+        "/etc/xorriso/br-abnt2.map",(char*)NULL);
+  _exit(127);
+ }
+ if(keyloader>0) {
+  int st=0;
+  while(waitpid(keyloader,&st,0)<0 && errno==EINTR){}
+ }
+ /* Linux VT must deliver UTF-8 bytes for cedilla and composed accents. */
+ (void)ioctl(tty_fd,KDSKBMODE,K_UNICODE);
+ /* Reduce unintended floods from virtual-key auto-repeat. Does not mask
+  * genuinely repeated key-down events from the VirtualBox host. */
+ struct kbd_repeat repeat={.delay=700,.period=90};
+ (void)ioctl(tty_fd,KDKBDREP,&repeat);
+ print("\033%G");
  if(tcgetattr(tty_fd,&original)==0) {
   raw=original;cfmakeraw(&raw);raw.c_oflag|=OPOST;
   (void)tcsetattr(tty_fd,TCSANOW,&raw);
@@ -70,6 +91,7 @@ static void status(void) {
  }
  print("\r\nF2: console | F3: conversa | ESC: area vazia\r\n");
  print("MiniCPM: model status | runtime status (motor opcional em VDI).\r\n");
+ print("Teclado: Portugues Brasileiro ABNT2 (UTF-8).\r\n");
  is_console=0;is_chat=0;
 }
 static void console_header(void) {
@@ -237,22 +259,14 @@ static void chat_input(char *s) {
  if(!strcmp(s,"/last")) {run_script("/usr/lib/xorriso/ai-request.sh","--history-last");return;}
  if(!strcmp(s,"/status")) {run_script("/usr/lib/xorriso/ai-request.sh","--history-status");return;}
  if(!strcmp(s,"/ready")) {run_script("/usr/lib/xorriso/ai-boot.sh","status");return;}
+ if(!strcmp(s,"/commands")) {run_script("/usr/lib/xorriso/command-catalog.sh","--list");return;}
+ if(!strcmp(s,"/capabilities")) {run_script("/usr/lib/xorriso/command-catalog.sh","--status");return;}
  if(s[0]=='/') {
   print("Comandos: /last /status /clear /ready /exit\r\n");
   return;
  }
- if(!strncasecmp(s,"crie uma pasta chamada ",strlen("crie uma pasta chamada "))||
-    !strncasecmp(s,"criar uma pasta chamada ",strlen("criar uma pasta chamada "))||
-    !strncasecmp(s,"quero criar uma pasta chamada ",strlen("quero criar uma pasta chamada "))||
-    !strncasecmp(s,"crie a pasta ",strlen("crie a pasta "))||
-    !strcasecmp(s,"liste minhas pastas")||
-    !strcasecmp(s,"mostre minhas pastas")) {
-   print("Acao do xorriso:\r\n");
-   run_script("/usr/lib/xorriso/actions.sh",s);
-   return;
- }
- print("IA xorriso:");
- run_script("/usr/lib/xorriso/ai-request.sh",s);
+ print("xorriso:\r\n");
+ run_script("/usr/lib/xorriso/chat-actions.sh",s);
 }
 
 static void list_root(void) {
@@ -273,6 +287,8 @@ static void cmd(char *s) {
  if(!strcmp(s,"help"))print("help status ls uptime shell net api ask agent action notes storage model runtime chat local ai desktop reboot poweroff (F3: conversa)\r\n");
  else if(!strcmp(s,"status")||!strcmp(s,"version")){status();is_console=1;}
  else if(!strcmp(s,"ls"))list_root();
+ else if(!strcmp(s,"commands"))run_script("/usr/lib/xorriso/command-catalog.sh","--list");
+ else if(!strcmp(s,"capabilities"))run_script("/usr/lib/xorriso/command-catalog.sh","--status");
  else if(!strcmp(s,"uptime")){
   struct sysinfo si;char b[128];
   if(!sysinfo(&si)){snprintf(b,sizeof(b),"Uptime: %ld s\r\n",si.uptime);print(b);}
@@ -568,7 +584,16 @@ int main(void) {
    if(key=='\r'||key=='\n'){
     line[n]=0;crlf();if(is_chat)chat_input(line);else cmd(line);n=0;break;
    }
-   if(key==127||key=='\b'){if(n){n--;print("\b \b");}}
+   if(key==127||key=='\b'){
+    if(n) {
+     /* Remove a complete UTF-8 code point, not a single continuation byte. */
+     size_t removed=1;
+     n--;
+     while(n>0 && (((unsigned char)line[n]&0xc0)==0x80)) {n--;removed++;}
+     (void)removed;
+     print("\b \b");
+    }
+   }
    else if(key>=32&&key<=255&&n<MAX_CMD){
     line[n++]=(char)key;unsigned char z=key;(void)write(STDOUT_FILENO,&z,1);
    }

@@ -6,29 +6,33 @@ DIST="$HERE/dist"; WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 ROOT="$WORK/rootfs"; STAGE="$WORK/iso"
 mkdir -p "$DIST" "$ROOT" "$STAGE/boot/grub"
-for tool in gcc busybox curl jq cpio gzip grub-mkrescue xorriso; do
+for tool in gcc busybox curl jq cpio gzip grub-mkrescue xorriso ckbcomp loadkeys; do
   command -v "$tool" >/dev/null || { echo "Missing $tool" >&2; exit 2; }
 done
 KERNEL="$(find /boot -maxdepth 1 -type f -name 'vmlinuz-*-generic' | sort -V | tail -n 1)"
 [[ -n "$KERNEL" && -f "$KERNEL" ]] || { echo 'Install linux-image-generic.' >&2; exit 3; }
 VERSION="${KERNEL##*/vmlinuz-}"
 echo "Building with kernel $VERSION"
-install -d "$ROOT"/{bin,dev,etc/ssl/certs,lib,lib64,proc,sys,run,tmp,usr/bin,usr/lib/xorriso,lib/xorriso/modules,data,runtime-data}
+install -d "$ROOT"/{bin,dev,etc/ssl/certs,etc/xorriso,lib,lib64,proc,sys,run,tmp,usr/bin,usr/lib/xorriso,lib/xorriso/modules,data,runtime-data}
 chmod 1777 "$ROOT/tmp"
 gcc -std=gnu11 -Os -static -s -Wall -Wextra -o "$ROOT/init" "$HERE/src/xorriso-init.c"
 install -m 755 "$(command -v busybox)" "$ROOT/bin/busybox"
-for app in sh ash ls cat mount dmesg uname ip ps free vi grep mkdir touch echo date route ifconfig udhcpc insmod ping awk sed sleep head tail rm chmod printf clear readlink basename blkid df sync dd od tr mknod sha256sum mv wc cp kill; do
+for app in sh ash ls cat mount dmesg uname ip ps free vi grep mkdir touch echo date route ifconfig udhcpc insmod ping awk sed sleep head tail rm chmod printf clear readlink basename blkid df sync dd od tr mknod sha256sum mv wc cp kill sort id; do
   ln -sf busybox "$ROOT/bin/$app"
 done
-for file in ai-request.sh ai-agent.sh local.sh network.sh storage.sh model.sh runtime.sh loopback.sh ai-boot.sh actions.sh; do
+for file in ai-request.sh ai-agent.sh local.sh network.sh storage.sh model.sh runtime.sh loopback.sh ai-boot.sh actions.sh chat-actions.sh command-catalog.sh; do
   install -m 755 "$HERE/src/$file" "$ROOT/usr/lib/xorriso/$file"
 done
 install -m 755 "$HERE/src/udhcpc.script" "$ROOT/etc/udhcpc.script"
+# Generate the ABNT2 Linux VT map from the canonical XKB br(abnt2) layout.
+# Keep the source map in the initramfs for full dead-key/compose handling.
+ckbcomp -model pc105 -layout br -variant abnt2 > "$ROOT/etc/xorriso/br-abnt2.map"
+grep -q 'keycode' "$ROOT/etc/xorriso/br-abnt2.map" || { echo 'ABNT2 keymap missing keycodes' >&2; exit 4; }
 install -m 644 /etc/ssl/certs/ca-certificates.crt "$ROOT/etc/ssl/certs/ca-certificates.crt"
 printf 'hosts: files dns\n' > "$ROOT/etc/nsswitch.conf"
 printf '127.0.0.1 localhost\n::1 localhost\n' > "$ROOT/etc/hosts"
 : > "$ROOT/etc/resolv.conf"
-for binary in "$(command -v curl)" "$(command -v jq)"; do
+for binary in "$(command -v curl)" "$(command -v jq)" "$(command -v loadkeys)"; do
   install -m 755 "$binary" "$ROOT/usr/bin/$(basename "$binary")"
   while IFS= read -r path; do
     if [[ -f "$path" ]]; then

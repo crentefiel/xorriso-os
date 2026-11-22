@@ -95,3 +95,15 @@ Para testar, preserve os dois discos VDI originais e use **4 GiB ou mais de RAM*
 na VM, se disponíveis. Em F2: `ai status`, `storage status`, `runtime status`,
 `runtime log`. Os testes automatizados simulam o servidor; a resposta real do
 MiniCPM dentro do VirtualBox ainda requer validação prática.
+
+## Alpha 0.15.2 — teclado brasileiro ABNT2
+
+A imagem de boot passa a incluir um mapa de teclado para o console Linux gerado
+com `ckbcomp -model pc105 -layout br -variant abnt2`, instalado por `loadkeys`
+na inicialização. O terminal é colocado em modo UTF-8 antes de abrir o chat.
+Com isso, as posições físicas do teclado, o Ç e as teclas mortas de acentos
+seguem o padrão brasileiro. F2/F3/Esc e a inicialização automática da IA
+permanecem disponíveis; os dois VDI existentes não são alterados.
+
+A compilação automática verifica a presença do mapa. Ainda é necessário
+validar fisicamente no VirtualBox as teclas Ç, acentos, barra e interrogação.

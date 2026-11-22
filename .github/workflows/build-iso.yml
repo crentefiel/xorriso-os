@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check script syntax before installing dependencies
         run: |
-          for script in src/ai-request.sh src/ai-agent.sh src/local.sh src/network.sh src/storage.sh src/model.sh src/runtime.sh src/loopback.sh src/ai-boot.sh src/actions.sh; do
+          for script in src/ai-request.sh src/ai-agent.sh src/local.sh src/network.sh src/storage.sh src/model.sh src/runtime.sh src/loopback.sh src/ai-boot.sh src/actions.sh src/chat-actions.sh src/command-catalog.sh; do
             sh -n "$script"
           done
           for script in src/test-*.sh build-from-source.sh; do
@@ -25,7 +25,7 @@ jobs:
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential linux-image-generic busybox-static grub-common grub-pc-bin grub2-common \
-            xorriso mtools cpio gzip zstd xz-utils curl jq ca-certificates qemu-system-x86 python3 e2fsprogs
+            xorriso mtools cpio gzip zstd xz-utils curl jq ca-certificates qemu-system-x86 python3 e2fsprogs kbd console-setup
       - name: Test AI executor against mock APIs
         run: |
           bash src/test-ai.sh
@@ -35,6 +35,13 @@ jobs:
           python3 src/test-http-real.py
       - name: Build ISO from source
         run: bash build-from-source.sh
+      - name: Check ABNT2 console map and UTF-8 boot support
+        run: |
+          test -s dist/initramfs.cpio.gz
+          test -x /usr/bin/ckbcomp
+          ckbcomp -model pc105 -layout br -variant abnt2 | grep -q 'keycode'
+          grep -q 'KDSKBMODE,K_UNICODE' src/xorriso-init.c
+          grep -q 'br-abnt2.map' build-from-source.sh
       - name: Verify ISO format
         run: |
           test -s dist/xorriso-alpha-015-grub.iso

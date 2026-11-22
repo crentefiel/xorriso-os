@@ -29,6 +29,26 @@ fi
 printf 'spoof\n' > "$T/file"
 ln -s "$T/file" "$XORRISO_ACTION_TEST_ROOT/Link Pasta"
 if sh "$ROOT/src/actions.sh" '--create:Link Pasta' > "$T/out"; then echo 'Symlink not rejected'; exit 33; fi
+# Natural language chat must trigger a verified real operation, never an LLM echo.
+export XORRISO_CONF_DIR="$T/run"
+export XORRISO_ACTION_BIN="$ROOT/src/actions.sh"
+export XORRISO_CHAT_BIN="$T/bin/fallback-chat"
+printf '#!/bin/sh\necho "RESPOSTA-IA"\n' > "$T/bin/fallback-chat"
+chmod +x "$T/bin/fallback-chat"
+sh "$ROOT/src/chat-actions.sh" 'cria pasta xorriso' > "$T/out"
+grep -q 'Pasta criada e verificada' "$T/out"
+test -d "$XORRISO_ACTION_TEST_ROOT/xorriso"
+sh "$ROOT/src/chat-actions.sh" 'conseguiu criar?' > "$T/out"
+grep -q 'Pasta existe e foi verificada' "$T/out"
+sh "$ROOT/src/chat-actions.sh" 'liste minhas pastas' > "$T/out"
+grep -q '^xorriso$' "$T/out"
+sh "$ROOT/src/chat-actions.sh" 'como vai?' > "$T/out"
+grep -q 'RESPOSTA-IA' "$T/out"
+if sh "$ROOT/src/chat-actions.sh" 'cria pasta ../../escape' > "$T/out"; then
+ echo 'Unsafe natural folder name accepted'; exit 39
+fi
+sh "$ROOT/src/chat-actions.sh" 'conseguiu criar?' > "$T/out"
+grep -q 'Nao ha criacao de pasta confirmada' "$T/out"
 # Local IA auto-start, both model and runtime are known TEST fixtures.
 export XORRISO_AUTOSTART_TEST_MODE=1
 export XORRISO_AUTOSTART_TEST_DATA="$T/data"
