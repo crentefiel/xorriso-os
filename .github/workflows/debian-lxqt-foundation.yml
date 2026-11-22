@@ -11,10 +11,16 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare GUI test runtime
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-tk
       - name: Validate migration scripts and safety boundaries
         run: |
           bash -n debian-lxqt/build.sh
           sh -n debian-lxqt/020-xorriso-user.hook.chroot
+          python3 -m py_compile debian-lxqt/xorriso-ui.py
+          python3 debian-lxqt/xorriso-ui.py --selftest
+          grep -q 'xorriso-ui.py' debian-lxqt/build.sh
+          grep -q 'xorriso-ui.py' debian-lxqt/020-xorriso-user.hook.chroot
           grep -qx 'lxqt-core' debian-lxqt/package-list.chroot
           grep -qx 'sddm' debian-lxqt/package-list.chroot
           grep -q 'User=xorriso' debian-lxqt/10-xorriso-autologin.conf
