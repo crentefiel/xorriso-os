@@ -17,6 +17,7 @@ DOCUMENTS = pathlib.Path.home() / "Documentos"
 MAX_STEPS = 6
 MAX_RESPONSE = 12000
 ADMIN_HELPER = "/usr/local/libexec/xorriso/admin-package"
+ADMIN_SERVICE_HELPER = "/usr/local/libexec/xorriso/admin-service"
 INSTALLER_WRAPPER = "/usr/local/bin/xorriso-install"
 
 TOOLS = {
@@ -32,6 +33,7 @@ TOOLS = {
     "find_command": "Localiza um comando instalado, sem executa-lo",
     "package_info": "Consulta apt-cache policy para um pacote Debian",
     "install_package": "Pede autorizacao e autenticacao administrativa via pkexec para instalar pacote",
+    "manage_service": "Controla somente servicos aprovados via pkexec e autorizacao: args.operation start|stop|restart|enable|disable, args.service xorriso-model|xorriso-volumes|NetworkManager",
     "open_application": "Abre um aplicativo instalado pelo seu arquivo .desktop, com autorizacao",
     "open_file_manager": "Abre o gerenciador de arquivos PCManFM-Qt na pasta pessoal, sem privilegios root",
     "run_terminal_command": "Executa comandos Linux reais sem shell/root: consultas permitidas ou mkdir NOME em Documentos com confirmacao; args.command",
@@ -50,6 +52,8 @@ SYSTEM = (
     "Nao invente sucesso; consulte observacoes e somente afirme resultados verificados. "
     "Se uma acao falhar, explique o erro ou use ferramentas de leitura para investigar. "
     "Nao repita uma acao que ja foi negada. Em install_package args.package, somente nome do pacote apt. "
+    "Em manage_service exija pedido explicito, args.operation e args.service do catalogo; "
+    "essa operacao sempre pede confirmacao e autenticacao admin. "
     "Em open_application args.desktop_id, arquivo .desktop instalado. "
     "Para mostrar os arquivos e pastas ao usuario, use open_file_manager com args vazios. "
     "Para comandos Linux de consulta permitidos, use run_terminal_command com args.command. "
@@ -215,6 +219,22 @@ def action(tool, args, approve, runner=run_readonly):
             return {"approved": True, "error": "Instalador administrativo nao esta instalado"}
         result = runner(["pkexec", ADMIN_HELPER, name], timeout=180)
         return {"package": name, **result, "installed": result["exit_code"] == 0}
+    if tool == "manage_service":
+        operation = args.get("operation")
+        service = args.get("service")
+        allowed_ops = {"start", "stop", "restart", "enable", "disable"}
+        allowed_services = {"xorriso-model", "xorriso-volumes", "NetworkManager"}
+        if operation not in allowed_ops or service not in allowed_services:
+            raise ValueError("Operacao de servico nao permitida")
+        unit = service + ".service"
+        if not approve("Autoriza " + operation + " em " + unit +
+                       " com autenticacao de administrador?"):
+            return {"approved": False, "error": "Operacao administrativa cancelada"}
+        if not pathlib.Path(ADMIN_SERVICE_HELPER).is_file():
+            return {"approved": True, "error": "Helper administrativo ausente"}
+        result = runner(["pkexec", ADMIN_SERVICE_HELPER, operation, unit], timeout=120)
+        return {"operation": operation, "service": unit,
+                **result, "succeeded": result.get("exit_code") == 0}
     if tool == "open_file_manager":
         # This is a desktop-user operation, never a privileged root command.
         return start_file_manager()
