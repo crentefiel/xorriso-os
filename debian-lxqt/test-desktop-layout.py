@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Static safety checks for xorriso LXQt live desktop integration."""
 from pathlib import Path
+import json
 import re
 import subprocess
 
@@ -89,4 +90,17 @@ assert 'return 0' in volume_script
 assert "ro,noload,nosuid,nodev,noexec" in volume_script
 assert "mkfs " not in volume_script and "wipefs " not in volume_script
 
+# The error database belongs to the repository (not just a chat).
+# A future build should fail if the archive is removed or malformed.
+errors = json.loads((root / "errors.json").read_text(encoding="utf-8"))
+assert errors["schema_version"] == 1
+entries = errors["errors"]
+assert len(entries) >= 7
+ids = [entry["id"] for entry in entries]
+assert len(set(ids)) == len(ids)
+assert "XOS-005" in ids
+assert all(entry.get("status") and entry.get("cause") and
+           entry.get("evidence") and entry.get("fix") and
+           entry.get("verification") and entry.get("root_cause_status")
+           for entry in entries)
 print("PASS: two visible shortcuts, file manager installed, Live username and basic disk safety")
