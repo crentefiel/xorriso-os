@@ -17,4 +17,7 @@ console-setup
 keyboard-configuration
 
 python3
-python3-tk\npolicykit-1\nlxqt-policykit\nlibgtk-3-bin\n
+python3-tk
+policykit-1
+lxqt-policykit
+libgtk-3-bin
