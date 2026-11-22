@@ -21,6 +21,8 @@ cp "$ROOT/package-list.chroot" config/package-lists/xorriso.list.chroot
 cp "$ROOT/10-xorriso-autologin.conf" config/includes.chroot/etc/sddm.conf.d/10-xorriso-autologin.conf
 cp "$ROOT/020-xorriso-user.hook.chroot" config/hooks/normal/020-xorriso-user.hook.chroot
 cp "$ROOT/README.md" config/includes.chroot/usr/local/share/xorriso/MIGRATION.md
+mkdir -p config/includes.chroot/usr/local/bin
+install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorriso-ui.py
 chmod +x config/hooks/normal/020-xorriso-user.hook.chroot
 echo "Building Debian LXQt live ISO in $OUT"
 sudo lb build
