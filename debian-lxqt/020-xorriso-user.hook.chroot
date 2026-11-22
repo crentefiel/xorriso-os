@@ -13,6 +13,12 @@ cat > /etc/skel/.config/lxqt/panel.conf <<'EOF'
 __userfile__=true
 panels=0
 EOF
+# LXQt is a session manager, not a window manager: specify Debian's XFWM4.
+# Do not rely on APT Recommends to install a usable graphical window manager.
+cat > /etc/skel/.config/lxqt/session.conf <<'EOF'
+[General]
+window_manager=xfwm4
+EOF
 # PCManFM-Qt manages the desktop AND provides a normal graphical file browser.
 # Keep both functions; only hide its built-in Home/Trash/Computer/Network icons.
 cat > /etc/skel/.config/pcmanfm-qt/lxqt/settings.conf <<'EOF'
@@ -60,13 +66,23 @@ EOF
 cat > /usr/local/bin/xorriso-desktop-ready <<'EOF'
 #!/bin/sh
 # Launched through the LXQt session's XDG autostart, not from system boot.
-sleep 5
-if [ -n "${DISPLAY:-}" ] && pgrep -u "$(id -u)" -x lxqt-session >/dev/null 2>&1 &&
-   /usr/bin/xset -q >/dev/null 2>&1; then
-    printf '%s\n' 'XORRISO_LXQT_DESKTOP_READY' > /tmp/xorriso-desktop-ready
-    # The regular user may not have permission to write /dev/ttyS0.
-    # The independent root-owned boot-diagnostics service forwards it.
-fi
+# Confirm a usable desktop rather than merely a running Xorg/LXQt process.
+# XFWM4, PCManFM-Qt and the X display must all be alive; wait for their autostart.
+attempt=0
+while [ "$attempt" -lt 90 ]; do
+    if [ -n "${DISPLAY:-}" ] &&
+       pgrep -u "$(id -u)" -x lxqt-session >/dev/null 2>&1 &&
+       pgrep -u "$(id -u)" -x xfwm4 >/dev/null 2>&1 &&
+       pgrep -u "$(id -u)" -x pcmanfm-qt >/dev/null 2>&1 &&
+       /usr/bin/xset -q >/dev/null 2>&1; then
+        printf '%s\n' 'XORRISO_LXQT_DESKTOP_READY' > /tmp/xorriso-desktop-ready
+        # Root-owned diagnostics service forwards the marker to serial.
+        exit 0
+    fi
+    attempt=$((attempt + 1))
+    sleep 2
+done
+echo 'XORRISO_LXQT_DESKTOP_COMPONENTS_NOT_READY' > /tmp/xorriso-desktop-failed
 EOF
 # The assistant window is the main user interface; a desktop shortcut remains
 # available for relaunching it after a user closes the window.
@@ -146,7 +162,13 @@ sleep 60
     systemctl is-active display-manager.service || true
     systemctl is-active sddm.service || true
     systemctl get-default || true
-    ps -eo pid,user,comm,args | grep -E 'sddm|Xorg|Xwayland|lxqt-session' | grep -v grep || true
+    ps -eo pid,user,comm,args | grep -E 'sddm|Xorg|Xwayland|lxqt-session|xfwm4|pcmanfm-qt|xorriso-ui' | grep -v grep || true
+    echo 'User-session errors:'
+    journalctl -b _UID=1000 --no-pager -n 90 || true
+    echo 'User LXQt configuration and desktop:'
+    ls -l /home/xorriso/.config/lxqt/ /home/xorriso/.config/autostart/ /home/xorriso/Desktop/ || true
+    cat /home/xorriso/.config/lxqt/session.conf || true
+    cat /tmp/xorriso-desktop-failed || true
     journalctl -b -u sddm.service --no-pager -n 50 || true
     systemctl --failed --no-pager || true
     echo 'XORRISO_BOOT_DIAGNOSTICS_END'
