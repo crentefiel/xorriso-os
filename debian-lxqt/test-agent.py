@@ -211,6 +211,52 @@ def test_interactive_terminal_requires_approval():
         assert popen.call_args.kwargs.get("shell") is not True
 
 
+def test_authenticated_admin_service_management():
+    from unittest.mock import patch
+    assert "manage_service" in agent.TOOLS
+    for service, action in (("sddm", "stop"),
+                            ("../../etc/passwd", "restart"),
+                            ("xorriso-model", "shell"),
+                            ("NetworkManager", "bash")):
+        try:
+            agent.action("manage_service",
+                         {"operation": action, "service": service},
+                         lambda _: True)
+            raise AssertionError("Invalid service operation accepted")
+        except ValueError:
+            pass
+    with patch.object(agent.pathlib.Path, "is_file", return_value=True):
+        invoked = []
+        def fake_runner(argv, timeout):
+            invoked.append((argv, timeout))
+            return {"exit_code": 0, "output": "ok"}
+        refused = agent.action("manage_service",
+                               {"operation":"restart", "service":"xorriso-model"},
+                               lambda _: False, runner=fake_runner)
+        assert refused["approved"] is False and not invoked
+        approved = agent.action("manage_service",
+                                {"operation":"restart", "service":"xorriso-model"},
+                                lambda _: True, runner=fake_runner)
+        assert approved["succeeded"] is True
+        assert invoked == [(["pkexec", agent.ADMIN_SERVICE_HELPER,
+                             "restart", "xorriso-model.service"], 120)]
+    # The real privileged executable must reject arbitrary service names.
+    import importlib.util
+    helper = pathlib.Path(__file__).with_name("admin-service.py")
+    spec = importlib.util.spec_from_file_location("xorriso_admin_service", helper)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod.checked("restart", "xorriso-model.service") == [
+        "/usr/bin/systemctl", "restart", "xorriso-model.service"]
+    for args in (("restart", "sddm.service"), ("rm", "xorriso-model.service"),
+                 ("restart", "../../etc/shadow")):
+        try:
+            mod.checked(*args)
+            raise AssertionError("Helper accepted unsafe argv")
+        except ValueError:
+            pass
+
+
 def test_installer_requires_explicit_live_consent():
     from unittest.mock import patch
     assert agent.is_live_session(kernel_cmdline="BOOT_IMAGE=/live/vmlinuz boot=live quiet")
@@ -279,6 +325,7 @@ if __name__ == "__main__":
     test_safe_terminal_commands()
     test_terminal_mkdir_requires_consent_and_stays_in_documents()
     test_interactive_terminal_requires_approval()
+    test_authenticated_admin_service_management()
     test_installer_requires_explicit_live_consent()
     test_real_http_planning()
     print("PASS: multi-etapas, observacao, autorizacao, filesystem, pkexec, comandos sem shell")
