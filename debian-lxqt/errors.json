@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "project": "xorriso OS",
+  "scope": "Debian 13 LXQt Live — PR #27",
+  "updated_on": "2026-11-22",
+  "policy": {
+    "read_first": [
+      "debian-lxqt/errors.json",
+      "debian-lxqt/README.md",
+      "GitHub Actions do commit HEAD",
+      "BOOT-DIAGNOSTICS da falha"
+    ],
+    "on_failure": "Antes de aplicar uma correção, comparar fingerprint de erros anteriores; registrar evidence, causa confirmada ou hipótese e teste reproduzível. Não marcar como resolvido sem a execução exigida.",
+    "safety": "Não formatar, alterar, remover ou montar com escrita os discos XORRISO_DATA e XORRISO_RUNTIME. Não fazer merge automático. Não assumir que QEMU aprovado valida VirtualBox."
+  },
+  "errors": [
+    {
+      "id": "XOS-001",
+      "title": "Hook de personalização do Live não executado",
+      "fingerprint": [
+        "lb_chroot_hooks",
+        "config/hooks/normal",
+        "nenhum atalho xorriso"
+      ],
+      "status": "corrigido",
+      "root_cause_status": "confirmada no código",
+      "cause": "Runner Ubuntu 24.04 usa live-build legado e diretório config/hooks/*.chroot; hook instalado em config/hooks/normal não era executado.",
+      "fix": "Detectar formato de hook instalado e inserir no local correto; validar o conteúdo do SquashFS.",
+      "evidence": [
+        "GitHub Actions 45032364164",
+        "Commits históricos do PR #27"
+      ],
+      "verification": "Subsequente QEMU aprovado no run 45039436773",
+      "references": [
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45032364164",
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45039436773"
+      ]
+    },
+    {
+      "id": "XOS-002",
+      "title": "Usuário Live criado antecipadamente",
+      "fingerprint": [
+        "live-config",
+        "0030-user-setup",
+        "debian login",
+        "useradd -m"
+      ],
+      "status": "corrigido",
+      "root_cause_status": "confirmada por inspeção do user-setup",
+      "cause": "Criar xorriso no chroot fazia o componente user-setup encerrar antes da configuração normal do Live.",
+      "fix": "Colocar perfil LXQt em /etc/skel; deixar live-config/user-setup criar xorriso no boot; manter live-config.nocomponents=sudo.",
+      "evidence": [
+        "Código do componente Debian 0030-user-setup",
+        "Run QEMU 45039436773 aprovado depois das correções"
+      ],
+      "verification": "Autologin e sessão gráfica confirmados no QEMU posterior",
+      "references": [
+        "https://sources.debian.org/src/live-config/11.0.3/components/0030-user-setup/",
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45039436773"
+      ]
+    },
+    {
+      "id": "XOS-003",
+      "title": "Sinal READY inválido por escape literal",
+      "fingerprint": [
+        "LXQt user session did not signal READY",
+        "printf '%s\\\\n'",
+        "XORRISO_LXQT_DESKTOP_READY"
+      ],
+      "status": "corrigido",
+      "root_cause_status": "confirmada no hook",
+      "cause": "printf continha barra invertida dupla no formato e gerava caracteres literais \\n; grep -Fxq exigia linha exata.",
+      "fix": "Usar newline real no printf, testar comando executando /bin/sh; root-owned diagnostics encaminha marcador serial.",
+      "evidence": [
+        "Run 45037305528 mostrou interface IA mas marcou timeout",
+        "Run 45039436773 aprovado depois do reparo"
+      ],
+      "verification": "Testes estáticos de printf e boot QEMU aprovados",
+      "references": [
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45037305528",
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45039436773"
+      ]
+    },
+    {
+      "id": "XOS-004",
+      "title": "Tema Breeze trouxe KDE Plasma e ISO inchada",
+      "fingerprint": [
+        "plasma-workspace",
+        "plasma-desktop",
+        "sddm-theme-debian-breeze",
+        "ISO 1729101824 bytes"
+      ],
+      "status": "corrigido parcialmente",
+      "root_cause_status": "confirmada por comparação dos pacotes",
+      "cause": "Recommends do SDDM instalavam o tema Breeze e dependências KDE/Plasma desnecessárias para LXQt.",
+      "fix": "--apt-recommends false, sddm-theme-maui explícito, configurar Current=maui e rejeitar Plasma no SquashFS.",
+      "evidence": [
+        "ISO anterior 1729101824 bytes e pacote Plasma no log do run 45046065406",
+        "Nova ISO 540016640 bytes gerada no run 45054368575, porém boot gráfico falhou"
+      ],
+      "verification": "Tamanho e ausência do Plasma comprovados; funcionalidade gráfica da ISO otimizada ainda não aprovada",
+      "references": [
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45046065406",
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45054368575"
+      ]
+    },
+    {
+      "id": "XOS-005",
+      "title": "Tela preta após redução de dependências: gerenciador de janelas ausente",
+      "fingerprint": [
+        "Xorg ativo",
+        "sddm xorriso authenticated",
+        "lxqt-session ativo",
+        "has_content=False",
+        "READY timeout 480s",
+        "xfwm4 ausente"
+      ],
+      "status": "correção aplicada, validação QEMU pendente",
+      "root_cause_status": "hipótese fortemente fundamentada (não comprovada até novo boot)",
+      "cause": "A ISO anterior que funcionou instalou xfwm4; a versão minimalista com --apt-recommends false não instala xfwm4 nem openbox. LXQt exige gerenciador X11 externo.",
+      "fix": "Adicionar xfwm4 e xdg-user-dirs explicitamente; configurar /etc/skel/.config/lxqt/session.conf com window_manager=xfwm4; exigir xfwm4 e pcmanfm-qt em READY e manifesto de pacotes.",
+      "evidence": [
+        "Run falho 45054368575: ISO compilou (540016640 bytes), SDDM autenticou xorriso e Xorg/lxqt-session iniciaram, mas telas QEMU permaneceram pretas e READY não veio",
+        "Run anterior 45046065406: presença de xfwm4 e QEMU aprovado",
+        "Documentação LXQt e Debian confirmam necessidade de gerenciador externo e XFWM4 padrão"
+      ],
+      "verification": "Aguardar run completa do novo commit com checks, QEMU e artefato ISO; sem declarar resolvido antecipadamente",
+      "references": [
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45054368575",
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45046065406",
+        "https://lxqt-project.org/wiki/Window-managers-(X11).html",
+        "https://wiki.debian.org/LXQt"
+      ]
+    },
+    {
+      "id": "XOS-006",
+      "title": "Servidor MiniCPM recusou conexão na VM sem runtime",
+      "fingerprint": [
+        "127.0.0.1:8080",
+        "Connection refused",
+        "MiniCPM local indisponível"
+      ],
+      "status": "pendente teste com discos separados",
+      "root_cause_status": "sintoma comprovado; origem específica não comprovada",
+      "cause": "O servidor llama-server não estava executando no teste observado. Ausência dos VDIs na VM de teste é explicação plausível, mas não prova sobre o funcionamento com discos conectados.",
+      "fix": "Manter UI funcional sem modelo; verificar conexão por /v1/models; testar somente com cópias dos VDIs montadas read-only, conferir checksums e logs da unidade xorriso-model.",
+      "evidence": [
+        "Vídeo do VirtualBox reportado pelo usuário, analisado em conversa anterior"
+      ],
+      "verification": "Aguardando teste real do MiniCPM, sem alterar os discos originais",
+      "references": [
+        "https://github.com/crentefiel/xorriso-os/pull/27"
+      ]
+    },
+    {
+      "id": "XOS-007",
+      "title": "Falha do teste SDDM por barra invertida no próprio assert",
+      "fingerprint": [
+        "AssertionError: assert \"[Theme]\\\\nCurrent=maui\" in sddm",
+        "test-desktop-layout.py"
+      ],
+      "status": "corrigido",
+      "root_cause_status": "confirmada no código",
+      "cause": "Teste comparava string com escape textual em vez de duas linhas reais.",
+      "fix": "Validar presença de [Theme] e Current=maui separadamente.",
+      "evidence": [
+        "Run 45054304328 falhou no teste estático",
+        "Run 45054368321 passou testes básicos após correção"
+      ],
+      "verification": "CI básico completou success",
+      "references": [
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45054304328",
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45054368321"
+      ]
+    }
+  ]
+}
