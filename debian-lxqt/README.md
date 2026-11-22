@@ -5,7 +5,7 @@ Este caminho de compilação usa o Debian Live e o LXQt em vez de desenhar diret
 ## Interface
 - Login gráfico automático da sessão `xorriso`.
 - Desktop minimalista, sem barra de tarefas, com apenas dois atalhos: **xorriso IA** e **Arquivos**.
-- O ícone **xorriso IA** abre uma interface Python/Tk que conversa com o servidor local OpenAI-compatível em `127.0.0.1:8080/v1`.
+- O ícone **xorriso IA** reabre a interface Python/Tk, que também inicia automaticamente na sessão LXQt. A interface verifica `127.0.0.1:8080/v1/models` e informa quando o MiniCPM local não está disponível.
 - O ícone **Arquivos** abre o gerenciador `pcmanfm-qt`, preservado para navegação manual, pastas, documentos, cópia e organização. O agente também possui a ferramenta `open_file_manager`, executada como usuário comum, sem shell root.
 - O perfil PCManFM-Qt omite os atalhos automáticos de Home, Trash, Computer e Network; desabilita a montagem automática de volumes e mantém a lixeira dentro do gerenciador. Não elimina o gerenciador de arquivos.
 - O boot Live agora especifica `username=xorriso` para evitar que a personalização seja aplicada só em `/home/xorriso` enquanto a sessão gráfica entre com o usuário padrão `user`. Essa mudança ainda exige validação na ISO e no VirtualBox.
@@ -44,7 +44,7 @@ A etapa atual é um protótipo técnico, não uma versão final ou pronta para c
 
 A janela `xorriso IA` agora chama `xorriso-agent.py`, que consulta o MiniCPM local para selecionar ferramentas **por significado** e, depois de cada ferramenta, devolve ao modelo uma observação real. O ciclo tem limite de seis etapas. Não existem regras de texto que associem frases fixas a comandos; há um catálogo pequeno de ferramentas validadas, para não executar texto arbitrário da IA como root.
 
-Ferramentas: `system_info`, `list_files`, `read_file`, `create_folder`, `create_file`, `find_command`, `package_info`, `install_package`, `open_application`, `finish`. A interface mostra os resultados verificados, não apenas uma resposta generativa.
+Ferramentas: `system_info`, `system_resources`, `network_info`, `list_applications`, `service_status`, `list_files`, `read_file`, `create_folder`, `create_file`, `find_command`, `package_info`, `install_package`, `open_application`, `open_file_manager`, `finish`. A interface mostra os resultados verificados, não apenas uma resposta generativa.
 
 Instalar programas é um fluxo de **duas autorizações**: a pessoa confirma o nome exato do pacote na GUI e o `pkexec` solicita autenticação de administrador por PolicyKit. O helper `admin-package` é um programa separado, com argumentos validados, chama `apt-get install` sem shell e confere a instalação via `dpkg-query`. Nenhuma autorização é dada diretamente ao MiniCPM.
 
@@ -60,3 +60,9 @@ Os testes de agente usam um modelo e executor simulados para verificar a sequên
 Conservar **xorriso IA** e **Arquivos** como os únicos atalhos do desktop. O gerenciador PCManFM-Qt é componente essencial, não pode ser removido ao "limpar" o Debian. Configurações do sistema permanecem instaladas, mesmo sem painel. A IA pode pedir abertura da pasta pessoal, mas o usuário sempre mantém acesso direto aos seus arquivos pelo ícone **Arquivos**.
 
 Ainda não há confirmação de que a ISO nova inicialize sem demora ou tela preta: corrigir a conta Live e reduzir atalhos são passos de implementação, não prova de boot. Nenhum dos discos `XORRISO_DATA` e `XORRISO_RUNTIME` deve ser formatado, remontado com escrita ou excluído.
+
+## Diagnóstico de boot e validação
+
+O teste QEMU agora seleciona a entrada Live quando o menu Syslinux precisar de Enter; durante o boot produz capturas PNG em intervalos de tempo e preserva `serial.log`, `qemu.log` e `boot-status.json`. O workflow publica um artefato **BOOT-DIAGNOSTICS** mesmo em caso de falha do teste, para identificar se a tela preta veio do menu, kernel, SDDM ou LXQt. Não se considera um desktop aprovado apenas por framebuffer não preto: ainda é preciso o marcador `XORRISO_LXQT_DESKTOP_READY` emitido por sessão X11 válida. Os artefatos de ISO somente são publicados quando o teste de boot passa.
+
+A ausência do MiniCPM não deve impedir o desktop de abrir. A conta Live `xorriso` segue sem senha administrativa válida: o agente **não** recebe root por padrão e a instalação via APT depende de credenciais legítimas em etapa posterior. Para persistência, planejar volume separado **sem modificar os VDI protegidos**.
