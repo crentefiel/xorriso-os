@@ -41,6 +41,9 @@ class Desktop:
         if agent.is_live_session():
             tk.Button(self.root, text="Instalar xorriso no HD / SSD",
                       command=self.open_installer).pack(fill="x", padx=12, pady=(0, 10))
+        else:
+            tk.Button(self.root, text="Terminal root (requer sua senha)",
+                      command=self.open_root_terminal).pack(fill="x", padx=12, pady=(0, 10))
         self.post("xorriso", "Interface pronta. Verificando o MiniCPM local...")
         self._model_last_report = ""
         self.entry.focus_set()
@@ -180,6 +183,25 @@ class Desktop:
         except Exception as exc:
             self.post("xorriso", "Falha ao iniciar instalador: " + str(exc))
 
+    def open_root_terminal(self):
+        if agent.is_live_session():
+            self.post("xorriso", "Terminal root permitido somente apos instalar no HD.")
+            return
+        accepted = messagebox.askyesno(
+            "Terminal administrador root",
+            "Abrir um terminal root interativo? Voce precisa configurar uma "
+            "senha root propria no sistema instalado. Digite a senha SOMENTE "
+            "na janela do terminal. A IA nunca recebe sua senha.",
+            parent=self.root)
+        if not accepted:
+            return
+        try:
+            result = agent.action("open_root_terminal", {}, lambda _message: True)
+            self.post("xorriso", "Prompt de senha root solicitado no terminal."
+                      if result.get("launch_requested") else str(result))
+        except Exception as exc:
+            self.post("xorriso", "Nao foi possivel abrir terminal root: " + str(exc))
+
     def send(self):
         message = self.entry.get().strip()
         if not message:
@@ -216,6 +238,7 @@ if __name__ == "__main__":
         assert "install_package" in agent.TOOLS
         assert "run_terminal_command" in agent.TOOLS
         assert "open_terminal" in agent.TOOLS
+        assert "open_root_terminal" in agent.TOOLS
         assert "open_installer" in agent.TOOLS
         assert "finish" in agent.TOOLS
         assert agent.MAX_STEPS <= 8
