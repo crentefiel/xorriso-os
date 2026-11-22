@@ -104,6 +104,45 @@ def test_install_is_not_shell():
 
 
 
+def test_linux_inspection_tools():
+    assert "system_resources" in agent.TOOLS
+    assert "network_info" in agent.TOOLS
+    assert "service_status" in agent.TOOLS
+    assert "list_applications" in agent.TOOLS
+    calls = []
+    def spy(argv):
+        calls.append(argv)
+        return {"exit_code": 0, "output": "mocked"}
+    resources = agent.action("system_resources", {}, lambda _:False, runner=spy)
+    assert resources["memory"]["exit_code"] == 0
+    assert resources["disk"]["exit_code"] == 0
+    assert ["free", "-h"] in calls and ["df", "-h", "/"] in calls
+    assert agent.action("network_info", {}, lambda _:False, runner=spy)["exit_code"] == 0
+    assert agent.action("service_status", {"service":"sddm"}, lambda _:False, runner=spy)["service"] == "sddm"
+    try:
+        agent.action("service_status", {"service":"sshd; rm -rf /"}, lambda _:False, runner=spy)
+        raise AssertionError("unsafe service accepted")
+    except ValueError:
+        pass
+    assert isinstance(agent.action("list_applications", {}, lambda _:False)["desktop_ids"], list)
+
+
+def test_nonblocking_file_manager_launch():
+    from unittest.mock import patch
+    with patch.object(agent.shutil, "which", return_value="/usr/bin/pcmanfm-qt"), \
+         patch.object(agent.subprocess, "Popen") as mock_popen, \
+         patch.object(agent.time, "sleep"):
+        mock_popen.return_value.pid = 888
+        mock_popen.return_value.poll.return_value = None
+        result = agent.action("open_file_manager", {}, lambda _: False)
+        assert result["launch_requested"] is True
+        assert result["pid"] == 888
+        command = mock_popen.call_args.args[0]
+        assert command[0] == "/usr/bin/pcmanfm-qt"
+        assert command[1] == str(pathlib.Path.home())
+        assert "shell" not in mock_popen.call_args.kwargs
+
+
 def test_real_http_planning():
     import json
     import threading
@@ -149,5 +188,7 @@ if __name__ == "__main__":
     test_real_file_actions()
     test_package_validation()
     test_install_is_not_shell()
+    test_linux_inspection_tools()
+    test_nonblocking_file_manager_launch()
     test_real_http_planning()
     print("PASS: multi-etapas, observacao, autorizacao, filesystem, pkexec, comandos sem shell")
