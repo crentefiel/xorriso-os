@@ -23,6 +23,11 @@ cp "$ROOT/020-xorriso-user.hook.chroot" config/hooks/normal/020-xorriso-user.hoo
 cp "$ROOT/README.md" config/includes.chroot/usr/local/share/xorriso/MIGRATION.md
 mkdir -p config/includes.chroot/usr/local/bin
 install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorriso-ui.py
+mkdir -p config/includes.chroot/usr/local/libexec/xorriso config/includes.chroot/etc/systemd/system
+install -m 755 "$ROOT/mount-volumes.sh" config/includes.chroot/usr/local/libexec/xorriso/mount-volumes.sh
+install -m 755 "$ROOT/start-model.sh" config/includes.chroot/usr/local/libexec/xorriso/start-model.sh
+install -m 644 "$ROOT/xorriso-volumes.service" config/includes.chroot/etc/systemd/system/xorriso-volumes.service
+install -m 644 "$ROOT/xorriso-model.service" config/includes.chroot/etc/systemd/system/xorriso-model.service
 chmod +x config/hooks/normal/020-xorriso-user.hook.chroot
 echo "Building Debian LXQt live ISO in $OUT"
 sudo lb build
