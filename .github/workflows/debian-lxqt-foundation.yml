@@ -1,0 +1,21 @@
+name: Debian LXQt foundation checks
+on:
+  push:
+    branches: [feat/debian-lxqt-foundation]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate migration scripts and safety boundaries
+        run: |
+          bash -n debian-lxqt/build.sh
+          sh -n debian-lxqt/020-xorriso-user.hook.chroot
+          grep -qx 'lxqt-core' debian-lxqt/package-list.chroot
+          grep -qx 'sddm' debian-lxqt/package-list.chroot
+          grep -q 'User=xorriso' debian-lxqt/10-xorriso-autologin.conf
+          ! grep -R -E 'mkfs|wipefs|dd if=' debian-lxqt/build.sh debian-lxqt/020-xorriso-user.hook.chroot
