@@ -27,6 +27,11 @@ assert all(x in build for x in ("usr/bin/calamares", "etc/calamares/settings.con
                                "xorriso-install.sh", "xorriso-install-mode.sh",
                                "xorriso-install-mode.service", "live-calamares.rules"))
 assert "open_installer" in agent and "is_live_session" in agent
+assert "etc/xdg/autostart/xorriso-ui.desktop" in build
+assert "cp /etc/skel/.config/autostart/xorriso-ui.desktop /etc/xdg/autostart/xorriso-ui.desktop" in hook
+qemu = (root / "test-debian-qemu.py").read_text(encoding="utf-8")
+assert "XORRISO_INSTALL_MODE_LIVE" in qemu and "INSTALLER_READY" in qemu
+assert "XORRISO_INSTALL_MODE_LIVE" in bootmode
 installer = (root / "xorriso-install.sh").read_text(encoding="utf-8")
 bootmode = (root / "xorriso-install-mode.sh").read_text(encoding="utf-8")
 policy = (root / "live-calamares.rules").read_text(encoding="utf-8")
