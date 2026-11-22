@@ -17,6 +17,7 @@ DOCUMENTS = pathlib.Path.home() / "Documentos"
 MAX_STEPS = 6
 MAX_RESPONSE = 12000
 ADMIN_HELPER = "/usr/local/libexec/xorriso/admin-package"
+INSTALLER_WRAPPER = "/usr/local/bin/xorriso-install"
 
 TOOLS = {
     "list_files": "Lista arquivos reais na pasta Documentos",
@@ -35,6 +36,7 @@ TOOLS = {
     "open_file_manager": "Abre o gerenciador de arquivos PCManFM-Qt na pasta pessoal, sem privilegios root",
     "run_terminal_command": "Executa comandos Linux reais sem shell/root: consultas permitidas ou mkdir NOME em Documentos com confirmacao; args.command",
     "open_terminal": "Abre terminal interativo QTerminal como usuario comum; requer confirmacao",
+    "open_installer": "Abre o instalador grafico Calamares SOMENTE no modo Live, com consentimento; a pessoa escolhe o HD/SSD e confirma a instalacao",
     "finish": "Conclui a tarefa em portugues, sem afirmar resultados nao observados",
 }
 SYSTEM = (
@@ -57,6 +59,10 @@ SYSTEM = (
     "Em create_folder/create_file/read_file args.filename, sem barras; create_file args.content. "
     "Em find_command args.name, em package_info args.package. "
     "Para criar pasta via terminal, use mkdir NOME e espere confirmacao. "
+    "Quando a pessoa ordenar explicitamente instalar o sistema no HD, ofereca open_installer; "
+    "NUNCA execute comandos de formatacao ou particionamento pela IA. "
+    "Somente a pessoa escolhe e confirma o disco no instalador Calamares. "
+    "XORRISO_DATA e XORRISO_RUNTIME devem permanecer protegidos. "
     "Nao execute shell arbitrario. No maximo seis etapas."
 )
 NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9+._-]{0,79}$")
@@ -113,6 +119,28 @@ def start_file_manager():
     return {"application": "pcmanfm-qt", "launch_requested": code is None or code == 0,
             "pid": process.pid, "exit_code": code}
 
+
+def is_live_session(kernel_cmdline=None):
+    """Only the live boot from our ISO may offer the disk installer."""
+    try:
+        cmdline = (kernel_cmdline if kernel_cmdline is not None else
+                   pathlib.Path("/proc/cmdline").read_text(encoding="utf-8"))
+    except OSError:
+        return False
+    return "boot=live" in cmdline.split()
+
+def start_installer():
+    """Launch a fixed wrapper as the desktop user; Calamares asks for polkit."""
+    executable = pathlib.Path(INSTALLER_WRAPPER)
+    if not executable.is_file() or not os.access(str(executable), os.X_OK):
+        return {"launched": False, "error": "Instalador Live nao disponivel"}
+    p = subprocess.Popen([str(executable)], stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+    time.sleep(0.2)
+    code = p.poll()
+    return {"application": "calamares", "launch_requested": code is None,
+            "pid": p.pid, "exit_code": code}
 
 def action(tool, args, approve, runner=run_readonly):
     if not isinstance(args, dict):
@@ -180,6 +208,14 @@ def action(tool, args, approve, runner=run_readonly):
         return xorriso_terminal.run_command(args.get("command"), approve)
     if tool == "open_terminal":
         return xorriso_terminal.open_terminal(approve)
+    if tool == "open_installer":
+        if not is_live_session():
+            return {"error": "Instalacao em HD disponivel somente no modo Live"}
+        if not approve("Abrir Calamares para instalar em HD/SSD? "
+                       "O instalador pode APAGAR dados, exige selecionar e "
+                       "confirmar o destino. Desconecte os VDIs protegidos."):
+            return {"approved": False, "error": "Instalacao cancelada"}
+        return start_installer()
     if tool == "open_application":
         name = args.get("desktop_id")
         desktop_path(name)
