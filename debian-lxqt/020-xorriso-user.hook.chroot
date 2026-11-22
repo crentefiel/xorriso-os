@@ -90,6 +90,41 @@ OnlyShowIn=LXQt;
 EOF
 chmod 755 /usr/local/bin/xorriso-desktop-ready
 chmod 755 /usr/local/bin/xorriso-ui /etc/skel/Desktop/xorriso.desktop /etc/skel/Desktop/arquivos.desktop
+# Trust ONLY the two launchers shipped by this ISO. Do not disable PCManFM-Qt's
+# security prompts for unrelated programs (QuickExec must remain disabled).
+# This runs after login, when the user's GVFS metadata daemon is available.
+cat > /usr/local/bin/xorriso-trust-launchers <<'EOF'
+#!/bin/sh
+for desktop in "$HOME/Desktop/xorriso.desktop" "$HOME/Desktop/arquivos.desktop"; do
+    [ -f "$desktop" ] || continue
+    attempt=0
+    while [ "$attempt" -lt 10 ]; do
+        if gio set "$desktop" metadata::trusted true >/dev/null 2>&1; then
+            break
+        fi
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+done
+EOF
+cat > /etc/skel/.config/autostart/xorriso-trust-launchers.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=xorriso launcher trust
+Exec=/usr/local/bin/xorriso-trust-launchers
+Terminal=false
+OnlyShowIn=LXQt;
+X-LXQt-Need-Tray=false
+EOF
+chmod 755 /usr/local/bin/xorriso-trust-launchers
+# Plymouth shows honest boot progress on a black background instead of a
+# blank screen; 'tribar' is the distro-provided progress bar, no fake percent.
+test -f /usr/share/plymouth/themes/tribar/tribar.plymouth || {
+    echo 'Plymouth tribar theme missing' >&2
+    exit 31
+}
+plymouth-set-default-theme tribar
+echo 'XORRISO_PLYMOUTH_TRIBAR_CONFIGURED'
 # Do not chown the skeleton to a user that does not yet exist.
 # live-config/user-setup will copy and chown these files on first boot.
 # Old live-build can omit the display-manager enablement in a chroot.
