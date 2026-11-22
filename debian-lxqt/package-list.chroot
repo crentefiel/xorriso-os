@@ -3,6 +3,7 @@ live-config
 live-config-systemd
 systemd-sysv
 linux-image-amd64
+syslinux-utils
 xorg
 lxqt-core
 sddm
