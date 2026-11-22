@@ -50,10 +50,12 @@ jobs:
           python3 -m py_compile debian-lxqt/xorriso-ui.py debian-lxqt/xorriso-agent.py debian-lxqt/admin-package.py
           python3 debian-lxqt/test-agent.py
           python3 debian-lxqt/xorriso-ui.py --selftest
+          grep -q 'XORRISO_LXQT_DESKTOP_READY' debian-lxqt/020-xorriso-user.hook.chroot
+          grep -q 'XORRISO_LXQT_DESKTOP_READY' debian-lxqt/test-debian-qemu.py
       - name: Build Debian 13 LXQt live ISO
         run: timeout 55m bash debian-lxqt/build.sh
-      - name: Boot ISO and check graphical framebuffer in QEMU
-        run: timeout 210s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
+      - name: Boot ISO and verify LXQt desktop session in QEMU
+        run: timeout 330s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
       - name: Validate ISO image
         run: |
           test -s debian-lxqt/work/live-image-amd64.hybrid.iso
