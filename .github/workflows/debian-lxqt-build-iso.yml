@@ -51,6 +51,7 @@ jobs:
           sh -n debian-lxqt/start-model.sh
           sh -n debian-lxqt/020-xorriso-user.hook.chroot
           sh -n debian-lxqt/xorriso-install.sh
+          sh -n debian-lxqt/calamares-root.sh
           sh -n debian-lxqt/xorriso-install-mode.sh
           bash -n debian-lxqt/build-llama-runtime.sh
           python3 -m py_compile debian-lxqt/xorriso-ui.py debian-lxqt/xorriso-agent.py debian-lxqt/admin-package.py debian-lxqt/admin-service.py debian-lxqt/xorriso_terminal.py debian-lxqt/xorriso-model-provision.py debian-lxqt/xorriso-run-model.py
