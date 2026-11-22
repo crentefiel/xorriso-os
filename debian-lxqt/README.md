@@ -82,3 +82,17 @@ O QEMU mostrou **LXQt com a janela xorriso IA aberta** na captura `boot-455s.png
 A ausência de `XORRISO_DATA` / `XORRISO_RUNTIME` no QEMU é esperada: o script de montagem não falha quando o rótulo não existe. **Os volumes continuam somente leitura** quando presentes, e não há criação, formatação ou escrita automática. Sem volumes, a interface deve apenas informar indisponibilidade da IA local. O teste no VirtualBox e a execução real do MiniCPM continuam pendentes.
 
 Execução diagnóstica: https://github.com/crentefiel/xorriso-os/actions/runs/45037305528
+
+## Terminal e carregamento visual — 22/11/2026 (nova revisão experimental)
+
+**Interface:** mantém **apenas os atalhos xorriso IA e Arquivos** na área de trabalho, mas a janela da IA passa a ter um campo `Terminal (consultas)`, um botão **Executar**, outro **Terminal completo** (abre QTerminal como usuário `xorriso`, não root), **Arquivos** e **Verificar IA**. O terminal por comandos funciona mesmo se a API MiniCPM não estiver conectada; o MiniCPM **não é necessário** para abrir as ferramentas locais.
+
+**Ferramenta real de terminal da IA:** `run_terminal_command` executa um subconjunto definido de consultas Linux (exemplos: `whoami`, `ls -la` na pasta pessoal, `free -h`, `df -h`, `ip -brief address`, `systemctl is-active xorriso-model.service`) por `subprocess.run(..., shell=False)`, sem executar strings de shell ou comandos arbitrários. A operação `mkdir NOME` é permitida apenas em `~/Documentos`, **somente após confirmação**, e confere o resultado real. O QTerminal completo permanece disponível para uso humano; a IA não recebe acesso indiscriminado a root. Não usar `sudo` automático nem executar código fornecido pelo modelo sem validação.
+
+**Confirmação do atalho:** a documentação oficial do PCManFM-Qt explica que executáveis não confiáveis pedem confirmação e que `QuickExec=true` desativa a proteção globalmente, o que NÃO é desejado. Esta revisão instala `gvfs` e tenta marcar como confiáveis **apenas** `~/Desktop/xorriso.desktop` e `~/Desktop/arquivos.desktop` na sessão pessoal via `gio set ... metadata::trusted true`. Esse comportamento **ainda precisa de confirmação visual no VirtualBox**. Fonte: https://lxqt-project.org/wiki/Pcmanfm-qt.html#trusting-executables
+
+**Carregamento no boot:** adiciona `plymouth` e `plymouth-themes`, seleciona o tema de progresso `tribar` durante a construção da ISO e acrescenta `quiet splash` à linha do kernel. A tela de carregamento é o Plymouth real, com estado visual sem porcentagem artificial. O splash não deve ser usado como substituto do teste verdadeiro de sessão LXQt ou como alegação de que a demora foi resolvida. Fontes: https://wiki.debian.org/plymouth e https://manpages.debian.org/trixie/plymouth/plymouth-set-default-theme.1.en.html
+
+**MiniCPM:** o usuário já enviou vídeo de uma ISO anterior em que a janela abriu, mas `127.0.0.1:8080` recusou conexão. Sem os VDI e modelos, o servidor local não pode ser executado. A interface nova explica a indisponibilidade e oferece **Verificar IA**; a conexão real ao `llama-server` e aos pesos depende de testes com cópias dos discos. Nunca formatar `XORRISO_DATA` ou `XORRISO_RUNTIME`.
+
+**Testes:** os testes estáticos e de agente foram ampliados para bloquear opções não previstas (por exemplo `ls -R`), validação do `mkdir` autorizado e empacotamento das ferramentas e tema. As verificações básicas e a ISO da nova revisão ainda têm que ser aprovadas em CI; QEMU aprovado não é sinônimo de teste no VirtualBox.
