@@ -18,6 +18,7 @@ keyboard-configuration
 
 python3
 python3-tk
-policykit-1
+polkitd
+pkexec
 lxqt-policykit
 libgtk-3-bin
