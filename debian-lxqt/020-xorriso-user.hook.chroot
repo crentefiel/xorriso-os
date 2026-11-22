@@ -141,6 +141,27 @@ test -f /usr/share/plymouth/themes/tribar/tribar.plymouth || {
 }
 plymouth-set-default-theme tribar
 echo 'XORRISO_PLYMOUTH_TRIBAR_CONFIGURED'
+# Debian Calamares includes a helper that creates an 'Install Debian' icon
+# on the desktop. The xorriso must keep exactly two desktop icons; installation
+# is available through the AI interface instead. Do not disable Calamares itself.
+mkdir -p /etc/xdg/autostart
+cat > /etc/xdg/autostart/calamares-desktop-icon.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Calamares desktop icon helper (disabled in xorriso)
+Hidden=true
+EOF
+test -x /usr/bin/calamares
+test -s /etc/calamares/settings.conf
+test -x /usr/local/bin/xorriso-install
+test -s /usr/local/share/xorriso/live-calamares.rules
+# Systemd boot one-shot (not model-controlled): creates exact-purpose installer
+# policy only during Live, and removes Live autologin on installed boots.
+mkdir -p /etc/systemd/system/multi-user.target.wants
+ln -sf ../xorriso-install-mode.service \
+       /etc/systemd/system/multi-user.target.wants/xorriso-install-mode.service
+echo 'XORRISO_LIVE_TO_HD_INSTALLER_PREPARED'
+
 # Do not chown the skeleton to a user that does not yet exist.
 # live-config/user-setup will copy and chown these files on first boot.
 # Old live-build can omit the display-manager enablement in a chroot.
