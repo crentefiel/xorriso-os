@@ -18,6 +18,13 @@ assert "xorriso-ui.desktop" in hook and "OnlyShowIn=LXQt;" in hook
 assert "WallpaperMode=color\n" in hook
 assert "pcmanfm-qt" in packages
 assert "username=xorriso" in build
+# Ubuntu 24.04 live-build 3.x ignores config/hooks/normal: require legacy detection.
+assert "HOOK_HELPER=/usr/lib/live/build/lb_chroot_hooks" in build
+assert "HOOK_DEST=config/hooks" in build
+assert "HOOK_DEST=config/hooks/normal" in build
+assert 'test -s "$OUT/chroot/$expected"' in build
+assert "XORRISO_CHROOT_HOOK_EXECUTED" in hook
+assert "After=graphical.target" not in hook
 assert '"open_file_manager"' in agent
 assert "def start_file_manager():" in agent
 assert 'subprocess.Popen([executable, str(pathlib.Path.home())]' in agent
