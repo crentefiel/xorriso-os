@@ -13,7 +13,7 @@ git -C "$tmp/llama" fetch -q --depth 1 origin "$SOURCE_COMMIT"
 git -C "$tmp/llama" checkout -q --detach FETCH_HEAD
 test "$(git -C "$tmp/llama" rev-parse HEAD)" = "$SOURCE_COMMIT"
 # Avoid a pre-4.7 binary masquerading as compatible: require native converter.
-grep -Riq 'minicpmv4.7\|minicpmv4_7\|minicpmv4' "$tmp/llama/src" "$tmp/llama/tools" || {
+grep -Riq 'minicpm' "$tmp/llama/src" "$tmp/llama/tools" || {
     echo 'Pinned llama.cpp lacks MiniCPM V support' >&2; exit 5;
 }
 cmake -S "$tmp/llama" -B "$tmp/build" -G Ninja \
@@ -21,6 +21,7 @@ cmake -S "$tmp/llama" -B "$tmp/build" -G Ninja \
   -DCMAKE_CXX_FLAGS_RELEASE='-O2 -DNDEBUG' \
   -DCMAKE_EXE_LINKER_FLAGS='-Wl,-z,relro,-z,now' \
   -DGGML_NATIVE=OFF -DGGML_OPENMP=OFF -DGGML_BLAS=OFF \
+  -DGGML_BACKEND_DL=OFF -DGGML_SHARED=OFF \
   -DLLAMA_CURL=OFF -DBUILD_SHARED_LIBS=OFF \
   -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_SERVER=ON
 cmake --build "$tmp/build" --target llama-server --parallel 4
