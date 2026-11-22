@@ -146,6 +146,25 @@ test -f /usr/share/plymouth/themes/tribar/tribar.plymouth || {
 }
 plymouth-set-default-theme tribar
 echo 'XORRISO_PLYMOUTH_TRIBAR_CONFIGURED'
+# Calamares calls libpwquality/CrackLib to validate the new account password.
+# live-build disables APT recommends, so its dictionary must be built explicitly.
+# Debian bug #1086182 documents the exact "error loading dictionary" message.
+command -v update-cracklib >/dev/null || {
+    echo 'cracklib-runtime missing: cannot install a new user with password' >&2
+    exit 32
+}
+test -s /usr/share/dict/words || {
+    echo 'Password wordlist missing: check wamerican package' >&2
+    exit 32
+}
+update-cracklib
+for suffix in pwd pwi hwm; do
+    test -s "/var/cache/cracklib/cracklib_dict.$suffix" || {
+        echo "CrackLib password database missing: $suffix" >&2
+        exit 32
+    }
+done
+echo 'XORRISO_PASSWORD_DICTIONARY_READY'
 # Debian Calamares includes a helper that creates an 'Install Debian' icon
 # on the desktop. The xorriso must keep exactly two desktop icons; installation
 # is available through the AI interface instead. Do not disable Calamares itself.
