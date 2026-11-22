@@ -1,19 +1,20 @@
 [Unit]
-Description=xorriso - MiniCPM local (VDI verificados)
-After=xorriso-volumes.service
-Requires=xorriso-volumes.service
-ConditionPathExists=/data/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf
-ConditionPathExists=/runtime-data/runtime/llama-server
+Description=xorriso - MiniCPM-V 4.7 35B-A3B local localhost:8080
+ConditionKernelCommandLine=!boot=live
+ConditionPathExists=/var/lib/xorriso-model/model.json
+After=xorriso-model-provision.service
+Wants=xorriso-model-provision.service
 
 [Service]
 Type=simple
+User=xorriso-model
+Group=xorriso-model
 ExecStart=/usr/local/libexec/xorriso/start-model.sh
 Restart=on-failure
-RestartSec=8
-TimeoutStartSec=30
-# Root here is confined: original VDI directories may be owner-only on ext4.
-# This model service has no administrative command execution endpoint.
-User=root
+RestartSec=20
+TimeoutStartSec=300
+StateDirectory=xorriso-model
+StateDirectoryMode=0755
 NoNewPrivileges=yes
 CapabilityBoundingSet=
 AmbientCapabilities=
@@ -27,9 +28,6 @@ RestrictSUIDSGID=yes
 LockPersonality=yes
 RestrictNamespaces=yes
 MemoryDenyWriteExecute=no
-RuntimeDirectory=xorriso
-RuntimeDirectoryMode=0700
-ReadWritePaths=/run/xorriso
 RestrictAddressFamilies=AF_UNIX AF_INET
 IPAddressDeny=any
 IPAddressAllow=localhost
