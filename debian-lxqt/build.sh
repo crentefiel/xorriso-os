@@ -14,7 +14,7 @@ if [[ -e config ]]; then
 fi
 lb config --mode debian --distribution trixie --architectures amd64 \
   --binary-images iso-hybrid --debian-installer false --initsystem systemd \
-  --archive-areas "main" --apt-indices false --security false --bootappend-live "boot=live components live-config.nocomponents=sudo username=xorriso console=ttyS0,115200n8 console=tty0"
+  --archive-areas "main" --apt-indices false --security false --bootappend-live "boot=live components live-config.nocomponents=sudo username=xorriso quiet splash console=ttyS0,115200n8 console=tty0"
 # Ubuntu 24.04 bundles live-build 3.0, which only processes config/hooks/*.chroot.
 # Newer live-build expects config/hooks/normal/*.hook.chroot.
 # Select the layout by inspecting the actual installed build helper.
@@ -39,6 +39,7 @@ cp "$ROOT/README.md" config/includes.chroot/usr/local/share/xorriso/MIGRATION.md
 mkdir -p config/includes.chroot/usr/local/bin
 install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorriso-ui.py
 install -m 755 "$ROOT/xorriso-agent.py" config/includes.chroot/usr/local/bin/xorriso-agent.py
+install -m 755 "$ROOT/xorriso_terminal.py" config/includes.chroot/usr/local/bin/xorriso_terminal.py
 mkdir -p config/includes.chroot/usr/local/libexec/xorriso config/includes.chroot/etc/systemd/system
 install -m 755 "$ROOT/admin-package.py" config/includes.chroot/usr/local/libexec/xorriso/admin-package
 install -m 755 "$ROOT/mount-volumes.sh" config/includes.chroot/usr/local/libexec/xorriso/mount-volumes.sh
@@ -101,7 +102,11 @@ for expected in \
   etc/skel/Desktop/xorriso.desktop \
   etc/skel/Desktop/arquivos.desktop \
   etc/skel/.config/autostart/xorriso-ui.desktop \
+  etc/skel/.config/autostart/xorriso-trust-launchers.desktop \
   usr/local/bin/xorriso-desktop-ready \
+  usr/local/bin/xorriso_terminal.py \
+  usr/local/bin/xorriso-trust-launchers \
+  usr/share/plymouth/themes/tribar/tribar.plymouth \
   usr/lib/live/config/0030-user-setup; do
   if ! unsquashfs -cat "$SQUASHFS" "$expected" >/dev/null 2>&1; then
     echo "xorriso desktop skeleton or live-config is missing from Live SquashFS: $expected" >&2
