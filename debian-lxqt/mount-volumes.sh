@@ -8,8 +8,8 @@ mount_one() {
  dest=$2
  device=$(blkid -L "$label" 2>/dev/null || :)
  [ -n "$device" ] && [ -b "$device" ] || {
-  echo "$label nao conectado; nao sera criado ou formatado." >&2
-  return 2
+  echo "$label nao conectado; IA local pode ficar indisponivel. Nada sera criado ou formatado." >&2
+  return 0
  }
  current=$(findmnt -rn -o SOURCE --mountpoint "$dest" 2>/dev/null || :)
  if [ -n "$current" ]; then
