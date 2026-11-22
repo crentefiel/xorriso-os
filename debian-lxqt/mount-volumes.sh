@@ -11,7 +11,7 @@ mount_one() {
   echo "$label nao conectado; nao sera criado ou formatado." >&2
   return 2
  }
- current=$(findmnt -rn -o SOURCE --target "$dest" 2>/dev/null || :)
+ current=$(findmnt -rn -o SOURCE --mountpoint "$dest" 2>/dev/null || :)
  if [ -n "$current" ]; then
   echo "$dest ja montado: $current"
   return 0
