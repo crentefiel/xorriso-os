@@ -1,0 +1,13 @@
+[Unit]
+Description=xorriso - montar volumes VDI existentes SOMENTE para leitura
+After=local-fs.target systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/xorriso/mount-volumes.sh
+RemainAfterExit=yes
+TimeoutStartSec=35
+
+[Install]
+WantedBy=multi-user.target
