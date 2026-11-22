@@ -8,7 +8,8 @@
       "debian-lxqt/errors.json",
       "debian-lxqt/README.md",
       "GitHub Actions do commit HEAD",
-      "BOOT-DIAGNOSTICS da falha"
+      "BOOT-DIAGNOSTICS da falha",
+      "debian-lxqt/README.md#live--instalacao-em-hdssd-com-ia-integrada-22112026"
     ],
     "on_failure": "Antes de aplicar uma correção, comparar fingerprint de erros anteriores; registrar evidence, causa confirmada ou hipótese e teste reproduzível. Não marcar como resolvido sem a execução exigida.",
     "safety": "Não formatar, alterar, remover ou montar com escrita os discos XORRISO_DATA e XORRISO_RUNTIME. Não fazer merge automático. Não assumir que QEMU aprovado valida VirtualBox."
@@ -171,6 +172,28 @@
       "references": [
         "https://github.com/crentefiel/xorriso-os/actions/runs/45054304328",
         "https://github.com/crentefiel/xorriso-os/actions/runs/45054368321"
+      ]
+    },
+    {
+      "id": "XOS-008",
+      "title": "Teste do instalador falhou por variável bootmode não inicializada",
+      "fingerprint": [
+        "NameError: name 'bootmode' is not defined",
+        "test-desktop-layout.py",
+        "XORRISO_INSTALL_MODE_LIVE"
+      ],
+      "status": "correção de teste aplicada; revalidação CI pendente",
+      "root_cause_status": "confirmada pelo Traceback do CI",
+      "cause": "O novo assert do marcador do instalador usou a variável local bootmode antes da leitura de xorriso-install-mode.sh.",
+      "fix": "Substituir a referência prematura por leitura explícita do arquivo no próprio assert, mantendo a checagem dos marcadores de boot.",
+      "evidence": [
+        "GitHub Actions run 45061720981 (falha em Check scripts and desktop app)",
+        "GitHub Actions run 45061684901 (falha no mesmo teste)"
+      ],
+      "verification": "Testes CI do commit de correção aa6d0bab649181c52fb8d5c0f1829b5638ec177c e posteriores a conferir",
+      "references": [
+        "https://github.com/crentefiel/xorriso-os/actions/runs/45061720981",
+        "https://github.com/crentefiel/xorriso-os/commit/aa6d0bab649181c52fb8d5c0f1829b5638ec177c"
       ]
     }
   ]
