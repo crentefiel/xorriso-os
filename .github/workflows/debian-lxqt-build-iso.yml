@@ -1,7 +1,8 @@
 name: xorriso Debian LXQt - build live ISO
 on:
   push:
-    branches: [feat/debian-lxqt-foundation]
+    branches: [feat/debian-lxqt-foundation, feat/alpha-016-ai-admin-agent]
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
