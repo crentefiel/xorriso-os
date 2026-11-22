@@ -102,10 +102,52 @@ def test_install_is_not_shell():
         assert not agent.action("install_package",{"package":"pcmanfm-qt"},lambda _:False,runner)["approved"]
         assert len(calls)==1
 
+
+
+def test_real_http_planning():
+    import json
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    seen = []
+    class MockLocalMiniCPM(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            seen.append(body["messages"])
+            if len(seen) == 1:
+                decision = {"tool":"list_files","args":{}}
+            else:
+                assert "OBSERVACAO REAL" in body["messages"][-1]["content"]
+                decision = {"tool":"finish","message":"A pasta foi consultada."}
+            data = json.dumps({"choices":[{"message":{"content":json.dumps(decision)}}]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type","application/json")
+            self.send_header("Content-Length",str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+    server = HTTPServer(("127.0.0.1", 0), MockLocalMiniCPM)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        endpoint = "http://127.0.0.1:" + str(server.server_port) + "/v1"
+        def planner(messages):
+            return agent.next_plan(messages, endpoint=endpoint)
+        result = agent.solve("Liste meus arquivos", lambda _:False, planner=planner,
+                             execute=lambda tool,args,approve:{"files":["a.txt"]})
+        assert result["finished"]
+        assert len(result["steps"]) == 1
+        assert len(seen) == 2
+    finally:
+        server.shutdown()
+        server.server_close()
+
 if __name__ == "__main__":
     test_loop()
     test_denial_stops()
     test_real_file_actions()
     test_package_validation()
     test_install_is_not_shell()
+    test_real_http_planning()
     print("PASS: multi-etapas, observacao, autorizacao, filesystem, pkexec, comandos sem shell")
