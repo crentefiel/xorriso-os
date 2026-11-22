@@ -1,0 +1,42 @@
+name: xorriso Debian LXQt - build live ISO
+on:
+  push:
+    branches: [feat/debian-lxqt-foundation]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build-live-iso:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Debian live-build dependencies
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            live-build debootstrap debian-archive-keyring xorriso squashfs-tools \
+            syslinux-common isolinux mtools grub-pc-bin grub-efi-amd64-bin python3-tk
+      - name: Check scripts and desktop app
+        run: |
+          bash -n debian-lxqt/build.sh
+          sh -n debian-lxqt/mount-volumes.sh
+          sh -n debian-lxqt/start-model.sh
+          sh -n debian-lxqt/020-xorriso-user.hook.chroot
+          python3 -m py_compile debian-lxqt/xorriso-ui.py
+          python3 debian-lxqt/xorriso-ui.py --selftest
+      - name: Build Debian 13 LXQt live ISO
+        run: timeout 55m bash debian-lxqt/build.sh
+      - name: Validate ISO image
+        run: |
+          test -s debian-lxqt/work/live-image-amd64.hybrid.iso
+          xorriso -indev debian-lxqt/work/live-image-amd64.hybrid.iso -report_el_torito plain
+          sha256sum debian-lxqt/work/live-image-amd64.hybrid.iso | tee debian-lxqt/work/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xorriso-debian-lxqt-EXPERIMENTAL
+          path: |
+            debian-lxqt/work/live-image-amd64.hybrid.iso
+            debian-lxqt/work/SHA256SUMS
+          retention-days: 14
+          if-no-files-found: error
