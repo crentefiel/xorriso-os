@@ -28,6 +28,16 @@ class Desktop:
         self.entry.bind("<Return>", lambda _event: self.send())
         self.send_button = tk.Button(bar, text="Enviar", command=self.send)
         self.send_button.pack(side="left", padx=(8,0))
+        terminal_row = tk.Frame(self.root)
+        terminal_row.pack(fill="x", padx=12, pady=(0, 10))
+        tk.Label(terminal_row, text="Terminal (consultas):").pack(side="left")
+        self.command_entry = tk.Entry(terminal_row)
+        self.command_entry.pack(side="left", fill="x", expand=True, padx=8)
+        self.command_entry.bind("<Return>", lambda _event: self.execute_command())
+        tk.Button(terminal_row, text="Executar", command=self.execute_command).pack(side="left")
+        tk.Button(terminal_row, text="Terminal completo", command=self.open_terminal).pack(side="left", padx=(8,0))
+        tk.Button(terminal_row, text="Arquivos", command=self.open_files).pack(side="left", padx=(8,0))
+        tk.Button(terminal_row, text="Verificar IA", command=self.recheck_model).pack(side="left", padx=(8,0))
         self.post("xorriso", "Interface pronta. Verificando o servidor local MiniCPM...")
         self.entry.focus_set()
         threading.Thread(target=self.check_model, daemon=True).start()
@@ -43,8 +53,10 @@ class Desktop:
             else:
                 message = "Modelo local detectado: " + ", ".join(available)[:160]
         except (OSError, ValueError, KeyError, TypeError) as exc:
-            message = ("IA local ainda indisponivel. O desktop e o gerenciador de arquivos "
-                       "continuam funcionando. Detalhe: " + str(exc)[:180])
+            message = ("MiniCPM local indisponivel. Conecte COPIAS dos VDIs "
+                       "XORRISO_DATA e XORRISO_RUNTIME sem formatar, e confira o "
+                       "servico xorriso-model. Terminal e Arquivos funcionam "
+                       "sem IA. Detalhe: " + str(exc)[:180])
         self.root.after(0, lambda: self.post("xorriso", message))
 
     def post(self, name, text):
@@ -65,6 +77,42 @@ class Desktop:
         self.root.after(0, dialog)
         ready.wait()
         return confirmed[0]
+
+    def recheck_model(self):
+        self.post("xorriso", "Verificando novamente o MiniCPM...")
+        threading.Thread(target=self.check_model, daemon=True).start()
+
+    def execute_command(self):
+        command = self.command_entry.get().strip()
+        if not command:
+            return
+        self.command_entry.delete(0, "end")
+        self.post("Voce (terminal)", "$ " + command)
+        def worker():
+            try:
+                result = agent.action("run_terminal_command", {"command": command}, self.confirm)
+                output = ("Codigo: " + str(result.get("exit_code", "?")) + "\n" +
+                          str(result.get("output", "")))
+            except Exception as exc:
+                output = "Comando nao executado: " + str(exc)
+            self.root.after(0, lambda: self.post("Terminal", output))
+        threading.Thread(target=worker, daemon=True).start()
+
+    def open_terminal(self):
+        try:
+            result = agent.action("open_terminal", {}, lambda _message: True)
+            self.post("xorriso", "Terminal aberto como usuario comum." if result.get("launch_requested")
+                      else "Nao foi possivel abrir QTerminal: " + str(result))
+        except Exception as exc:
+            self.post("xorriso", "Falha ao abrir terminal: " + str(exc))
+
+    def open_files(self):
+        try:
+            result = agent.action("open_file_manager", {}, lambda _message: True)
+            self.post("xorriso", "Gerenciador de arquivos solicitado." if result.get("launch_requested")
+                      else "Nao foi possivel abrir Arquivos: " + str(result))
+        except Exception as exc:
+            self.post("xorriso", "Falha ao abrir arquivos: " + str(exc))
 
     def send(self):
         message = self.entry.get().strip()
@@ -95,6 +143,8 @@ class Desktop:
 if __name__ == "__main__":
     if "--selftest" in sys.argv:
         assert "install_package" in agent.TOOLS
+        assert "run_terminal_command" in agent.TOOLS
+        assert "open_terminal" in agent.TOOLS
         assert "finish" in agent.TOOLS
         assert agent.MAX_STEPS <= 8
         print("PASS: interface e modulo do agente carregam sem exigir servidor ou display.")
