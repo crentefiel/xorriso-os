@@ -36,7 +36,7 @@ marker_printfs = re.findall(r"printf\s+'[^']+'\s+'XORRISO_LXQT_DESKTOP_READY'", 
 assert len(marker_printfs) == 2, marker_printfs
 for command in marker_printfs:
     result = subprocess.run(["/bin/sh", "-c", command], capture_output=True, check=True)
-    assert result.stdout == b"XORRISO_LXQT_DESKTOP_READY\\n", repr(result.stdout)
+    assert result.stdout == b"XORRISO_LXQT_DESKTOP_READY\n", repr(result.stdout)
 
 # Ubuntu 24.04 live-build 3.x ignores config/hooks/normal: require legacy detection.
 assert "HOOK_HELPER=/usr/lib/live/build/lb_chroot_hooks" in build
