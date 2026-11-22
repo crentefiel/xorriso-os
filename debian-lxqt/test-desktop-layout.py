@@ -18,6 +18,22 @@ assert "DesktopShortcuts=\n" in hook
 assert "xorriso-ui.desktop" in hook and "OnlyShowIn=LXQt;" in hook
 assert "WallpaperMode=color\n" in hook
 assert "pcmanfm-qt" in packages
+# The optimized image must not pull KDE Plasma through SDDM recommends.
+assert "--apt-recommends false" in build
+assert "sddm-theme-maui" in packages
+assert "sddm-theme-debian-breeze" not in packages
+sddm = (root / "10-xorriso-autologin.conf").read_text(encoding="utf-8")
+assert "User=xorriso" in sddm
+assert "[Theme]\\nCurrent=maui" in sddm
+
+assert "xserver-xorg-video-all" in packages
+assert "xserver-xorg-input-all" in packages
+assert "xorriso-dpkg-status.txt" in build
+assert "package-manifest.txt" in build
+assert 'grep -Fxq "$unwanted" "$MANIFEST"' in build
+assert all(x in build for x in ("plasma-workspace", "plasma-desktop",
+                              "plasma-discover", "sddm-theme-debian-breeze"))
+
 assert all(p in packages for p in ("qterminal", "gvfs", "plymouth", "plymouth-themes"))
 assert "quiet splash" in build
 assert "plymouth-set-default-theme tribar" in hook
