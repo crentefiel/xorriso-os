@@ -47,6 +47,8 @@ jobs:
           sh -n debian-lxqt/mount-volumes.sh
           sh -n debian-lxqt/start-model.sh
           sh -n debian-lxqt/020-xorriso-user.hook.chroot
+          sh -n debian-lxqt/xorriso-install.sh
+          sh -n debian-lxqt/xorriso-install-mode.sh
           python3 -m py_compile debian-lxqt/xorriso-ui.py debian-lxqt/xorriso-agent.py debian-lxqt/admin-package.py debian-lxqt/xorriso_terminal.py
           python3 debian-lxqt/test-agent.py
           python3 debian-lxqt/test-desktop-layout.py
