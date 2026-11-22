@@ -5,6 +5,7 @@ systemd-sysv
 linux-image-amd64
 syslinux-utils
 xorg
+x11-xserver-utils
 lxqt-core
 sddm
 network-manager
