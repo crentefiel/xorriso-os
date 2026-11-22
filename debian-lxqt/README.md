@@ -108,3 +108,13 @@ Execução diagnóstica: https://github.com/crentefiel/xorriso-os/actions/runs/4
 **Limitações:** desligar os pacotes recomendados pode remover funcionalidades úteis implícitas. A nova versão deve passar novamente todos os testes de build, login automático, SDDM, LXQt, janela da IA, gerenciador de arquivos, terminal e Plymouth. Não confundir tamanho reduzido com boot mais rápido sem medição real. Não montar nem modificar os VDIs originais `XORRISO_DATA` e `XORRISO_RUNTIME`, e não fazer merge automático.
 
 Documentação oficial: https://live-team.pages.debian.net/live-manual/html/live-manual/customizing-package-installation.en.html , https://packages.debian.org/trixie/sddm-theme-maui e https://packages.debian.org/trixie/sddm-theme-debian-breeze .
+
+## Histórico persistente de erros (XOS-) — 22/11/2026
+
+O **banco de erros do projeto** agora é `debian-lxqt/errors.json`, versionado neste PR #27. Todo futuro assistente/colaborador deve ler esse arquivo **antes de corrigir um erro semelhante**, consultar os logs do SHA afetado e acrescentar ou atualizar registros com: ID estável, sintoma/fingerprint, causa comprovada ou hipótese, link de evidências do GitHub Actions, correção aplicada, testes realizados e status. Nunca marcar um erro como resolvido por simples commit sem evidência de CI/QEMU ou VirtualBox, conforme o caso. O teste `test-desktop-layout.py` verifica a existência e a estrutura do banco.
+
+**Caso XOS-005 (ISO minimalista preta):** comparação dos logs do SHA `0ac2f6d3cbcb` (QEMU aprovado, `xfwm4` instalado) com SHA `694c73f168df` (QEMU falhou, `xfwm4` e `openbox` ausentes) mostrou que `--apt-recommends false` eliminou o gerenciador de janelas. A documentação do LXQt confirma a necessidade de window manager X11 externo e a sintaxe `[General] window_manager=xfwm4` em `session.conf`. O reparo reinstala `xfwm4` e `xdg-user-dirs`, configura explicitamente `xfwm4` e exige os processos `lxqt-session`, `xfwm4` e `pcmanfm-qt` antes de transmitir READY no QEMU. **Trata-se de causa provável, não comprovada até o novo teste gráfico.**
+
+Docs: https://lxqt-project.org/wiki/Window-managers-(X11).html e https://wiki.debian.org/LXQt
+
+As alterações mantêm o tema leve Maui e os recursos principais. Não montar os VDI `XORRISO_DATA` e `XORRISO_RUNTIME` com escrita e nunca fazer merge automático.
