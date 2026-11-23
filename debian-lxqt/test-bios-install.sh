@@ -48,7 +48,7 @@ ln -sf ../xorriso-ci-installer.service "$units/multi-user.target.wants/xorriso-c
 echo XORRISO_CI_TEST_UNIT_ENABLED >/dev/ttyS0
 HOOK
 chmod 755 "$payload/scripts/init-bottom/xorriso-ci"
-cp "$tmp/initrd.img" "$tmp/ci-initrd.img"
+install -m 0600 "$tmp/initrd.img" "$tmp/ci-initrd.img"
 truncate -s %4 "$tmp/ci-initrd.img"
 (cd "$payload" && find . -print0 | cpio --null -o -H newc) >> "$tmp/ci-initrd.img"
 cp "$here/test-bios-guest.sh" "$tmp/check.raw"

@@ -65,6 +65,11 @@ jobs:
         run: timeout 20m bash debian-lxqt/build-llama-runtime.sh
       - name: Build Debian 13 LXQt live ISO
         run: timeout 55m bash debian-lxqt/build.sh
+      - name: Enable QEMU hardware acceleration when available
+        run: |
+          if [ -c /dev/kvm ] && command -v setfacl >/dev/null; then
+            sudo setfacl -m "u:$(id -un):rw" /dev/kvm || echo 'Using software emulation'
+          fi
       - name: Boot ISO and verify LXQt desktop session in QEMU
         run: timeout 590s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
       - name: Install the BIOS bootloader offline and boot the disposable disk
