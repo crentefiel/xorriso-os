@@ -11,15 +11,46 @@ disk="$tmp/target.raw"
 truncate -s 8G "$disk"
 printf 'label: dos\n\nstart=2048, type=83, bootable\n' | sfdisk "$disk"
 
-# Boot the kernel and initramfs from the exact ISO. The read-only second
-# virtio disk supplies a CI command for this boot only, outside the product.
-xorriso -osirrox on -indev "$iso" -extract /live "$tmp/live" -end
-mapfile -t kernels < <(find "$tmp/live" -maxdepth 1 -type f -name 'vmlinuz*')
-mapfile -t initrds < <(find "$tmp/live" -maxdepth 1 -type f -name 'initrd*')
-if (( ${#kernels[@]} != 1 || ${#initrds[@]} != 1 )); then
-    echo "Expected one Live kernel and one initramfs in the ISO." >&2
-    exit 1
-fi
+# The release ISO stays read-only. For this one boot, append an initramfs
+# hook that enables a test service in the Live session's volatile overlay.
+xorriso -osirrox on -indev "$iso" -extract /live/vmlinuz "$tmp/vmlinuz" \
+    -extract /live/initrd.img "$tmp/initrd.img" -end
+payload="$tmp/payload"
+mkdir -p "$payload/scripts/init-bottom"
+sudo unmkinitramfs "$tmp/initrd.img" "$tmp/unpacked"
+order=$(sudo find "$tmp/unpacked" -type f -path '*/scripts/init-bottom/ORDER' -print -quit)
+test -n "$order"
+sudo cat "$order" > "$payload/scripts/init-bottom/ORDER"
+sudo rm -r -- "$tmp/unpacked"
+printf '\n/scripts/init-bottom/xorriso-ci "$@"\n' >> "$payload/scripts/init-bottom/ORDER"
+cat > "$payload/scripts/init-bottom/xorriso-ci" <<'HOOK'
+#!/bin/sh
+case "${1:-}" in prereqs) exit 0 ;; esac
+set -eu
+units="${rootmnt:-/root}/etc/systemd/system"
+test -x "${rootmnt:-/root}/bin/bash"
+mkdir -p "$units/multi-user.target.wants"
+cat > "$units/xorriso-ci-installer.service" <<'UNIT'
+[Unit]
+Description=Run the disposable BIOS installation test
+ConditionKernelCommandLine=xorriso_ci_bios=1
+After=dev-vdb.device local-fs.target
+Requires=dev-vdb.device
+SuccessAction=poweroff
+FailureAction=poweroff
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /dev/vdb
+TimeoutStartSec=22min
+StandardOutput=journal+console
+UNIT
+ln -sf ../xorriso-ci-installer.service "$units/multi-user.target.wants/xorriso-ci-installer.service"
+echo XORRISO_CI_TEST_UNIT_ENABLED >/dev/ttyS0
+HOOK
+chmod 755 "$payload/scripts/init-bottom/xorriso-ci"
+cp "$tmp/initrd.img" "$tmp/ci-initrd.img"
+truncate -s %4 "$tmp/ci-initrd.img"
+(cd "$payload" && find . -print0 | cpio --null -o -H newc) >> "$tmp/ci-initrd.img"
 cp "$here/test-bios-guest.sh" "$tmp/check.raw"
 printf '%*s' "$(( (512 - $(stat -c %s "$tmp/check.raw") % 512) % 512 ))" '' >> "$tmp/check.raw"
 
@@ -40,10 +71,10 @@ run_vm() {
 }
 
 run_vm bios-install 23m XORRISO_CI_BIOS_GRUB_INSTALLED \
-    -cdrom "$iso" -kernel "${kernels[0]}" -initrd "${initrds[0]}" \
+    -cdrom "$iso" -kernel "$tmp/vmlinuz" -initrd "$tmp/ci-initrd.img" \
     -drive "if=none,id=check,file=$tmp/check.raw,format=raw,readonly=on" \
     -device virtio-blk-pci,drive=check,serial=XOS015CHECK \
-    -append 'boot=live console=ttyS0,115200n8 systemd.run="/bin/bash /dev/vdb" systemd.run_success_action=poweroff systemd.run_failure_action=poweroff panic=5'
+    -append 'boot=live components live-config.nocomponents=sudo username=xorriso console=ttyS0,115200n8 xorriso_ci_bios=1 panic=5'
 # This time SeaBIOS gets only the installed disk. No kernel, ISO or test
 # input device is supplied by the host.
 run_vm bios-disk-boot 14m XORRISO_CI_BOOTED_FROM_EXT4_DISK -boot c

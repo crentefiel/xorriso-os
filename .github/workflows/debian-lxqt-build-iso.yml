@@ -20,7 +20,7 @@ jobs:
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             live-build debootstrap debian-archive-keyring xorriso squashfs-tools \
-            syslinux-common syslinux-utils isolinux mtools cpio librsvg2-bin grub-pc-bin grub-efi-amd64-bin apt-utils fdisk python3-tk python3-pil qemu-system-x86 cmake ninja-build build-essential pkg-config
+            syslinux-common syslinux-utils isolinux mtools cpio initramfs-tools-core librsvg2-bin grub-pc-bin grub-efi-amd64-bin apt-utils fdisk python3-tk python3-pil qemu-system-x86 cmake ninja-build build-essential pkg-config
       - name: Verify ISO bootloader tools
         run: |
           command -v isohybrid
