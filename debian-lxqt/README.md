@@ -232,4 +232,6 @@ Na captura de 23/11/2026, a etapa de pacotes do Calamares parou ao executar `apt
 
 A imagem fornece `/etc/calamares/modules/packages.conf` com seletores APT que exigem nome exato e estado instalado no disco de destino. A mesma configuração atende imagens com ou sem os opcionais. O Calamares continua executando a limpeza e informa erros reais de dependências ou de configuração do dpkg.
 
+No disco extraído da ISO, a simulação da lista antiga identificou exatamente dois nomes sem registro no índice offline: `live-task-localisation` e `live-task-recommended`. [Log da reprodução](https://github.com/crentefiel/xorriso-os/actions/runs/45159515151/job/137640972645)
+
 O teste em QEMU abre o próprio Calamares sem interação e executa a sequência Debian de `packages` até `sources-final` sobre o disco descartável. Ele verifica a remoção dos pacotes Live, a integridade do APT e do dpkg, o kernel, o GRUB e o desktop. Em seguida, inicia o disco sem a ISO e exige uma resposta do LFM2.5-350M sem internet. O assistente gráfico completo do VirtualBox continua sendo um teste separado.

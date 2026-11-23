@@ -20,8 +20,6 @@ fi
 # native follow-up jobs. Only the GUI input (the pre-mounted disk) and the
 # completion notification are supplied by two test-only Python jobs.
 mkdir -p "$ci/jobs/xorrisocitarget" "$ci/jobs/xorrisocicomplete"
-ln -s /etc/calamares/modules "$ci/modules"
-ln -s /etc/calamares/branding "$ci/branding"
 for name in xorrisocitarget xorrisocicomplete; do
     printf 'type: job\nname: %s\ninterface: python\nscript: main.py\n' "$name" > "$ci/jobs/$name/module.desc"
 done
@@ -61,9 +59,17 @@ echo '      - xorrisocicomplete' >> "$ci/settings.conf"
 
 export XORRISO_CI_TARGET="$target" XORRISO_CI_DONE="$ci/completed"
 export QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QT_OPENGL=software
-calamares -d -c "$ci" > "$ci/calamares.log" 2>&1 &
+# Override only the orchestration sequence in this temporary Live session.
+# A Calamares -c override would also replace the Debian QML and data paths.
+mount --bind "$ci/settings.conf" /etc/calamares/settings.conf
+calamares -d > "$ci/calamares.log" 2>&1 &
 pid=$!
-trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true' EXIT
+cleanup() {
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    umount /etc/calamares/settings.conf
+}
+trap cleanup EXIT
 deadline=$((SECONDS + 720))
 while ! test -f "$XORRISO_CI_DONE"; do
     if ! kill -0 "$pid" 2>/dev/null || (( SECONDS >= deadline )) ||
