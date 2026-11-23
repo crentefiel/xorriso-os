@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # CI fixture. It is passed to a disposable QEMU VM, never packaged in the ISO.
 set -Eeuo pipefail
-exec >/dev/ttyS0 2>&1
+exec >/dev/ttyS1 2>&1
 trap 'echo "BIOS installation test failed at line $LINENO"' ERR
+set -x
 udevadm settle --timeout=30
 test "$(cat /sys/class/block/vda/serial)" = XOS015TARGET
 test "$(cat /sys/class/block/vdb/serial)" = XOS015CHECK
@@ -105,7 +106,8 @@ FailureAction=poweroff
 Type=oneshot
 TimeoutStartSec=8min
 StandardOutput=tty
-TTYPath=/dev/ttyS0
+StandardError=inherit
+TTYPath=/dev/ttyS1
 ExecStart=/usr/bin/findmnt --mountpoint / --source LABEL=XOS015TEST
 ExecStart=/usr/bin/test ! -e /etc/polkit-1/rules.d/49-xorriso-live-calamares.rules
 ExecStart=/usr/bin/python3 /usr/local/libexec/xorriso-ci-chat.py DISK

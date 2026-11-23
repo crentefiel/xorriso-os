@@ -61,10 +61,12 @@ vm=(qemu-system-x86_64 -machine accel=kvm:tcg -m 3072 -smp 2 -display none
 run_vm() {
     local phase=$1 limit=$2 marker=$3
     shift 3
-    local log="$logs/$phase.log"
-    if ! timeout --kill-after=10s "$limit" "${vm[@]}" -serial "file:$log" "$@" ||
-       ! grep -Fq "$marker" "$log"; then
-        tail -n 100 "$log" >&2
+    local log="$logs/$phase.log" guest="$logs/$phase-guest.log"
+    if ! timeout --kill-after=10s "$limit" "${vm[@]}" \
+        -serial "file:$log" -serial "file:$guest" "$@" ||
+       ! grep -Eq "^${marker}[[:space:]]*$" "$guest"; then
+        tail -n 30 "$log" >&2
+        tail -n 100 "$guest" >&2
         return 1
     fi
     echo "PASS: $marker"
@@ -74,9 +76,9 @@ run_vm bios-install 23m XORRISO_CI_BIOS_GRUB_INSTALLED \
     -cdrom "$iso" -kernel "$tmp/vmlinuz" -initrd "$tmp/ci-initrd.img" \
     -drive "if=none,id=check,file=$tmp/check.raw,format=raw,readonly=on" \
     -device virtio-blk-pci,drive=check,serial=XOS015CHECK \
-    -append 'boot=live components live-config.nocomponents=sudo username=xorriso console=ttyS0,115200n8 xorriso_ci_bios=1 panic=5'
+    -append 'boot=live components live-config.nocomponents=sudo username=xorriso console=ttyS0,115200n8 systemd.mask=serial-getty@ttyS0.service xorriso_ci_bios=1 panic=5'
 # This time SeaBIOS gets only the installed disk. No kernel, ISO or test
 # input device is supplied by the host.
 run_vm bios-disk-boot 14m XORRISO_CI_BOOTED_FROM_EXT4_DISK -boot c
-grep -F 'XORRISO_CI_OFFLINE_CHAT_LIVE ' "$logs/bios-install.log"
-grep -F 'XORRISO_CI_OFFLINE_CHAT_DISK ' "$logs/bios-disk-boot.log"
+grep -F 'XORRISO_CI_OFFLINE_CHAT_LIVE ' "$logs/bios-install-guest.log"
+grep -F 'XORRISO_CI_OFFLINE_CHAT_DISK ' "$logs/bios-disk-boot-guest.log"

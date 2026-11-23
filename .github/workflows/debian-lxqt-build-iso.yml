@@ -20,7 +20,7 @@ jobs:
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             live-build debootstrap debian-archive-keyring xorriso squashfs-tools \
-            syslinux-common syslinux-utils isolinux mtools cpio initramfs-tools-core librsvg2-bin grub-pc-bin grub-efi-amd64-bin apt-utils fdisk python3-tk python3-pil qemu-system-x86 cmake ninja-build build-essential pkg-config
+            syslinux-common syslinux-utils isolinux mtools cpio initramfs-tools-core librsvg2-bin grub-pc-bin grub-efi-amd64-bin apt-utils fdisk acl python3-tk python3-pil qemu-system-x86 cmake ninja-build build-essential pkg-config
       - name: Verify ISO bootloader tools
         run: |
           command -v isohybrid
@@ -65,6 +65,17 @@ jobs:
         run: timeout 20m bash debian-lxqt/build-llama-runtime.sh
       - name: Build Debian 13 LXQt live ISO
         run: timeout 55m bash debian-lxqt/build.sh
+      - name: Record checksum and keep a copy for install testing
+        run: cd debian-lxqt/work && sha256sum live-image-amd64.hybrid.iso | tee SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xorriso-ISO-CANDIDATA
+          path: |
+            debian-lxqt/work/live-image-amd64.hybrid.iso
+            debian-lxqt/work/SHA256SUMS
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
       - name: Enable QEMU hardware acceleration when available
         run: |
           if [ -c /dev/kvm ] && command -v setfacl >/dev/null; then
