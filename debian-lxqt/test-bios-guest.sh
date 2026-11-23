@@ -33,6 +33,7 @@ GRUB_TIMEOUT=0
 GRUB_CMDLINE_LINUX_DEFAULT="console=ttyS0,115200n8"
 GRUB
 helpers=/usr/share/calamares/helpers
+"$helpers/calamares-dpkg-unsafe-io"
 "$helpers/calamares-sources-media"
 chroot "$target" apt-cache policy grub-pc
 DEBIAN_FRONTEND=noninteractive "$helpers/calamares-bootloader-config"
@@ -40,14 +41,11 @@ test "$(chroot "$target" dpkg-query -W -f='${Status}' grub-pc)" = 'install ok in
 test -s "$target/etc/default/grub"
 test -x "$target/usr/sbin/update-grub"
 chroot "$target" grub-install --target=i386-pc --recheck /dev/vda
-# Debian's Calamares sequence regenerates the installed initramfs after GRUB.
+# Run the shipped Calamares packages job and the Debian stages that follow it.
+/usr/local/sbin/xorriso-ci-calamares "$target"
 kernel=$(uname -r)
 test -s "$target/boot/vmlinuz-$kernel"
-if test -e "$target/boot/initrd.img-$kernel"; then
-    chroot "$target" update-initramfs -u -k "$kernel"
-else
-    chroot "$target" update-initramfs -c -k "$kernel"
-fi
+test -s "$target/boot/initrd.img-$kernel"
 chroot "$target" update-grub
 chroot "$target" grub-script-check /boot/grub/grub.cfg
 grep -Eq '^[[:space:]]*linux[[:space:]].*vmlinuz' "$target/boot/grub/grub.cfg"

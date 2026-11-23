@@ -225,3 +225,11 @@ No vídeo `20261122_202128.mp4`, o Calamares chega à instalação do carregador
 A imagem inclui `grub2-common` no sistema copiado e leva os pacotes de BIOS e EFI em seu próprio repositório APT. O instalador confere o índice e a presença dos arquivos para o modo de inicialização atual antes da tela de particionamento. O procedimento do Debian está no [auxiliar do Calamares](https://sources.debian.org/src/calamares-settings-debian/13.0.13-1/helpers/calamares-bootloader-config/).
 
 O teste `test-bios-install.sh` inicia a ISO em QEMU sem rede, usa os auxiliares do Calamares para preparar o GRUB em um disco vazio e inicia uma segunda VM somente com esse disco. A aprovação exige que o Linux montado a partir da partição ext4 confirme o primeiro boot. Para reproduzir o fluxo gráfico do vídeo, use o VirtualBox em modo BIOS com um VDI novo e vazio. Mantenha `XORRISO_DATA` e `XORRISO_RUNTIME` desconectados.
+
+## XOS-016 — Código 100 durante a remoção dos pacotes Live
+
+Na captura de 23/11/2026, a etapa de pacotes do Calamares parou ao executar `apt-get --purge -q -y remove`. A configuração do Debian listava documentação e metapacotes de outras imagens Live que o APT não conseguia localizar no índice offline da ISO mínima. Um nome desconhecido interrompia toda a remoção. [Configuração do Debian](https://sources.debian.org/src/calamares-settings-debian/13.0.13-1/calamares/modules/packages.conf/)
+
+A imagem fornece `/etc/calamares/modules/packages.conf` com seletores APT que exigem nome exato e estado instalado no disco de destino. A mesma configuração atende imagens com ou sem os opcionais. O Calamares continua executando a limpeza e informa erros reais de dependências ou de configuração do dpkg.
+
+O teste em QEMU abre o próprio Calamares sem interação e executa a sequência Debian de `packages` até `sources-final` sobre o disco descartável. Ele verifica a remoção dos pacotes Live, a integridade do APT e do dpkg, o kernel, o GRUB e o desktop. Em seguida, inicia o disco sem a ISO e exige uma resposta do LFM2.5-350M sem internet. O assistente gráfico completo do VirtualBox continua sendo um teste separado.

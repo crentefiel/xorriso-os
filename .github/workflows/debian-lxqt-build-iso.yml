@@ -83,7 +83,7 @@ jobs:
           fi
       - name: Boot ISO and verify LXQt desktop session in QEMU
         run: timeout 590s python3 debian-lxqt/test-debian-qemu.py debian-lxqt/work/live-image-amd64.hybrid.iso
-      - name: Install the BIOS bootloader offline and boot the disposable disk
+      - name: Test BIOS installation, Calamares package cleanup and offline disk boot
         run: bash debian-lxqt/test-bios-install.sh debian-lxqt/work/live-image-amd64.hybrid.iso
       - name: Upload boot diagnostics, even when desktop fails
         if: always()

@@ -17,6 +17,7 @@ xorriso -osirrox on -indev "$iso" -extract /live/vmlinuz "$tmp/vmlinuz" \
     -extract /live/initrd.img "$tmp/initrd.img" -end
 payload="$tmp/payload"
 mkdir -p "$payload/scripts/init-bottom"
+install -m 0755 "$here/test-calamares-cleanup.sh" "$payload/xorriso-ci-calamares"
 sudo unmkinitramfs "$tmp/initrd.img" "$tmp/unpacked"
 order=$(sudo find "$tmp/unpacked" -type f -path '*/scripts/init-bottom/ORDER' -print -quit)
 test -n "$order"
@@ -29,6 +30,7 @@ case "${1:-}" in prereqs) exit 0 ;; esac
 set -eu
 units="${rootmnt:-/root}/etc/systemd/system"
 test -x "${rootmnt:-/root}/bin/bash"
+cp /xorriso-ci-calamares "${rootmnt:-/root}/usr/local/sbin/xorriso-ci-calamares"
 mkdir -p "$units/multi-user.target.wants"
 cat > "$units/xorriso-ci-installer.service" <<'UNIT'
 [Unit]
@@ -41,7 +43,7 @@ FailureAction=poweroff
 [Service]
 Type=oneshot
 ExecStart=/bin/bash /dev/vdb
-TimeoutStartSec=22min
+TimeoutStartSec=29min
 StandardOutput=journal+console
 UNIT
 ln -sf ../xorriso-ci-installer.service "$units/multi-user.target.wants/xorriso-ci-installer.service"
@@ -72,7 +74,7 @@ run_vm() {
     echo "PASS: $marker"
 }
 
-run_vm bios-install 23m XORRISO_CI_BIOS_GRUB_INSTALLED \
+run_vm bios-install 30m XORRISO_CI_BIOS_GRUB_INSTALLED \
     -cdrom "$iso" -kernel "$tmp/vmlinuz" -initrd "$tmp/ci-initrd.img" \
     -drive "if=none,id=check,file=$tmp/check.raw,format=raw,readonly=on" \
     -device virtio-blk-pci,drive=check,serial=XOS015CHECK \
@@ -80,5 +82,6 @@ run_vm bios-install 23m XORRISO_CI_BIOS_GRUB_INSTALLED \
 # This time SeaBIOS gets only the installed disk. No kernel, ISO or test
 # input device is supplied by the host.
 run_vm bios-disk-boot 14m XORRISO_CI_BOOTED_FROM_EXT4_DISK -boot c
+grep -E '^XORRISO_CI_CALAMARES_PACKAGES_AND_INITRAMFS_OK[[:space:]]*$' "$logs/bios-install-guest.log"
 grep -F 'XORRISO_CI_OFFLINE_CHAT_LIVE ' "$logs/bios-install-guest.log"
 grep -F 'XORRISO_CI_OFFLINE_CHAT_DISK ' "$logs/bios-disk-boot-guest.log"
