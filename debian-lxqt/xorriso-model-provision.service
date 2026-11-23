@@ -1,13 +1,12 @@
 [Unit]
-Description=xorriso - download oficial verificado LFM2.5-350M para HD
-ConditionKernelCommandLine=!boot=live
-After=network-online.target systemd-sysusers.service
-Wants=network-online.target
+Description=xorriso - verificar modelo local LFM2.5-350M
+After=systemd-sysusers.service
 StartLimitIntervalSec=0
 OnSuccess=xorriso-model.service
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 User=xorriso-model
 Group=xorriso-model
 UMask=0022

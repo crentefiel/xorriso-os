@@ -50,7 +50,7 @@ class Desktop:
         self.model_watchdog()
 
     def model_watchdog(self):
-        # The UI is responsive even while the first HD boot downloads the model.
+        # Model verification and startup must not block the chat window.
         threading.Thread(target=self.check_model, daemon=True).start()
         self.root.after(15000, self.model_watchdog)
 
@@ -72,14 +72,14 @@ class Desktop:
             if phase == "checking":
                 return "Conferindo RAM, disco e arquivos oficiais do LFM2.5-350M..."
             if phase == "ready":
-                return "LFM2.5-350M baixado e verificado; aguardando o servidor iniciar."
+                return "LFM2.5-350M verificado. Aguardando o servidor local iniciar."
             if phase == "error":
                 return ("Nao foi possivel instalar a IA: " + str(data.get("detail", ""))[:210] +
                         ". O sistema tentara novamente. Use o terminal para consultar "
                         "journalctl -u xorriso-model-provision.")
         except (OSError, ValueError, TypeError):
             pass
-        return "LFM2.5-350M sera baixado automaticamente no HD. Aguarde ou verifique a internet."
+        return "Preparando o LFM2.5-350M incluído na ISO para conversar sem internet."
 
     def check_model(self):
         """Show only observed API readiness and actual installation progress."""
@@ -92,11 +92,7 @@ class Desktop:
             else:
                 message = "Modelo carregado localmente: " + ", ".join(available)[:160]
         except (OSError, ValueError, KeyError, TypeError):
-            if agent.is_live_session():
-                message = ("Modo Live ativo. Instale o xorriso no HD/SSD para "
-                           "baixar o LFM2.5-350M pela internet e iniciar a IA.")
-            else:
-                message = self.installation_status()
+            message = self.installation_status()
         self.root.after(0, lambda: self.update_model_report(message))
 
     def update_model_report(self, message):
@@ -218,13 +214,8 @@ class Desktop:
                     for i,step in enumerate(result["steps"]))
                 response = (steps + "\n" if steps else "") + result["answer"]
             except Exception as exc:
-                if agent.is_live_session():
-                    response = ("A IA ainda nao esta provisionada nesta sessao Live. "
-                                "Instale o xorriso no HD para iniciar o download "
-                                "automatico do LFM2.5-350M.")
-                else:
-                    response = (self.installation_status() +
-                                "\nDetalhe da solicitacao: " + str(exc)[:200])
+                response = (self.installation_status() +
+                            "\nDetalhe da solicitação: " + str(exc)[:200])
             self.root.after(0, lambda: self.finish(response))
         threading.Thread(target=worker, daemon=True).start()
 

@@ -39,11 +39,13 @@ run_vm() {
     echo "PASS: $marker"
 }
 
-run_vm bios-install 15m XORRISO_CI_BIOS_GRUB_INSTALLED \
+run_vm bios-install 23m XORRISO_CI_BIOS_GRUB_INSTALLED \
     -cdrom "$iso" -kernel "${kernels[0]}" -initrd "${initrds[0]}" \
     -drive "if=none,id=check,file=$tmp/check.raw,format=raw,readonly=on" \
     -device virtio-blk-pci,drive=check,serial=XOS015CHECK \
     -append 'boot=live console=ttyS0,115200n8 systemd.run="/bin/bash /dev/vdb" systemd.run_success_action=poweroff systemd.run_failure_action=poweroff panic=5'
 # This time SeaBIOS gets only the installed disk. No kernel, ISO or test
 # input device is supplied by the host.
-run_vm bios-disk-boot 6m XORRISO_CI_BOOTED_FROM_EXT4_DISK -boot c
+run_vm bios-disk-boot 14m XORRISO_CI_BOOTED_FROM_EXT4_DISK -boot c
+grep -F 'XORRISO_CI_OFFLINE_CHAT_LIVE ' "$logs/bios-install.log"
+grep -F 'XORRISO_CI_OFFLINE_CHAT_DISK ' "$logs/bios-disk-boot.log"

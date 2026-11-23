@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Automatically provision verified LFM2.5-350M GGUFs on the INSTALLED HD.
-
-No shell, no block-device commands, no VDI writes, no root privileges.
-Downloads only two pinned-revision official files into systemd StateDirectory.
-"""
+"""Build and verify the bundled LiquidAI model. Support existing HD caches."""
 import hashlib
 import json
 import os
@@ -18,6 +14,7 @@ from urllib.request import Request, urlopen
 REPO = "LiquidAI/LFM2.5-350M-GGUF"
 API_ROOT = "https://huggingface.co/api/models/" + REPO
 ROOT = Path("/var/lib/xorriso-model")
+BUNDLE = Path("/usr/share/xorriso/models")
 STATUS = ROOT / "status.json"
 MANIFEST = ROOT / "model.json"
 MODEL_FILE = "LFM2.5-350M-Q4_K_M.gguf"
@@ -112,9 +109,11 @@ def validated(path, spec):
     return path.is_file() and not path.is_symlink() and spec["sha256"] == PINNED_SHA and \
            path.stat().st_size == spec["size"] and sha256_file(path) == spec["sha256"]
 
-def fetch_verified(name, spec, revision, root=ROOT):
+def fetch_verified(name, spec, revision, root=None, report_progress=True):
     if name != MODEL_FILE or revision != REVISION or spec["sha256"] != PINNED_SHA:
         raise ValueError("Arquivo de modelo nao aprovado")
+    if root is None:
+        root = ROOT
     target = root / name
     if validated(target, spec):
         return target
@@ -151,7 +150,7 @@ def fetch_verified(name, spec, revision, root=ROOT):
                 current += len(chunk)
                 if current > spec["size"]:
                     raise RuntimeError("Resposta maior que arquivo HF autenticado")
-                if time.monotonic() - last_update >= 3:
+                if report_progress and time.monotonic() - last_update >= 3:
                     set_status("downloading", file=name, bytes_received=current,
                                bytes_total=spec["size"])
                     last_update = time.monotonic()
@@ -161,28 +160,56 @@ def fetch_verified(name, spec, revision, root=ROOT):
     os.replace(part, target)
     return target
 
-def verified_local_install():
-    """Offline reuse only when pinned model and manifest match."""
-    if MANIFEST.is_symlink() or not MANIFEST.is_file():
+def verified_local_install(root=None):
+    """Accept only the pinned model, size, SHA-256 and matching manifest."""
+    if root is None:
+        root = ROOT
+    manifest = root / "model.json"
+    if manifest.is_symlink() or not manifest.is_file():
         return False
     try:
-        info = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        info = json.loads(manifest.read_text(encoding="utf-8"))
         spec = info["files"][MODEL_FILE]
         return (info.get("repo") == REPO and info.get("revision") == REVISION
                 and info.get("quant") == "Q4_K_M"
                 and set(info["files"]) == {MODEL_FILE}
-                and validated(ROOT / MODEL_FILE, spec))
+                and validated(root / MODEL_FILE, spec))
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return False
 
 
+def model_manifest(spec):
+    return {"repo": REPO, "revision": REVISION, "quant": "Q4_K_M",
+            "alias": "LFM2.5-350M", "files": {MODEL_FILE: spec}}
+
+
+def build_bundle(directory):
+    ensure_destination(directory)
+    revision, specs = official_files()
+    fetch_verified(MODEL_FILE, specs[MODEL_FILE], revision, directory, report_progress=False)
+    license_url = f"https://huggingface.co/{REPO}/resolve/{revision}/LICENSE"
+    with urlopen(license_url, timeout=45) as response:
+        license_text = response.read(128 * 1024).decode("utf-8")
+    if "LFM Open License" not in license_text or "Redistribution" not in license_text:
+        raise RuntimeError("Licença oficial do modelo incompleta")
+    (directory / "LICENSE").write_text(license_text, encoding="utf-8")
+    write_json(directory / "model.json", model_manifest(specs[MODEL_FILE]))
+    print(f"Bundled {MODEL_FILE} ({specs[MODEL_FILE]['size']} bytes), SHA256 {PINNED_SHA}")
+
+
 def provision():
-    if live():
-        print("Modo Live: o LFM2.5-350M sera instalado automaticamente apos a instalacao no HD.")
-        return 0
     ensure_destination()
     memory = mem_gib()
     quant, model_file = choose_quant(memory)
+    if BUNDLE.exists():
+        if not verified_local_install(BUNDLE):
+            raise RuntimeError("O modelo incluído na ISO falhou na verificação de integridade")
+        set_status("ready", quant=quant, model_file=model_file,
+                   memory_gib=round(memory, 1), source="bundled_iso")
+        print("PASS: modelo da ISO verificado sem rede.")
+        return 0
+    if live():
+        raise RuntimeError("O modelo incluído na ISO está ausente")
     if verified_local_install():
         set_status("ready", quant=quant, model_file=model_file,
                    memory_gib=round(memory, 1), source="local_verified_cache")
@@ -197,8 +224,7 @@ def provision():
     set_status("downloading", file=model_file, quant=quant,
                bytes_received=0, bytes_total=spec["size"])
     fetch_verified(model_file, spec, revision)
-    write_json(MANIFEST, {"repo": REPO, "revision": revision, "quant": quant,
-                          "alias": "LFM2.5-350M", "files": {model_file: spec}})
+    write_json(MANIFEST, model_manifest(spec))
     set_status("ready", quant=quant, model_file=model_file,
                size_bytes=spec["size"], memory_gib=round(memory, 1))
     print("PASS: LFM2.5-350M oficial instalado no HD e verificado por SHA256.")
@@ -218,4 +244,9 @@ def main():
         return 1
 
 if __name__ == "__main__":
-    sys.exit(main())
+    if len(sys.argv) == 3 and sys.argv[1] == "--bundle":
+        build_bundle(Path(sys.argv[2]))
+    elif len(sys.argv) == 1:
+        sys.exit(main())
+    else:
+        sys.exit("Uso: model-provision.py [--bundle DIRETÓRIO]")

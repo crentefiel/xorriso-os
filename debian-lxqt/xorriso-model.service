@@ -1,7 +1,7 @@
 [Unit]
 Description=xorriso - LFM2.5-350M local localhost:8080
-ConditionKernelCommandLine=!boot=live
-ConditionPathExists=/var/lib/xorriso-model/model.json
+ConditionPathExists=|/usr/share/xorriso/models/model.json
+ConditionPathExists=|/var/lib/xorriso-model/model.json
 After=xorriso-model-provision.service
 Wants=xorriso-model-provision.service
 

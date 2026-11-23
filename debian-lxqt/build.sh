@@ -65,6 +65,7 @@ test -x "$ROOT/runtime-dist/llama-server" || {
   echo 'LFM2.5 runtime missing. Build first: bash debian-lxqt/build-llama-runtime.sh' >&2; exit 8;
 }
 install -m 755 "$ROOT/runtime-dist/llama-server" config/includes.chroot/opt/xorriso/llama-server
+python3 "$ROOT/xorriso-model-provision.py" --bundle config/includes.chroot/usr/share/xorriso/models
 install -m 755 "$ROOT/xorriso-install-mode.sh" config/includes.chroot/usr/local/libexec/xorriso/install-mode.sh
 install -m 644 "$ROOT/live-calamares.rules" config/includes.chroot/usr/local/share/xorriso/live-calamares.rules
 install -m 644 "$ROOT/xorriso-install-mode.service" config/includes.chroot/etc/systemd/system/xorriso-install-mode.service
@@ -140,6 +141,8 @@ for expected in \
   usr/local/libexec/xorriso/model-provision.py \
   usr/local/libexec/xorriso/run-model.py \
   opt/xorriso/llama-server \
+  usr/share/xorriso/models/model.json \
+  usr/share/xorriso/models/LICENSE \
   usr/lib/sysusers.d/xorriso-model.conf \
   etc/systemd/system/xorriso-model-provision.service \
   usr/local/share/xorriso/live-calamares.rules \
@@ -163,6 +166,11 @@ for expected in \
     exit 6
   fi
 done
+model_path=usr/share/xorriso/models/LFM2.5-350M-Q4_K_M.gguf
+if ! unsquashfs -cat "$SQUASHFS" "$model_path" | cmp - "config/includes.chroot/$model_path"; then
+  echo 'Bundled GGUF differs from the verified download' >&2; exit 6
+fi
+echo "PASS: ISO SquashFS contains the verified LFM2.5-350M GGUF."
 printf '%s\\n' 'PASS: xorriso desktop customization verified in ISO SquashFS.'
 # Validate actual installed Debian packages, not just package-list intentions.
 # A missing theme or a recursive Plasma dependency is a failed minimal image.

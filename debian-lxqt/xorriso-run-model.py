@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 
 ROOT=Path("/var/lib/xorriso-model")
-MANIFEST=ROOT/"model.json"
+BUNDLE=Path("/usr/share/xorriso/models")
 BINARY=Path("/opt/xorriso/llama-server")
 MODEL_FILE="LFM2.5-350M-Q4_K_M.gguf"
 REPO="LiquidAI/LFM2.5-350M-GGUF"
@@ -21,7 +21,7 @@ def sha256(path):
             h.update(chunk)
     return h.hexdigest()
 
-def select_files(info):
+def select_files(info, root=None):
     if info.get("repo")!=REPO or info.get("revision")!=REVISION:
         raise ValueError("Repositorio/revisao de modelo nao autorizados")
     if info.get("quant")!="Q4_K_M" or not isinstance(info.get("files"),dict):
@@ -29,7 +29,7 @@ def select_files(info):
     if set(info["files"])!={MODEL_FILE}:
         raise ValueError("O modelo deve conter somente um GGUF oficial")
     spec=info["files"][MODEL_FILE]
-    path=ROOT/MODEL_FILE
+    path=(ROOT if root is None else root)/MODEL_FILE
     if (path.is_symlink() or not path.is_file() or
         not isinstance(spec.get("size"),int) or
         spec.get("sha256")!=PINNED_SHA or
@@ -41,9 +41,11 @@ def select_files(info):
 def main():
     if not BINARY.is_file() or not os.access(str(BINARY),os.X_OK):
         raise RuntimeError("Motor llama-server nao incluido na ISO")
-    if MANIFEST.is_symlink() or not MANIFEST.is_file():
-        raise RuntimeError("Modelo LFM2.5-350M ainda nao baixado")
-    model=select_files(json.loads(MANIFEST.read_text(encoding="utf-8")))
+    root=BUNDLE if BUNDLE.exists() else ROOT
+    manifest=root/"model.json"
+    if manifest.is_symlink() or not manifest.is_file():
+        raise RuntimeError("Manifesto local do LFM2.5-350M ausente")
+    model=select_files(json.loads(manifest.read_text(encoding="utf-8")), root)
     os.execv(str(BINARY),[str(BINARY),"-m",str(model),
               "--host","127.0.0.1","--port","8080",
               "--alias","LFM2.5-350M","--ctx-size","4096","-t","4","-ngl","0"])

@@ -2,19 +2,21 @@
 
 Este caminho de compilação usa o Debian Live e o LXQt em vez de desenhar diretamente no framebuffer. A antiga ISO não é alterada.
 
+**Modelo da Alpha 0.16 atual.** A ISO inclui o LFM2.5-350M da Liquid AI e o servidor local. Abra **xorriso IA** para conversar sem conexão no Live ou depois de instalar no HD. As seções datadas abaixo preservam o histórico de versões anteriores.
+
 ## Interface
 - Login gráfico automático da sessão `xorriso`.
 - Desktop minimalista, sem barra de tarefas, com apenas dois atalhos: **xorriso IA** e **Arquivos**.
-- O ícone **xorriso IA** reabre a interface Python/Tk, que também inicia automaticamente na sessão LXQt. A interface verifica `127.0.0.1:8080/v1/models` e informa quando o MiniCPM local não está disponível.
+- O ícone **xorriso IA** reabre a interface Python/Tk, que também inicia automaticamente na sessão LXQt. A interface verifica `127.0.0.1:8080/v1/models` e mostra quando o LFM2.5-350M está pronto.
 - O ícone **Arquivos** abre o gerenciador `pcmanfm-qt`, preservado para navegação manual, pastas, documentos, cópia e organização. O agente também possui a ferramenta `open_file_manager`, executada como usuário comum, sem shell root.
 - O perfil PCManFM-Qt omite os atalhos automáticos de Home, Trash, Computer e Network; desabilita a montagem automática de volumes e mantém a lixeira dentro do gerenciador. Não elimina o gerenciador de arquivos.
 - O Debian Live agora recebe `username=xorriso` e o pacote `user-setup` cria o usuário **no boot**; os arquivos da sessão (atalhos, autostart e fundo) vêm de `/etc/skel`. Não se cria uma conta antecipada durante o build, pois `live-config` pula a criação da conta quando ela já existe. O parâmetro `live-config.nocomponents=sudo` impede a concessão automática de sudo sem senha ao usuário Live. A funcionalidade gráfica continua pendente de validação em QEMU/VirtualBox.
-- O MiniCPM recebe o pedido em português e propõe uma ação em JSON. O sistema só executa ações conhecidas e verifica o resultado real.
+- O LFM2.5-350M recebe o pedido em português e propõe uma ação em JSON. O sistema só executa ações conhecidas e verifica o resultado real.
 - Ações disponíveis nesta fase: listar/criar/ler arquivos em `~/Documentos`, criar pastas, consultar informações do sistema. Criação exige confirmação do usuário; nunca sobrescreve arquivos.
 - Perguntas de capacidade, como "você consegue criar uma pasta?", devem ser respondidas sem executar. Há instruções ao modelo, além da confirmação obrigatória na interface.
 - Comandos root são **apenas propostas**. Não há executor root autenticado integrado a este Debian ainda.
 
-## MiniCPM e discos VDI
+## Histórico do MiniCPM e dos discos VDI
 O código opcional monta por label os discos ext4 existentes `XORRISO_DATA` e `XORRISO_RUNTIME` em `/data` e `/runtime-data`, respectivamente, **somente para leitura**, com `ro,noload,nosuid,nodev,noexec` para não reproduzir o journal nem executar binários do disco. Se não existirem, o desktop deve continuar a abrir, com a IA reportando indisponibilidade.
 
 O serviço systemd confere hashes SHA-256 conhecidos para o modelo GGUF, o executável `llama-server` e, quando existir, o projetor; copia apenas o executável validado para `/run` e disponibiliza a API em `127.0.0.1:8080`. O processo roda sem capabilities Linux e com isolamento de systemd, porém ainda como root devido às permissões da estrutura antiga no VDI (um ponto a melhorar antes de chamar o ambiente de seguro para produção).
@@ -200,11 +202,11 @@ A interface xorriso, quando não está em Live, mostra **Terminal root (requer s
 
 O **MiniCPM-V 4.7 1B foi substituido** pelo modelo de texto **LiquidAI/LFM2.5-350M-GGUF**, arquivo `LFM2.5-350M-Q4_K_M.gguf`, de aproximadamente **229 MB**. Ele e instruction-tuned, adequado para extracao estruturada e uso de ferramentas em dispositivos pequenos, mas nao tem entrada de imagem e **nao usa mmproj**. Fonte oficial: https://huggingface.co/LiquidAI/LFM2.5-350M-GGUF/blob/bb7ee58b243e4cede04187e323e760b04f8a0091/LFM2.5-350M-Q4_K_M.gguf .
 
-Apos instalar o xorriso no HD com Calamares, o sistema inicia o download na primeira inicializacao pela internet, preserva a pasta `/var/lib/xorriso-model`, valida revisao Hugging Face `bb7ee58b243e4cede04187e323e760b04f8a0091` e SHA-256 `7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4`, grava manifesto e inicia o `llama-server` em **127.0.0.1:8080** com alias **LFM2.5-350M**. O cache previamente verificado permite usar o sistema offline nos proximos boots; nao apaga modelos antigos nem altera discos VDI protegidos.
+Por decisão de David, **o modelo acompanha a ISO e pode responder sem internet desde o primeiro boot**, tanto no Live como no HD. A construção baixa o GGUF oficial na revisão `bb7ee58b243e4cede04187e323e760b04f8a0091`, verifica o SHA-256 `7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4` e inclui o arquivo, seu manifesto e sua licença em `/usr/share/xorriso/models`. O Calamares leva os mesmos bytes ao HD. O servidor escuta em **127.0.0.1:8080** com o nome **LFM2.5-350M**. Os dados de estado e o cache de instalações anteriores ficam em `/var/lib/xorriso-model`.
 
 Limites estabelecidos para coexistir com desktop LXQt: minimo 1,5 GiB RAM e preferencialmente >=2 GiB; alem do modelo, manter pelo menos 1 GiB livre em disco. O motor `llama.cpp` versionado em commit `5bacb7c868a2bc98682de15f447fc1ce17c9c49c` ja possui `LLM_ARCH_LFM2`. A interface e o agente usam agora o alias LFM2.5-350M. A IA continua planejando operacoes pelo catálogo seguro de ferramentas, com confirmacao, PolicyKit, auditoria e limites; **nao permitir root automatico ou comandos de disco da linguagem gerada**. A Liquid AI sinaliza que 350M e adequado a tool use, mas nao recomendado para matematica/codigo; decisoes criticas sempre precisam ser verificadas. Fonte: https://www.liquid.ai/blog/lfm2-5-350m-no-size-left-behind .
 
-Verificacao pendente: o build e o boot no QEMU da nova ISO, primeiro download real no sistema instalado, resposta da API LFM2.5, e comandos do agente autorizados no VirtualBox. Nenhum teste de codigo isolado prova que o modelo respondeu. Conferir `debian-lxqt/errors.json` antes de corrigir outras falhas. O PR #27 deve ficar em rascunho sem merge, e `XORRISO_DATA` e `XORRISO_RUNTIME` nunca devem ser formatados, modificados ou montados com escrita.
+O teste da ISO verifica o hash dentro do SquashFS, inicia o servidor e exige uma resposta de `/v1/chat/completions` com tokens gerados em VMs sem placa de rede no Live e no HD. O teste gráfico de instalação e login no VirtualBox é separado. Consulte `debian-lxqt/errors.json` antes de corrigir falhas e mantenha o PR #27 em rascunho. Desconecte os discos `XORRISO_DATA` e `XORRISO_RUNTIME` para testar o instalador.
 
 ## XOS-014: Calamares falha em unpackfs no VirtualBox (22/11/2026)
 

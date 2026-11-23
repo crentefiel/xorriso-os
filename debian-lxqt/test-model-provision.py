@@ -34,7 +34,7 @@ def main():
         download.STATUS=root/"status.json"
         download.MANIFEST=root/"model.json"
         runtime.ROOT=root
-        runtime.MANIFEST=root/"model.json"
+        download.BUNDLE=root/"bundle"
         body=b"synthetic small test GGUF"
         digest=hashlib.sha256(body).hexdigest()
         download.PINNED_SHA=runtime.PINNED_SHA=digest
@@ -50,6 +50,24 @@ def main():
              patch.object(download,"official_files",side_effect=AssertionError("internet")):
             assert download.provision()==0
         assert json.loads(download.STATUS.read_text())["phase"]=="ready"
+        download.BUNDLE.mkdir()
+        (download.BUNDLE/download.MODEL_FILE).write_bytes(body)
+        download.write_json(download.BUNDLE/"model.json", manifest)
+        for is_live in (True, False):
+            with patch.object(download,"live",return_value=is_live), \
+                 patch.object(download,"mem_gib",return_value=2.0), \
+                 patch.object(download,"official_files",side_effect=AssertionError("internet")):
+                assert download.provision()==0
+            assert json.loads(download.STATUS.read_text())["source"]=="bundled_iso"
+            assert runtime.select_files(manifest, download.BUNDLE)==download.BUNDLE/download.MODEL_FILE
+        (download.BUNDLE/download.MODEL_FILE).write_bytes(b"damaged")
+        with patch.object(download,"mem_gib",return_value=2.0), \
+             patch.object(download,"official_files",side_effect=AssertionError("internet")):
+            try:
+                download.provision()
+                raise AssertionError("Corrupt bundled model accepted")
+            except RuntimeError:
+                pass
         (root/download.MODEL_FILE).write_bytes(b"corrupt")
         assert not download.verified_local_install()
         try:

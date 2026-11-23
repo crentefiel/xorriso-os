@@ -246,10 +246,8 @@ WantedBy=multi-user.target
 EOF
 mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf ../xorriso-boot-diagnostics.service /etc/systemd/system/multi-user.target.wants/xorriso-boot-diagnostics.service
-# The 1B model now lives in the installed HD's /var/lib/xorriso-model.
-# No automatic access to the protected legacy VDI volumes is needed.
-# Provisioning starts at installed-system boot, asynchronously; reuses verified
-# local files across offline reboots. Live mode does not download transient GBs.
+# The Live and installed systems read the same bundled model from /usr/share.
+# No external volume or network is needed for local inference.
 mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf ../xorriso-model-provision.service /etc/systemd/system/multi-user.target.wants/xorriso-model-provision.service
 ln -sf ../xorriso-model.service /etc/systemd/system/multi-user.target.wants/xorriso-model.service

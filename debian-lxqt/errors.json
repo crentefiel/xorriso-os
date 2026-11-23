@@ -301,16 +301,16 @@
         "model.json antigo",
         "Connection refused 127.0.0.1:8080"
       ],
-      "status": "troca codificada; tests build/boot e inferencia real no HD pendentes",
+      "status": "LFM2.5-350M incluído na ISO. Requer resposta real do modelo local nas verificações do Live e do HD.",
       "root_cause_status": "migracao solicitada pelo usuario, nao defeito comprovado na nova ISO",
       "cause": "MiniCPM era multimodal com um projetor, LFM2.5-350M e um GGUF so para texto. O sistema anterior esperava dois arquivos e alias antigo.",
-      "fix": "Repositorio LiquidAI oficial com revisao e SHA256 fixados, downloader de um unico GGUF, runner sem mmproj, UI/agente/systemd e testes sincronizados. Nao apagar pesos legados.",
+      "fix": "A construção baixa o único GGUF da revisão oficial, verifica SHA-256 e inclui o modelo, o manifesto e a licença na ISO. A sessão Live e o sistema instalado carregam o arquivo local. O cache de versões anteriores é preservado.",
       "evidence": [
         "Pedido do usuario em 22/11/2026",
         "https://huggingface.co/LiquidAI/LFM2.5-350M-GGUF/blob/bb7ee58b243e4cede04187e323e760b04f8a0091/LFM2.5-350M-Q4_K_M.gguf",
         "llama.cpp pinned 5bacb7c8 contem LLM_ARCH_LFM2"
       ],
-      "verification": "Foundation checks+ISO/QEMU do mesmo SHA e depois primeiro download real, HTTP /v1/models, POST oi e execucao autorizada no HD VirtualBox.",
+      "verification": "O mesmo SHA deve passar nas verificações básicas, no boot Live e no teste do HD em QEMU sem rede. Exigir HTTP /v1/models e uma resposta em /v1/chat/completions com tokens gerados no Live e no disco. As ações autorizadas no VirtualBox são verificadas separadamente.",
       "references": [
         "https://github.com/crentefiel/xorriso-os/pull/27",
         "https://www.liquid.ai/blog/lfm2-5-350m-no-size-left-behind"

@@ -40,8 +40,7 @@ assert "var/cache/cracklib/cracklib_dict.pwi" in build
 assert "var/cache/cracklib/cracklib_dict.hwm" in build
 assert 'libpam-pwquality cracklib-runtime wamerican; do' in build
 
-# The local AI must be installed *on the HD*, not fetched into ephemeral Live
-# memory, and it must never depend on the protected legacy VDI volumes.
+# The same verified model is available from the Live ISO and the installed HD.
 model_provision = (root / "xorriso-model-provision.py").read_text(encoding="utf-8")
 model_server = (root / "xorriso-run-model.py").read_text(encoding="utf-8")
 model_svc = (root / "xorriso-model.service").read_text(encoding="utf-8")
@@ -52,8 +51,10 @@ assert "LFM2.5-350M-Q4_K_M.gguf" in model_provision
 assert "PROJECTOR" not in model_provision
 assert "7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4" in model_provision
 assert "sha256_file" in model_provision and "verified_local_install" in model_provision
-assert "ConditionKernelCommandLine=!boot=live" in model_svc
-assert "ConditionKernelCommandLine=!boot=live" in provision_svc
+assert "ConditionKernelCommandLine=!boot=live" not in model_svc + provision_svc
+assert "/usr/share/xorriso/models/model.json" in model_svc
+assert "--bundle config/includes.chroot/usr/share/xorriso/models" in build
+assert "network-online.target" not in provision_svc
 assert "Restart=on-failure" in provision_svc
 assert "OnSuccess=xorriso-model.service" in provision_svc
 assert "User=xorriso-model" in model_svc and "User=xorriso-model" in provision_svc
