@@ -113,5 +113,10 @@ ExecStart=/bin/echo XORRISO_CI_BOOTED_FROM_EXT4_DISK
 UNIT
 ln -s ../xorriso-ci-disk.service "$target/etc/systemd/system/multi-user.target.wants/xorriso-ci-disk.service"
 sync
+umount -R -- "$target"
+if mountpoint -q -- "$target"; then
+    echo 'The installed test disk is still mounted' >&2
+    exit 1
+fi
 echo XORRISO_CI_BIOS_GRUB_INSTALLED
 exit 0

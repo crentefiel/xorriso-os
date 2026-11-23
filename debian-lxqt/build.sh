@@ -34,6 +34,7 @@ mkdir -p config/archives
 printf '%s\n' 'deb http://security.debian.org/debian-security trixie-security main' > config/archives/debian-security.list.chroot
 cp "$ROOT/package-list.chroot" config/package-lists/xorriso.list.chroot
 install -D -m 0644 "$ROOT/calamares-packages.conf" config/includes.chroot/etc/calamares/modules/packages.conf
+install -D -m 0755 "$ROOT/calamares-sources-media.sh" config/includes.chroot/usr/share/calamares/helpers/calamares-sources-media
 # Debian's Calamares sources-media helper installs the firmware-specific
 # package from the ISO's own APT repository. The front ends conflict when
 # installed together, so live-build resolves their download lists separately.
@@ -169,6 +170,9 @@ for expected in \
 done
 if ! unsquashfs -cat "$SQUASHFS" etc/calamares/modules/packages.conf | cmp - "$ROOT/calamares-packages.conf"; then
   echo 'Incorrect Calamares package cleanup configuration in the final ISO' >&2; exit 6
+fi
+if ! unsquashfs -cat "$SQUASHFS" usr/share/calamares/helpers/calamares-sources-media | cmp - "$ROOT/calamares-sources-media.sh"; then
+  echo 'Incorrect Calamares media helper in the final ISO' >&2; exit 6
 fi
 model_path=usr/share/xorriso/models/LFM2.5-350M-Q4_K_M.gguf
 if ! unsquashfs -cat "$SQUASHFS" "$model_path" | cmp - "config/includes.chroot/$model_path"; then

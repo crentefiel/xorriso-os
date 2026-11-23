@@ -368,7 +368,8 @@
       "cause": "A lista genérica do Debian pede a remoção conjunta de pacotes obrigatórios e opcionais. O APT interrompe a transação se um nome sem registro no índice offline também está ausente do disco.",
       "fix": "O packages.conf da imagem restringe cada um dos nove nomes distintos do Debian aos pacotes de nome exato já instalados no destino. O módulo nativo packages mantém a remoção obrigatória, o autoremove e a propagação de falhas reais.",
       "evidence": ["1000756081.jpg, recebida em 23/11/2026, com o comando e código 100", "No disco extraído da ISO, a simulação offline da lista antiga informou Unable to locate package para live-task-localisation e live-task-recommended. O caso sintético, com cinco nomes desconhecidos, também reproduziu o código 100.", "O teste da revisão 0d3bc431 exercitava o GRUB e a IA offline e pulava a etapa packages."],
-      "verification": "Comparar a configuração no SquashFS com a do projeto, executar o Calamares real de packages a sources-final sem rede em disco descartável, auditar APT/dpkg e confirmar o boot sem ISO e a IA local no Live e no HD.",
+      "verification": "Comparar os arquivos no SquashFS com os do projeto, executar o Calamares real de packages a sources-final sem rede em disco descartável, auditar APT/dpkg, conferir a interface da IA, a desmontagem da mídia e do disco e confirmar o boot sem ISO e a IA local no Live e no HD.",
+      "follow_up": "O teste chegou a sources-final e revelou que o auxiliar Debian tentava desmontar a raiz do destino por confundir a mídia com o bind mount. O auxiliar do xorriso identifica cada ponto de montagem de forma exata e libera apenas o bind da mídia.",
       "references": [
         "https://sources.debian.org/src/calamares-settings-debian/13.0.13-1/calamares/modules/packages.conf/",
         "https://manpages.debian.org/trixie/apt/apt-patterns.7.en.html",

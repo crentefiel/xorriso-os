@@ -7,6 +7,8 @@ test "$(cat /sys/class/block/vda/serial)" = XOS015TARGET
 test "$(findmnt -n -o SOURCE --mountpoint "$target")" = /dev/vda1
 test "$(blkid -s LABEL -o value /dev/vda1)" = XOS015TEST
 cmp /etc/calamares/modules/packages.conf "$target/etc/calamares/modules/packages.conf"
+mountpoint -q -- /run/live/medium
+mountpoint -q -- "$target/run/live/medium"
 ci=$(mktemp -d /run/xorriso-ci-calamares-XXXXXX)
 live_packages=(live-boot live-boot-doc live-config live-config-doc live-config-systemd
                live-tools live-task-localisation live-task-recommended calamares-settings-debian)
@@ -79,8 +81,9 @@ while ! test -f "$XORRISO_CI_DONE"; do
     fi
     sleep 2
 done
+grep -E 'apt-get.*(exact-name|autoremove)|Removing (live-|calamares-settings-debian)' "$ci/calamares.log" || :
 tail -n 55 "$ci/calamares.log"
-chroot "$target" dpkg-query -W -f='${binary:Package} ${db:Status-Status}\n' > "$ci/target-packages"
+chroot "$target" dpkg-query -W -f='${Package} ${db:Status-Status}\n' > "$ci/target-packages"
 for name in "${live_packages[@]}"; do
     if grep -Fxq "$name installed" "$ci/target-packages"; then
         echo "Calamares left Live package installed: $name" >&2
@@ -88,8 +91,12 @@ for name in "${live_packages[@]}"; do
     fi
 done
 for name in linux-image-amd64 grub-pc sddm lxqt-session python3-tk; do
-    grep -Fx "$name installed" "$ci/target-packages"
+    if ! grep -Fx "$name installed" "$ci/target-packages"; then
+        echo "Required installed package missing after Calamares cleanup: $name" >&2
+        exit 1
+    fi
 done
+chroot "$target" /usr/bin/python3 /usr/local/bin/xorriso-ui.py --selftest
 chroot "$target" apt-get check
 chroot "$target" dpkg --audit > "$ci/dpkg-audit"
 if test -s "$ci/dpkg-audit"; then
@@ -98,4 +105,11 @@ if test -s "$ci/dpkg-audit"; then
 fi
 test ! -e "$target/etc/dpkg/dpkg.cfg.d/calamares-force-unsafe-io"
 test ! -e "$target/etc/apt/sources.list.d/debian-live-media.list"
+if mountpoint -q -- "$target/run/live/medium"; then
+    echo 'Calamares left the ISO mounted inside the installed system' >&2
+    exit 1
+fi
+mountpoint -q -- /run/live/medium
+test "$(findmnt -n -o SOURCE --mountpoint "$target")" = /dev/vda1
+echo XORRISO_CI_TARGET_MEDIUM_UNMOUNTED
 echo XORRISO_CI_CALAMARES_PACKAGES_AND_INITRAMFS_OK
