@@ -58,7 +58,7 @@ def main():
     os.execv(str(BINARY),[str(BINARY),"-m",str(model),
               "--host","127.0.0.1","--port","8080",
               "--alias","LFM2.5-350M","--ctx-size","2048",
-              "-t",threads,"-ngl","0","--mlock"])
+              "-t",threads,"-ngl","0"])
 
 if __name__=="__main__":
     try:
