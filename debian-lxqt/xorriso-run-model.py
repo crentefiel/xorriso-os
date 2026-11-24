@@ -38,6 +38,14 @@ def select_files(info, root=None):
         raise ValueError("GGUF nao verificado ou corrompido")
     return path
 
+def thread_count():
+    try:
+        n = os.cpu_count() or 2
+    except Exception:
+        n = 2
+    # Leave one core free when possible; cap at 8 for small models.
+    return str(max(1, min(n - 1 if n > 2 else n, 8)))
+
 def main():
     if not BINARY.is_file() or not os.access(str(BINARY),os.X_OK):
         raise RuntimeError("Motor llama-server nao incluido na ISO")
@@ -46,9 +54,11 @@ def main():
     if manifest.is_symlink() or not manifest.is_file():
         raise RuntimeError("Manifesto local do LFM2.5-350M ausente")
     model=select_files(json.loads(manifest.read_text(encoding="utf-8")), root)
+    threads = thread_count()
     os.execv(str(BINARY),[str(BINARY),"-m",str(model),
               "--host","127.0.0.1","--port","8080",
-              "--alias","LFM2.5-350M","--ctx-size","4096","-t","4","-ngl","0"])
+              "--alias","LFM2.5-350M","--ctx-size","2048",
+              "-t",threads,"-ngl","0","--mlock"])
 
 if __name__=="__main__":
     try:
