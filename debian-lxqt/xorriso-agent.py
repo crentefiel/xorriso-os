@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import time
 import xorriso_terminal
-from urllib import request
+from urllib import request, error
 from urllib.parse import urlsplit
 
 MODEL = os.environ.get("XORRISO_MODEL", "LFM2.5-350M")
@@ -283,18 +283,29 @@ def next_plan(messages, endpoint=API, model=MODEL):
                           "messages": messages}, ensure_ascii=False).encode("utf-8")
     req = request.Request(local_api_url(endpoint), data=payload,
                           headers={"Content-Type": "application/json"}, method="POST")
-    with request.urlopen(req, timeout=100) as result:
-        data = result.read(150000)
-    raw = json.loads(data)["choices"][0]["message"]["content"]
-    if not isinstance(raw, str) or len(raw) > MAX_RESPONSE:
-        raise ValueError("Resposta invalida ou extensa demais")
-    try:
-        plan = json.loads(raw)
-    except ValueError as exc:
-        raise ValueError("LFM2.5-350M nao forneceu JSON valido") from exc
-    if not isinstance(plan, dict) or plan.get("tool") not in TOOLS:
-        raise ValueError("Ferramenta da IA nao reconhecida")
-    return plan
+    # First request after boot can take longer while the model loads into RAM.
+    last_exc = None
+    for attempt in range(3):
+        try:
+            with request.urlopen(req, timeout=180) as result:
+                data = result.read(150000)
+            raw = json.loads(data)["choices"][0]["message"]["content"]
+            if not isinstance(raw, str) or len(raw) > MAX_RESPONSE:
+                raise ValueError("Resposta invalida ou extensa demais")
+            try:
+                plan = json.loads(raw)
+            except ValueError as exc:
+                raise ValueError("LFM2.5-350M nao forneceu JSON valido") from exc
+            if not isinstance(plan, dict) or plan.get("tool") not in TOOLS:
+                raise ValueError("Ferramenta da IA nao reconhecida")
+            return plan
+        except (error.URLError, TimeoutError, OSError) as exc:
+            last_exc = exc
+            if attempt < 2:
+                time.sleep(5)
+                continue
+            raise TimeoutError("Servidor local demorou demais para responder (3 tentativas)") from last_exc
+    raise TimeoutError("Servidor local nao respondeu") from last_exc
 
 def solve(prompt, approve, planner=next_plan, execute=action):
     if not isinstance(prompt, str) or not prompt.strip():
