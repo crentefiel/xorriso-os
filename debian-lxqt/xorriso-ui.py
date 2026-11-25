@@ -212,7 +212,11 @@ class Desktop:
                     str(i+1) + ". " + step["tool"] + ": " +
                     json.dumps(step["result"], ensure_ascii=False)[:950]
                     for i,step in enumerate(result["steps"]))
-                response = (steps + "\n" if steps else "") + result["answer"]
+                answer = result.get("answer") if isinstance(result.get("answer"), str) else ""
+                response = (steps + "\n" if steps else "") + answer
+                if not response.strip():
+                    response = ("O LFM2.5-350M nao devolveu texto visivel. "
+                                "O servidor local esta no ar; tente de novo.")
             except Exception as exc:
                 response = (self.installation_status() +
                             "\nDetalhe da solicitação: " + str(exc)[:200])

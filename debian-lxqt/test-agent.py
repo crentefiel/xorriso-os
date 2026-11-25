@@ -302,6 +302,43 @@ def test_installer_requires_explicit_live_consent():
         assert start.call_count == 1
 
 
+
+def test_blank_lfm_reply_is_visible():
+    import json
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    cases = iter([
+        {"choices":[{"message":{"content":"", "reasoning_content":"<think>oi</think> Ola, estou aqui."}}]},
+        {"choices":[{"message":{"content":"Oi! Pode pedir um comando."}}]},
+        {"choices":[{"message":{"content":json.dumps({"tool":"finish","message":""})}}]},
+    ])
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            data = json.dumps(next(cases)).encode()
+            self.send_response(200)
+            self.send_header("Content-Type","application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        endpoint = "http://127.0.0.1:" + str(server.server_port) + "/v1"
+        reasoned = agent.next_plan([{"role":"user","content":"oi"}], endpoint=endpoint)
+        assert reasoned["tool"] == "finish"
+        assert "Ola, estou aqui" in reasoned["message"]
+        assert "<think>" not in reasoned["message"]
+        plain = agent.next_plan([{"role":"user","content":"oi"}], endpoint=endpoint)
+        assert plain["message"].startswith("Oi!")
+        empty = agent.next_plan([{"role":"user","content":"oi"}], endpoint=endpoint)
+        assert empty["tool"] == "finish" and empty["message"].strip()
+    finally:
+        server.shutdown()
+        server.server_close()
+
 def test_real_http_planning():
     import json
     import threading
@@ -355,5 +392,6 @@ if __name__ == "__main__":
     test_root_terminal_is_human_only_and_never_live()
     test_authenticated_admin_service_management()
     test_installer_requires_explicit_live_consent()
+    test_blank_lfm_reply_is_visible()
     test_real_http_planning()
     print("PASS: multi-etapas, observacao, autorizacao, filesystem, pkexec, comandos sem shell")

@@ -55,10 +55,15 @@ def main():
         raise RuntimeError("Manifesto local do LFM2.5-350M ausente")
     model=select_files(json.loads(manifest.read_text(encoding="utf-8")), root)
     threads = thread_count()
+    # --jinja applies the GGUF chat template. Without it llama.cpp skips the
+    # LFM2.5 template and the first reply comes back empty.
+    # --reasoning off keeps the answer in message.content instead of hiding it.
     os.execv(str(BINARY),[str(BINARY),"-m",str(model),
               "--host","127.0.0.1","--port","8080",
               "--alias","LFM2.5-350M","--ctx-size","2048",
-              "-t",threads,"-ngl","0"])
+              "-t",threads,"-ngl","0",
+              "--jinja","--reasoning","off",
+              "--temp","0.1","--top-k","50","--repeat-penalty","1.05"])
 
 if __name__=="__main__":
     try:

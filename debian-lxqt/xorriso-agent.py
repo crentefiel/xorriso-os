@@ -275,11 +275,59 @@ def local_api_url(base):
         raise ValueError("Base da API deve terminar em /v1")
     return "http://" + parsed.netloc + "/v1/chat/completions"
 
+def visible_model_text(message):
+    """LFM2.5 often parks the reply in reasoning_content and leaves content empty."""
+    if not isinstance(message, dict):
+        return ""
+    def cleaned(value):
+        if not isinstance(value, str):
+            return ""
+        text = re.sub(r"<think>.*?</think>", " ", value, flags=re.S | re.I)
+        text = text.replace("<think>", " ").replace("</think>", " ")
+        return text.strip()
+    content = cleaned(message.get("content"))
+    reasoning = cleaned(message.get("reasoning_content"))
+    if content:
+        try:
+            plan = json.loads(content)
+        except ValueError:
+            plan = None
+        if isinstance(plan, dict) and plan.get("tool") in TOOLS:
+            reply = plan.get("message", "")
+            if plan.get("tool") != "finish" or (isinstance(reply, str) and reply.strip()):
+                return content
+        if not reasoning:
+            return content
+    return reasoning or content
+
+def plan_from_model_text(raw):
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("LFM2.5-350M devolveu texto vazio")
+    if len(raw) > MAX_RESPONSE:
+        raise ValueError("Resposta invalida ou extensa demais")
+    try:
+        plan = json.loads(raw)
+    except ValueError:
+        # Plain Portuguese is still a reply. Never hide it behind a JSON error.
+        return {"tool": "finish", "args": {}, "message": raw[:4000]}
+    if isinstance(plan, dict) and plan.get("tool") in TOOLS:
+        if plan.get("tool") == "finish":
+            reply = plan.get("message", "")
+            if not isinstance(reply, str) or not reply.strip():
+                plan = dict(plan)
+                plan["message"] = "Ola. Pode repetir com uma frase completa."
+        return plan
+    if isinstance(plan, dict) and isinstance(plan.get("message"), str) and plan["message"].strip():
+        return {"tool": "finish", "args": {}, "message": plan["message"].strip()[:4000]}
+    return {"tool": "finish", "args": {}, "message": raw[:4000]}
+
 def next_plan(messages, endpoint=API, model=MODEL):
-    # llama-server supports JSON-constrained decoding. The lightweight model must
-    # produce machine-readable tool plans, never raw shell or plain guesses.
-    payload = json.dumps({"model": model, "temperature": 0, "stream": False,
+    # Official LFM2.5-350M sampling. JSON mode stays, but an empty bubble is not
+    # an acceptable result: plain text and reasoning_content are shown instead.
+    payload = json.dumps({"model": model, "temperature": 0.1, "top_k": 50,
+                          "repeat_penalty": 1.05, "max_tokens": 384, "stream": False,
                           "response_format": {"type": "json_object"},
+                          "chat_template_kwargs": {"enable_thinking": False},
                           "messages": messages}, ensure_ascii=False).encode("utf-8")
     req = request.Request(local_api_url(endpoint), data=payload,
                           headers={"Content-Type": "application/json"}, method="POST")
@@ -289,16 +337,9 @@ def next_plan(messages, endpoint=API, model=MODEL):
         try:
             with request.urlopen(req, timeout=180) as result:
                 data = result.read(150000)
-            raw = json.loads(data)["choices"][0]["message"]["content"]
-            if not isinstance(raw, str) or len(raw) > MAX_RESPONSE:
-                raise ValueError("Resposta invalida ou extensa demais")
-            try:
-                plan = json.loads(raw)
-            except ValueError as exc:
-                raise ValueError("LFM2.5-350M nao forneceu JSON valido") from exc
-            if not isinstance(plan, dict) or plan.get("tool") not in TOOLS:
-                raise ValueError("Ferramenta da IA nao reconhecida")
-            return plan
+            body = json.loads(data)
+            raw = visible_model_text(body["choices"][0]["message"])
+            return plan_from_model_text(raw)
         except (error.URLError, TimeoutError, OSError) as exc:
             last_exc = exc
             if attempt < 2:
