@@ -11,7 +11,7 @@ import xorriso_terminal
 from urllib import request, error
 from urllib.parse import urlsplit
 
-MODEL = os.environ.get("XORRISO_MODEL", "LFM2.5-350M")
+MODEL = os.environ.get("XORRISO_MODEL", "MiniCPM-V-4.7-1B")
 API = os.environ.get("XORRISO_API_URL", "http://127.0.0.1:8080/v1")
 DOCUMENTS = pathlib.Path.home() / "Documentos"
 MAX_STEPS = 6
@@ -302,7 +302,7 @@ def visible_model_text(message):
 
 def plan_from_model_text(raw):
     if not isinstance(raw, str) or not raw.strip():
-        raise ValueError("LFM2.5-350M devolveu texto vazio")
+        raise ValueError("MiniCPM-V 4.7 1B devolveu texto vazio")
     if len(raw) > MAX_RESPONSE:
         raise ValueError("Resposta invalida ou extensa demais")
     try:

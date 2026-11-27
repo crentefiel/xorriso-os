@@ -15,7 +15,7 @@ while [ "$i" -lt 90 ]; do
   sleep 1
 done
 if ! curl -sf --max-time 2 http://127.0.0.1:8080/v1/models >/dev/null 2>&1; then
-  echo "O LFM2.5-350M ainda nao respondeu em 127.0.0.1:8080." >&2
+  echo "O MiniCPM-V 4.7 1B ainda nao respondeu em 127.0.0.1:8080." >&2
   exit 1
 fi
 if [ "$#" -gt 0 ]; then

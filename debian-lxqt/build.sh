@@ -102,7 +102,7 @@ mkdir -p config/includes.chroot/usr/lib/sysusers.d config/includes.chroot/opt/xo
 install -m 644 "$ROOT/xorriso-model-sysusers.conf" config/includes.chroot/usr/lib/sysusers.d/xorriso-model.conf
 # llama-server must actually be in the ISO: source built at pinned revision by CI.
 test -x "$ROOT/runtime-dist/llama-server" || {
-  echo 'LFM2.5 runtime missing. Build first: bash debian-lxqt/build-llama-runtime.sh' >&2; exit 8;
+  echo 'MiniCPM runtime missing. Build first: bash debian-lxqt/build-llama-runtime.sh' >&2; exit 8;
 }
 install -m 755 "$ROOT/runtime-dist/llama-server" config/includes.chroot/opt/xorriso/llama-server
 python3 "$ROOT/xorriso-model-provision.py" --bundle config/includes.chroot/usr/share/xorriso/models
@@ -225,11 +225,14 @@ fi
 if ! unsquashfs -cat "$SQUASHFS" usr/share/calamares/helpers/calamares-sources-media | cmp - "$ROOT/calamares-sources-media.sh"; then
   echo 'Incorrect Calamares media helper in the final ISO' >&2; exit 6
 fi
-model_path=usr/share/xorriso/models/LFM2.5-350M-Q4_K_M.gguf
-if ! unsquashfs -cat "$SQUASHFS" "$model_path" | cmp - "config/includes.chroot/$model_path"; then
-  echo 'Bundled GGUF differs from the verified download' >&2; exit 6
-fi
-echo "PASS: ISO SquashFS contains the verified LFM2.5-350M GGUF."
+model_path=usr/share/xorriso/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf
+projector_path=usr/share/xorriso/models/mmproj-model-f16-4x.gguf
+for bundled in "$model_path" "$projector_path"; do
+  if ! unsquashfs -cat "$SQUASHFS" "$bundled" | cmp - "config/includes.chroot/$bundled"; then
+    echo 'Bundled GGUF differs from the verified download' >&2; exit 6
+  fi
+done
+echo "PASS: ISO SquashFS contains the verified MiniCPM-V 4.7 1B."
 printf '%s\\n' 'PASS: xorriso desktop customization verified in ISO SquashFS.'
 # Validate actual installed Debian packages, not just package-list intentions.
 # A missing theme or a recursive Plasma dependency is a failed minimal image.

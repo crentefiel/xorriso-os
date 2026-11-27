@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and verify the bundled LiquidAI model. Support existing HD caches."""
+"""Build and verify the bundled MiniCPM-V 4.7 1B. Support existing HD caches."""
 import hashlib
 import json
 import os
@@ -11,16 +11,18 @@ import time
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-REPO = "LiquidAI/LFM2.5-350M-GGUF"
+REPO = "openbmb/MiniCPM-V-4.7-1B-gguf"
 API_ROOT = "https://huggingface.co/api/models/" + REPO
 ROOT = Path("/var/lib/xorriso-model")
 BUNDLE = Path("/usr/share/xorriso/models")
 STATUS = ROOT / "status.json"
 MANIFEST = ROOT / "model.json"
-MODEL_FILE = "LFM2.5-350M-Q4_K_M.gguf"
-REVISION = "bb7ee58b243e4cede04187e323e760b04f8a0091"
-PINNED_SHA = "7e6f72643caafc9a68256686638c4d7916f2cec76d1df478d4c3ddcd95a6aed4"
-QUANT = {"Q4_K_M": (1.5, MODEL_FILE)}
+MODEL_FILE = "MiniCPM-V-4_7-1B-Q4_K_M.gguf"
+PROJECTOR = "mmproj-model-f16-4x.gguf"
+REVISION = "e81247fa2eac0d99e43aeac55da199221959af15"
+PINNED_SHA = "f18f594747e5317ab490cff9c06339c9cfb89acbe2f02ebc48a4e167bc23576d"
+PROJECTOR_SHA = "1e0ab439877e6896ded59ff24cdd242fdffb236394f6fc4a5b019cbd60bb5f4a"
+QUANT = {"Q4_K_M": (2.5, MODEL_FILE)}
 
 MIN_FREE_BUFFER = 1024**3
 SHA_RE = re.compile(r"^[a-f0-9]{64}$")
@@ -41,7 +43,7 @@ def mem_gib(meminfo=None):
 def choose_quant(memory):
     if memory >= QUANT["Q4_K_M"][0]:
         return "Q4_K_M", MODEL_FILE
-    raise RuntimeError("LFM2.5-350M precisa de pelo menos 1.5 GiB de RAM, prefira 2 GiB ou mais.")
+    raise RuntimeError("MiniCPM-V 4.7 1B precisa de pelo menos 2.5 GiB de RAM, prefira 4 GiB ou mais.")
 
 
 def ensure_destination(path=None):
@@ -68,7 +70,7 @@ def write_json(target, data):
     os.replace(temp, target)
 
 def set_status(phase, **kwargs):
-    write_json(STATUS, {"phase": phase, "model": "LFM2.5-350M",
+    write_json(STATUS, {"phase": phase, "model": "MiniCPM-V-4.7-1B",
                         "updated_at": int(time.time()), **kwargs})
 
 def get_json(url):
@@ -80,22 +82,29 @@ def get_json(url):
     return json.loads(data)
 
 def official_files():
-    """Only the pinned official LFM2.5-350M GGUF is allowed."""
+    """Only the pinned official MiniCPM GGUF and its 4x projector are allowed."""
     items = get_json(API_ROOT + "/tree/" + REVISION + "?blobs=true")
     if not isinstance(items, list):
         raise RuntimeError("Manifesto GGUF invalido")
+    wanted = {MODEL_FILE: PINNED_SHA, PROJECTOR: PROJECTOR_SHA}
+    found = {}
     for item in items:
-        if not isinstance(item, dict) or item.get("path") != MODEL_FILE:
+        if not isinstance(item, dict):
+            continue
+        name = item.get("path")
+        if name not in wanted:
             continue
         size = item.get("size")
         meta = item.get("lfs") or {}
         sha = meta.get("oid") or meta.get("sha256")
-        if sha and sha != PINNED_SHA:
+        if sha and sha != wanted[name]:
             raise RuntimeError("SHA remoto diverge da versao oficial aprovada")
         if not isinstance(size, int) or not 10_000_000 < size < 2_000_000_000:
             raise RuntimeError("Tamanho do arquivo oficial invalido")
-        return REVISION, {MODEL_FILE: {"size": size, "sha256": PINNED_SHA}}
-    raise RuntimeError("GGUF oficial LFM2.5-350M Q4_K_M nao encontrado")
+        found[name] = {"size": size, "sha256": wanted[name]}
+    if set(found) != set(wanted):
+        raise RuntimeError("GGUF oficial MiniCPM-V 4.7 1B nao encontrado")
+    return REVISION, found
 
 
 def sha256_file(path):
@@ -106,11 +115,13 @@ def sha256_file(path):
     return digest.hexdigest()
 
 def validated(path, spec):
-    return path.is_file() and not path.is_symlink() and spec["sha256"] == PINNED_SHA and \
+    expected = PINNED_SHA if path.name == MODEL_FILE else PROJECTOR_SHA
+    return path.is_file() and not path.is_symlink() and spec["sha256"] == expected and \
            path.stat().st_size == spec["size"] and sha256_file(path) == spec["sha256"]
 
 def fetch_verified(name, spec, revision, root=None, report_progress=True):
-    if name != MODEL_FILE or revision != REVISION or spec["sha256"] != PINNED_SHA:
+    expected = PINNED_SHA if name == MODEL_FILE else PROJECTOR_SHA if name == PROJECTOR else ""
+    if name not in (MODEL_FILE, PROJECTOR) or revision != REVISION or spec["sha256"] != expected:
         raise ValueError("Arquivo de modelo nao aprovado")
     if root is None:
         root = ROOT
@@ -169,32 +180,34 @@ def verified_local_install(root=None):
         return False
     try:
         info = json.loads(manifest.read_text(encoding="utf-8"))
-        spec = info["files"][MODEL_FILE]
+        names = (MODEL_FILE, PROJECTOR)
         return (info.get("repo") == REPO and info.get("revision") == REVISION
                 and info.get("quant") == "Q4_K_M"
-                and set(info["files"]) == {MODEL_FILE}
-                and validated(root / MODEL_FILE, spec))
+                and set(info["files"]) == set(names)
+                and all(validated(root / name, info["files"][name]) for name in names))
     except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return False
 
 
-def model_manifest(spec):
+def model_manifest(specs):
     return {"repo": REPO, "revision": REVISION, "quant": "Q4_K_M",
-            "alias": "LFM2.5-350M", "files": {MODEL_FILE: spec}}
+            "alias": "MiniCPM-V-4.7-1B",
+            "files": {name: specs[name] for name in (MODEL_FILE, PROJECTOR)}}
 
 
 def build_bundle(directory):
     ensure_destination(directory)
     revision, specs = official_files()
-    fetch_verified(MODEL_FILE, specs[MODEL_FILE], revision, directory, report_progress=False)
-    license_url = f"https://huggingface.co/{REPO}/resolve/{revision}/LICENSE"
-    with urlopen(license_url, timeout=45) as response:
-        license_text = response.read(128 * 1024).decode("utf-8")
-    if "LFM Open License" not in license_text or "Redistribution" not in license_text:
-        raise RuntimeError("Licença oficial do modelo incompleta")
+    for name in (MODEL_FILE, PROJECTOR):
+        fetch_verified(name, specs[name], revision, directory, report_progress=False)
+    readme_url = "https://huggingface.co/" + REPO + "/resolve/" + revision + "/README.md"
+    with urlopen(readme_url, timeout=45) as response:
+        license_text = response.read(256 * 1024).decode("utf-8")
+    if "apache-2.0" not in license_text or "MiniCPM" not in license_text:
+        raise RuntimeError("Ficha oficial do MiniCPM incompleta")
     (directory / "LICENSE").write_text(license_text, encoding="utf-8")
-    write_json(directory / "model.json", model_manifest(specs[MODEL_FILE]))
-    print(f"Bundled {MODEL_FILE} ({specs[MODEL_FILE]['size']} bytes), SHA256 {PINNED_SHA}")
+    write_json(directory / "model.json", model_manifest(specs))
+    print("Bundled " + MODEL_FILE + " and " + PROJECTOR)
 
 
 def provision():
@@ -213,21 +226,23 @@ def provision():
     if verified_local_install():
         set_status("ready", quant=quant, model_file=model_file,
                    memory_gib=round(memory, 1), source="local_verified_cache")
-        print("PASS: LFM2.5-350M local verificado; nenhum download necessario.")
+        print("PASS: MiniCPM-V 4.7 1B local verificado; nenhum download necessario.")
         return 0
     set_status("checking", memory_gib=round(memory, 1), quant=quant)
     revision, specs = official_files()
-    spec = specs[model_file]
-    remaining = 0 if validated(ROOT / model_file, spec) else spec["size"]
+    names = (MODEL_FILE, PROJECTOR)
+    remaining = sum(0 if validated(ROOT / name, specs[name]) else specs[name]["size"] for name in names)
     if shutil.disk_usage(ROOT).free < remaining + MIN_FREE_BUFFER:
-        raise RuntimeError("Espaco no HD insuficiente para GGUF + 1 GiB de folga")
-    set_status("downloading", file=model_file, quant=quant,
-               bytes_received=0, bytes_total=spec["size"])
-    fetch_verified(model_file, spec, revision)
-    write_json(MANIFEST, model_manifest(spec))
+        raise RuntimeError("Espaco no HD insuficiente para o MiniCPM e o projetor")
+    for name in names:
+        set_status("downloading", file=name, quant=quant,
+                   bytes_received=0, bytes_total=specs[name]["size"])
+        fetch_verified(name, specs[name], revision)
+    write_json(MANIFEST, model_manifest(specs))
     set_status("ready", quant=quant, model_file=model_file,
-               size_bytes=spec["size"], memory_gib=round(memory, 1))
-    print("PASS: LFM2.5-350M oficial instalado no HD e verificado por SHA256.")
+               size_bytes=sum(specs[name]["size"] for name in names),
+               memory_gib=round(memory, 1))
+    print("PASS: MiniCPM-V 4.7 1B oficial instalado no HD e verificado por SHA256.")
     return 0
 
 
@@ -240,7 +255,7 @@ def main():
             set_status("error", detail=str(exc)[:400])
         except OSError:
             pass
-        print("LFM2.5-350M nao provisionado: " + str(exc), file=sys.stderr)
+        print("MiniCPM-V 4.7 1B nao provisionado: " + str(exc), file=sys.stderr)
         return 1
 
 if __name__ == "__main__":

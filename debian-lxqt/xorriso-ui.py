@@ -44,7 +44,7 @@ class Desktop:
         else:
             tk.Button(self.root, text="Terminal root (requer sua senha)",
                       command=self.open_root_terminal).pack(fill="x", padx=12, pady=(0, 10))
-        self.post("xorriso", "Interface pronta. Verificando o LFM2.5-350M local...")
+        self.post("xorriso", "Interface pronta. Verificando o MiniCPM-V 4.7 1B local...")
         self._model_last_report = ""
         self.entry.focus_set()
         self.model_watchdog()
@@ -67,19 +67,19 @@ class Desktop:
                 filename = pathlib.Path(str(data.get("file", ""))).name
                 if isinstance(amount, int) and isinstance(total, int) and total > 0:
                     percent = min(100, max(0, round(100 * amount / total)))
-                    return "Baixando LFM2.5-350M: " + filename + " (" + str(percent) + "%)."
-                return "Baixando LFM2.5-350M pelo Hugging Face..."
+                    return "Baixando MiniCPM-V 4.7 1B: " + filename + " (" + str(percent) + "%)."
+                return "Baixando MiniCPM-V 4.7 1B pelo Hugging Face..."
             if phase == "checking":
-                return "Conferindo RAM, disco e arquivos oficiais do LFM2.5-350M..."
+                return "Conferindo RAM, disco e arquivos oficiais do MiniCPM-V 4.7 1B..."
             if phase == "ready":
-                return "LFM2.5-350M verificado. Aguardando o servidor local iniciar."
+                return "MiniCPM-V 4.7 1B verificado. Aguardando o servidor local iniciar."
             if phase == "error":
                 return ("Nao foi possivel instalar a IA: " + str(data.get("detail", ""))[:210] +
                         ". O sistema tentara novamente. Use o terminal para consultar "
                         "journalctl -u xorriso-model-provision.")
         except (OSError, ValueError, TypeError):
             pass
-        return "Preparando o LFM2.5-350M incluído na ISO para conversar sem internet."
+        return "Preparando o MiniCPM-V 4.7 1B incluído na ISO para conversar sem internet."
 
     def check_model(self):
         """Show only observed API readiness and actual installation progress."""
@@ -120,7 +120,7 @@ class Desktop:
         return confirmed[0]
 
     def recheck_model(self):
-        self.post("xorriso", "Verificando novamente o LFM2.5-350M...")
+        self.post("xorriso", "Verificando novamente o MiniCPM-V 4.7 1B...")
         threading.Thread(target=self.check_model, daemon=True).start()
 
     def execute_command(self):
@@ -215,7 +215,7 @@ class Desktop:
                 answer = result.get("answer") if isinstance(result.get("answer"), str) else ""
                 response = (steps + "\n" if steps else "") + answer
                 if not response.strip():
-                    response = ("O LFM2.5-350M nao devolveu texto visivel. "
+                    response = ("O MiniCPM-V 4.7 1B nao devolveu texto visivel. "
                                 "O servidor local esta no ar; tente de novo.")
             except Exception as exc:
                 response = (self.installation_status() +

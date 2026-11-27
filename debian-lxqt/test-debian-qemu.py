@@ -80,7 +80,7 @@ def main():
         sock = tmp / "monitor.sock"
         serial = tmp / "serial.log"
         command = [
-            "qemu-system-x86_64", "-machine", "accel=kvm:tcg", "-m", "3072", "-smp", "2", "-no-reboot",
+            "qemu-system-x86_64", "-machine", "accel=kvm:tcg", "-m", "4096", "-smp", "2", "-no-reboot",
             "-boot", "d", "-cdrom", str(iso), "-display", "none",
             "-vga", "std", "-nic", "none", "-serial", "file:" + str(serial),
             "-monitor", "unix:" + str(sock) + ",server,nowait",
