@@ -56,6 +56,21 @@ tar -xJf "$OUT/${NODE_TARBALL}" -C config/includes.chroot/usr/local --strip-comp
 test -x config/includes.chroot/usr/local/bin/node
 test -x config/includes.chroot/usr/local/bin/npm
 rm -f "$OUT/${NODE_TARBALL}"
+
+# aichat talks to the existing llama-server. It shows the command and waits.
+AICHAT_VERSION=0.30.0
+AICHAT_TARBALL="aichat-v${AICHAT_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+AICHAT_URL="https://github.com/sigoden/aichat/releases/download/v${AICHAT_VERSION}/${AICHAT_TARBALL}"
+AICHAT_SHA256=6b0cc08c5ceb551dc52bfac2221752f82215be5908c70605d655e9b91ab1557c
+curl -fsSL "$AICHAT_URL" -o "$OUT/${AICHAT_TARBALL}"
+echo "${AICHAT_SHA256}  $OUT/${AICHAT_TARBALL}" | sha256sum -c -
+tar --no-same-owner -xzf "$OUT/${AICHAT_TARBALL}" -C "$OUT" aichat
+install -m 755 "$OUT/aichat" config/includes.chroot/usr/local/bin/aichat
+rm -f "$OUT/${AICHAT_TARBALL}" "$OUT/aichat"
+test -x config/includes.chroot/usr/local/bin/aichat
+install -D -m 644 "$ROOT/aichat-config.yaml" config/includes.chroot/usr/local/share/xorriso/aichat/config.yaml
+install -D -m 755 "$ROOT/xorriso-aichat.sh" config/includes.chroot/usr/local/bin/xorriso-aichat
+install -D -m 644 "$ROOT/xorriso-aichat.desktop" config/includes.chroot/usr/share/applications/xorriso-aichat.desktop
 install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorriso-ui.py
 install -m 755 "$ROOT/xorriso-agent.py" config/includes.chroot/usr/local/bin/xorriso-agent.py
 install -m 755 "$ROOT/xorriso_terminal.py" config/includes.chroot/usr/local/bin/xorriso_terminal.py
@@ -149,6 +164,10 @@ for expected in \
   usr/local/bin/xorriso_terminal.py \
   usr/local/bin/node \
   usr/local/bin/npm \
+  usr/local/bin/aichat \
+  usr/local/bin/xorriso-aichat \
+  usr/local/share/xorriso/aichat/config.yaml \
+  usr/share/applications/xorriso-aichat.desktop \
   usr/local/bin/xorriso-install \
   usr/local/libexec/xorriso/calamares-root \
   usr/share/polkit-1/actions/org.xorriso.install.policy \
