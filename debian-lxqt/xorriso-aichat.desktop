@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Terminal IA
+Comment=Pede um comando ao LFM2.5 e espera confirmacao
+Exec=qterminal -e /usr/local/bin/xorriso-aichat
+Icon=utilities-terminal
+Terminal=false
+Categories=System;Utility;
