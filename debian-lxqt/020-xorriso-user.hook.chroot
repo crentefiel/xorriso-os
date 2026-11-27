@@ -53,7 +53,7 @@ Type=Application
 Name=Configurações
 Comment=Configurações do xorriso
 Exec=lxqt-config
-Icon=preferences-system
+Icon=/usr/share/xorriso/logo.png
 Terminal=false
 Categories=Settings;
 EOF
@@ -64,7 +64,7 @@ Type=Application
 Name=Terminal
 Comment=Terminal. A IA local é o comando ia
 Exec=qterminal
-Icon=utilities-terminal
+Icon=/usr/share/xorriso/logo.png
 Terminal=false
 Categories=System;
 EOF
