@@ -44,6 +44,18 @@ cp "$ROOT/10-xorriso-autologin.conf" config/includes.chroot/etc/sddm.conf.d/10-x
 install -m 755 "$ROOT/020-xorriso-user.hook.chroot" "$HOOK_DEST/020-xorriso-user.hook.chroot"
 cp "$ROOT/README.md" config/includes.chroot/usr/local/share/xorriso/MIGRATION.md
 mkdir -p config/includes.chroot/usr/local/bin
+# Node.js 22 is what the Debian 12 reference environment runs. Debian 13's
+# nodejs package is 20.x, and its npm package is a separate module tree.
+NODE_VERSION=22.23.3
+NODE_TARBALL="node-v${NODE_VERSION}-linux-x64.tar.xz"
+NODE_URL="https://nodejs.org/dist/v${NODE_VERSION}/${NODE_TARBALL}"
+NODE_SHA256=df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de
+curl -fsSL "$NODE_URL" -o "$OUT/${NODE_TARBALL}"
+echo "${NODE_SHA256}  $OUT/${NODE_TARBALL}" | sha256sum -c -
+tar -xJf "$OUT/${NODE_TARBALL}" -C config/includes.chroot/usr/local --strip-components=1
+test -x config/includes.chroot/usr/local/bin/node
+test -x config/includes.chroot/usr/local/bin/npm
+rm -f "$OUT/${NODE_TARBALL}"
 install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorriso-ui.py
 install -m 755 "$ROOT/xorriso-agent.py" config/includes.chroot/usr/local/bin/xorriso-agent.py
 install -m 755 "$ROOT/xorriso_terminal.py" config/includes.chroot/usr/local/bin/xorriso_terminal.py
@@ -135,6 +147,8 @@ for expected in \
   etc/skel/.config/autostart/xorriso-trust-launchers.desktop \
   usr/local/bin/xorriso-desktop-ready \
   usr/local/bin/xorriso_terminal.py \
+  usr/local/bin/node \
+  usr/local/bin/npm \
   usr/local/bin/xorriso-install \
   usr/local/libexec/xorriso/calamares-root \
   usr/share/polkit-1/actions/org.xorriso.install.policy \
@@ -193,6 +207,7 @@ for needed in sddm sddm-theme-maui lxqt-core lxqt-session xfwm4 xdg-user-dirs pc
   qterminal gvfs live-boot live-config user-setup xorg \
   xserver-xorg-video-all xserver-xorg-input-all python3-tk \
   plymouth plymouth-themes polkitd pkexec \
+  git build-essential unzip xz-utils python3-pip python3-venv python3-numpy python3-pil \
   libpam-pwquality cracklib-runtime wamerican; do
   grep -Fxq "$needed" "$MANIFEST" || {
     echo "Required package missing in built ISO: $needed" >&2; exit 7;
