@@ -1,0 +1,13 @@
+model: xorriso:LFM2.5-350M
+temperature: 0.1
+stream: true
+save: false
+function_calling: false
+clients:
+  - type: openai-compatible
+    name: xorriso
+    api_base: http://127.0.0.1:8080/v1
+    api_key: local
+    models:
+      - name: LFM2.5-350M
+        max_input_tokens: 2048
