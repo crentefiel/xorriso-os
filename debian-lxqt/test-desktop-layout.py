@@ -12,12 +12,19 @@ build = (root / "build.sh").read_text(encoding="utf-8")
 agent = (root / "xorriso-agent.py").read_text(encoding="utf-8")
 
 shortcuts = re.findall(r"cat > /etc/skel/Desktop/([^ ]+) <<'EOF'", hook)
-assert sorted(shortcuts) == ["arquivos.desktop", "xorriso.desktop"], shortcuts
-assert "Name=Arquivos\n" in hook and "Exec=pcmanfm-qt\n" in hook
-assert "Name=xorriso IA\n" in hook
+assert sorted(shortcuts) == ["chrome.desktop", "configuracoes.desktop", "terminal.desktop"], shortcuts
+assert "Name=Chrome\n" in hook and "Exec=google-chrome-stable --no-first-run\n" in hook
+assert "Name=Configurações\n" in hook and "Exec=lxqt-config\n" in hook
+assert "Name=Terminal\n" in hook and "Exec=qterminal\n" in hook
 assert "DesktopShortcuts=\n" in hook
-assert "xorriso-ui.desktop" in hook and "OnlyShowIn=LXQt;" in hook
-assert "WallpaperMode=color\n" in hook
+assert "xorriso-ui.desktop" not in hook
+assert "025-xorriso-brand.hook.chroot" in (root / "build.sh").read_text(encoding="utf-8")
+brand = (root / "025-xorriso-brand.hook.chroot").read_text(encoding="utf-8")
+assert 'PRETTY_NAME="xorriso"' in brand
+assert "google-chrome-stable" in brand
+assert "NoDisplay=true" in brand
+assert 'DISTRIB_ID=xorriso' in brand
+assert "Wallpaper=/usr/share/xorriso/wallpaper.png\n" in hook
 assert "pcmanfm-qt" in packages
 # Regression XOS-014: Calamares unpackfs fails after partitioning if no tool.
 assert "squashfs-tools" in packages
@@ -84,8 +91,10 @@ assert "manage_service" in agent and "ADMIN_SERVICE_HELPER" in agent
 assert "usr/local/libexec/xorriso/admin-service" in build
 assert (root / "admin-service.py").is_file()
 
-assert "etc/xdg/autostart/xorriso-ui.desktop" in build
-assert "cp /etc/skel/.config/autostart/xorriso-ui.desktop /etc/xdg/autostart/xorriso-ui.desktop" in hook
+assert "usr/share/plymouth/themes/xorriso/xorriso.plymouth" in build
+assert "etc/skel/Desktop/chrome.desktop" in build
+assert "usr/bin/google-chrome-stable" in build
+assert "xorriso-aichat.desktop" not in build
 qemu = (root / "test-debian-qemu.py").read_text(encoding="utf-8")
 assert "XORRISO_INSTALL_MODE_LIVE" in qemu and "INSTALLER_READY" in qemu
 assert "XORRISO_INSTALL_MODE_LIVE" in (root / "xorriso-install-mode.sh").read_text(encoding="utf-8")
@@ -150,7 +159,7 @@ assert all(x in build for x in ("plasma-workspace", "plasma-desktop",
 
 assert all(p in packages for p in ("qterminal", "gvfs", "plymouth", "plymouth-themes"))
 assert "quiet splash" in build
-assert "plymouth-set-default-theme tribar" in hook
+assert "plymouth-set-default-theme xorriso" in hook
 assert "etc/skel/.config/autostart/xorriso-trust-launchers.desktop" in build
 assert "gio set" in hook and "metadata::trusted true" in hook
 assert "QuickExec=true" not in hook
@@ -164,7 +173,7 @@ assert "user-setup" in packages
 assert "useradd -m" not in hook
 assert "passwd -l xorriso" not in hook
 assert "mkdir -p /etc/skel/.config" in hook
-assert "etc/skel/Desktop/xorriso.desktop" in build
+assert "etc/skel/Desktop/chrome.desktop" in build
 assert "usr/lib/live/config/0030-user-setup" in build
 assert "XORRISO_LXQT_DESKTOP_TIMEOUT" in hook
 

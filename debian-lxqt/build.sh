@@ -14,7 +14,7 @@ if [[ -e config ]]; then
 fi
 lb config --mode debian --distribution trixie --architectures amd64 \
   --binary-images iso-hybrid --debian-installer false --initsystem systemd \
-  --archive-areas "main" --apt-indices false --apt-recommends false --security false --bootappend-live "boot=live components live-config.nocomponents=sudo username=xorriso quiet splash console=ttyS0,115200n8 console=tty0"
+  --iso-application xorriso --iso-volume XORRISO --iso-publisher xorriso --archive-areas "main" --apt-indices false --apt-recommends false --security false --bootappend-live "boot=live components live-config.nocomponents=sudo username=xorriso quiet splash console=ttyS0,115200n8 console=tty0"
 # Ubuntu 24.04 bundles live-build 3.0, which only processes config/hooks/*.chroot.
 # Newer live-build expects config/hooks/normal/*.hook.chroot.
 # Select the layout by inspecting the actual installed build helper.
@@ -70,7 +70,18 @@ rm -f "$OUT/${AICHAT_TARBALL}" "$OUT/aichat"
 test -x config/includes.chroot/usr/local/bin/aichat
 install -D -m 644 "$ROOT/aichat-config.yaml" config/includes.chroot/usr/local/share/xorriso/aichat/config.yaml
 install -D -m 755 "$ROOT/xorriso-aichat.sh" config/includes.chroot/usr/local/bin/xorriso-aichat
-install -D -m 644 "$ROOT/xorriso-aichat.desktop" config/includes.chroot/usr/share/applications/xorriso-aichat.desktop
+install -D -m 755 "$ROOT/xorriso-aichat.sh" config/includes.chroot/usr/local/bin/ia
+install -m 755 "$ROOT/025-xorriso-brand.hook.chroot" "$HOOK_DEST/025-xorriso-brand.hook.chroot"
+install -D -m 644 "$ROOT/branding/logo.png" config/includes.chroot/usr/share/xorriso/logo.png
+install -D -m 644 "$ROOT/branding/wallpaper.png" config/includes.chroot/usr/share/xorriso/wallpaper.png
+install -D -m 644 "$ROOT/branding/xorriso.plymouth" config/includes.chroot/usr/share/plymouth/themes/xorriso/xorriso.plymouth
+install -D -m 644 "$ROOT/branding/xorriso.script" config/includes.chroot/usr/share/plymouth/themes/xorriso/xorriso.script
+install -D -m 644 "$ROOT/branding/wallpaper.png" config/includes.chroot/usr/share/plymouth/themes/xorriso/wallpaper.png
+CHROME_DEB="$OUT/google-chrome-stable_current_amd64.deb"
+curl -fL --retry 3 -o "$CHROME_DEB" https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+test "$(stat -c %s "$CHROME_DEB")" -gt 50000000
+install -D -m 644 "$CHROME_DEB" config/includes.chroot/usr/local/share/xorriso/google-chrome.deb
+rm -f "$CHROME_DEB"
 install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorriso-ui.py
 install -m 755 "$ROOT/xorriso-agent.py" config/includes.chroot/usr/local/bin/xorriso-agent.py
 install -m 755 "$ROOT/xorriso_terminal.py" config/includes.chroot/usr/local/bin/xorriso_terminal.py
@@ -144,7 +155,9 @@ if [ -f config/bootloaders/isolinux/splash.svg ]; then
   test -s config/bootloaders/isolinux/splash.png || exit 4
   rm config/bootloaders/isolinux/splash.svg
 fi
-echo "Building Debian LXQt live ISO in $OUT"
+cp "$ROOT/branding/isolinux-splash.png" config/bootloaders/isolinux/splash.png
+find config/bootloaders -type f -exec grep -Iq . {} \; -print0 | xargs -0 sed -i 's/Debian GNU\/Linux/xorriso/g; s/Debian Live/xorriso/g'
+echo "Building xorriso live ISO in $OUT"
 sudo lb build
 sh "$ROOT/check-grub-media.sh" "$OUT/binary" grub-pc grub-efi grub-efi-amd64
 # live-build deletes its temporary chroot during lb build. Inspect the actual
@@ -154,11 +167,16 @@ test -s "$SQUASHFS" || {
   echo "Built ISO is missing its Live root filesystem: $SQUASHFS" >&2; exit 6;
 }
 for expected in \
-  etc/skel/Desktop/xorriso.desktop \
-  etc/skel/Desktop/arquivos.desktop \
+  etc/skel/Desktop/chrome.desktop \
+  etc/skel/Desktop/configuracoes.desktop \
+  etc/skel/Desktop/terminal.desktop \
   etc/skel/.config/lxqt/session.conf \
-  etc/skel/.config/autostart/xorriso-ui.desktop \
-  etc/xdg/autostart/xorriso-ui.desktop \
+  etc/os-release \
+  usr/bin/google-chrome-stable \
+  usr/local/bin/ia \
+  usr/share/xorriso/logo.png \
+  usr/share/xorriso/wallpaper.png \
+  usr/share/plymouth/themes/xorriso/xorriso.plymouth \
   etc/skel/.config/autostart/xorriso-trust-launchers.desktop \
   usr/local/bin/xorriso-desktop-ready \
   usr/local/bin/xorriso_terminal.py \
@@ -167,7 +185,6 @@ for expected in \
   usr/local/bin/aichat \
   usr/local/bin/xorriso-aichat \
   usr/local/share/xorriso/aichat/config.yaml \
-  usr/share/applications/xorriso-aichat.desktop \
   usr/local/bin/xorriso-install \
   usr/local/libexec/xorriso/calamares-root \
   usr/share/polkit-1/actions/org.xorriso.install.policy \
@@ -190,7 +207,7 @@ for expected in \
   usr/share/grub/default/grub \
   usr/local/libexec/xorriso/check-grub-media \
   usr/local/bin/xorriso-trust-launchers \
-  usr/share/plymouth/themes/tribar/tribar.plymouth \
+  usr/share/plymouth/themes/xorriso/xorriso.script \
   usr/sbin/update-cracklib \
   var/cache/cracklib/cracklib_dict.pwd \
   var/cache/cracklib/cracklib_dict.pwi \
@@ -225,7 +242,7 @@ for needed in sddm sddm-theme-maui lxqt-core lxqt-session xfwm4 xdg-user-dirs pc
   calamares calamares-settings-debian squashfs-tools grub2-common grub-pc-bin grub-efi-amd64-bin efibootmgr \
   qterminal gvfs live-boot live-config user-setup xorg \
   xserver-xorg-video-all xserver-xorg-input-all python3-tk \
-  plymouth plymouth-themes polkitd pkexec \
+  plymouth plymouth-themes polkitd pkexec google-chrome-stable \
   git build-essential unzip xz-utils python3-pip python3-venv python3-numpy python3-pil \
   libpam-pwquality cracklib-runtime wamerican; do
   grep -Fxq "$needed" "$MANIFEST" || {

@@ -43,7 +43,7 @@ TOOLS = {
     "finish": "Conclui a tarefa em portugues, sem afirmar resultados nao observados",
 }
 SYSTEM = (
-    "Voce e o agente administrador do xorriso OS, Debian LXQt. O usuario fala portugues do Brasil. "
+    "Voce e o agente administrador do xorriso. O usuario fala portugues do Brasil. "
     "Planeje UMA proxima ferramenta por vez, com base nas observacoes reais que receber. "
     "Responda SOMENTE JSON puro no formato "
     "{\"tool\":\"finish\",\"args\":{},\"message\":\"resposta\"}. "

@@ -1,0 +1,77 @@
+#!/bin/sh
+# Visible identity is xorriso. The package base stays Debian 13.
+set -eu
+
+if [ -s /usr/local/share/xorriso/google-chrome.deb ]; then
+    DEBIAN_FRONTEND=noninteractive apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y /usr/local/share/xorriso/google-chrome.deb
+    rm -f /usr/local/share/xorriso/google-chrome.deb
+fi
+command -v google-chrome-stable >/dev/null
+
+cat > /etc/os-release <<'EOF'
+PRETTY_NAME="xorriso"
+NAME="xorriso"
+ID=xorriso
+ID_LIKE=debian
+VERSION_ID="13"
+VERSION="13"
+HOME_URL="https://github.com/crentefiel/xorriso-os"
+EOF
+printf '%s\n' 'xorriso \n \l' > /etc/issue
+printf '%s\n' 'xorriso' > /etc/issue.net
+cat > /etc/lsb-release <<'EOF'
+DISTRIB_ID=xorriso
+DISTRIB_RELEASE=13
+DISTRIB_CODENAME=xorriso
+DISTRIB_DESCRIPTION="xorriso"
+EOF
+
+if [ -f /etc/default/grub ]; then
+    if grep -q '^GRUB_DISTRIBUTOR=' /etc/default/grub; then
+        sed -i 's|^GRUB_DISTRIBUTOR=.*|GRUB_DISTRIBUTOR="xorriso"|' /etc/default/grub
+    else
+        printf '%s\n' 'GRUB_DISTRIBUTOR="xorriso"' >> /etc/default/grub
+    fi
+fi
+
+brand=/usr/share/calamares/branding/debian/branding.desc
+if [ -f "$brand" ]; then
+    sed -i \
+        -e 's/Debian GNU\/Linux/xorriso/g' \
+        -e 's/Debian 13/xorriso/g' \
+        -e 's/shortProductName:.*/shortProductName:    xorriso/' \
+        -e 's/bootloaderEntryName:.*/bootloaderEntryName: xorriso/' \
+        -e 's|https://www.debian.org/|https://github.com/crentefiel/xorriso-os|g' \
+        "$brand"
+fi
+
+theme=/usr/share/sddm/themes/maui/theme.conf
+if [ -f "$theme" ] && grep -q '^background=' "$theme"; then
+    sed -i 's|^background=.*|background=/usr/share/xorriso/wallpaper.png|' "$theme"
+fi
+
+ln -sfn /usr/local/bin/xorriso-aichat /usr/local/bin/ia
+
+if ! grep -q 'a IA local' /etc/skel/.bashrc 2>/dev/null; then
+    printf '\n%s\n' '# xorriso' 'if [ -n "$PS1" ]; then printf "%s\n" "xorriso — a IA local é o comando: ia"; fi' >> /etc/skel/.bashrc
+fi
+
+# The menu shows only Chrome, Settings and Terminal.
+# aichat replaces the old Terminal IA and is started with: ia
+allow="google-chrome.desktop qterminal.desktop lxqt-config.desktop"
+for desktop in /usr/share/applications/*.desktop; do
+    name=$(basename "$desktop")
+    case " $allow " in
+        *" $name "*) continue ;;
+    esac
+    if grep -q '^NoDisplay=true' "$desktop"; then
+        continue
+    fi
+    printf '\n%s\n' 'NoDisplay=true' >> "$desktop"
+done
+
+test -x /usr/bin/google-chrome-stable
+test -x /usr/bin/qterminal
+test -x /usr/bin/lxqt-config
+echo 'XORRISO_BRAND_READY'
