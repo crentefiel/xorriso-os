@@ -51,7 +51,7 @@ if [ -f "$theme" ] && grep -q '^background=' "$theme"; then
     sed -i 's|^background=.*|background=/usr/share/xorriso/wallpaper.png|' "$theme"
 fi
 
-ln -sfn /usr/local/bin/xorriso-aichat /usr/local/bin/ia
+test -x /usr/local/bin/ia
 
 if ! grep -q 'a IA local' /etc/skel/.bashrc 2>/dev/null; then
     printf '\n%s\n' '# xorriso' 'if [ -n "$PS1" ]; then printf "%s\n" "xorriso — a IA local é o comando: ia"; fi' >> /etc/skel/.bashrc
