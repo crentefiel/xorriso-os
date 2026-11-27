@@ -93,7 +93,7 @@ assert (root / "admin-service.py").is_file()
 
 assert "usr/share/plymouth/themes/xorriso/xorriso.plymouth" in build
 assert "etc/skel/Desktop/chrome.desktop" in build
-assert "usr/bin/google-chrome-stable" in build
+assert "opt/google/chrome/chrome" in build
 assert "xorriso-aichat.desktop" not in build
 qemu = (root / "test-debian-qemu.py").read_text(encoding="utf-8")
 assert "XORRISO_INSTALL_MODE_LIVE" in qemu and "INSTALLER_READY" in qemu

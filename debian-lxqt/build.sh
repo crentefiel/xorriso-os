@@ -172,7 +172,8 @@ for expected in \
   etc/skel/Desktop/terminal.desktop \
   etc/skel/.config/lxqt/session.conf \
   etc/os-release \
-  usr/bin/google-chrome-stable \
+  usr/bin/qterminal \
+  opt/google/chrome/chrome \
   usr/local/bin/ia \
   usr/share/xorriso/logo.png \
   usr/share/xorriso/wallpaper.png \
