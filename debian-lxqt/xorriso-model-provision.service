@@ -1,5 +1,5 @@
 [Unit]
-Description=xorriso - verificar modelo local LFM2.5-350M
+Description=xorriso - verificar MiniCPM-V 4.7 1B incluído na ISO
 After=systemd-sysusers.service
 StartLimitIntervalSec=0
 OnSuccess=xorriso-model.service

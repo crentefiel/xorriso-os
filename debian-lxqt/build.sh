@@ -14,7 +14,7 @@ if [[ -e config ]]; then
 fi
 lb config --mode debian --distribution trixie --architectures amd64 \
   --binary-images iso-hybrid --debian-installer false --initsystem systemd \
-  --archive-areas "main" --apt-indices false --apt-recommends false --security false --bootappend-live "boot=live components live-config.nocomponents=sudo username=xorriso quiet splash console=ttyS0,115200n8 console=tty0"
+  --iso-application xorriso --iso-volume XORRISO --iso-publisher xorriso --archive-areas "main" --apt-indices false --apt-recommends false --security false --bootappend-live "boot=live components live-config.nocomponents=sudo username=xorriso quiet splash console=ttyS0,115200n8 console=tty0"
 # Ubuntu 24.04 bundles live-build 3.0, which only processes config/hooks/*.chroot.
 # Newer live-build expects config/hooks/normal/*.hook.chroot.
 # Select the layout by inspecting the actual installed build helper.
@@ -44,6 +44,44 @@ cp "$ROOT/10-xorriso-autologin.conf" config/includes.chroot/etc/sddm.conf.d/10-x
 install -m 755 "$ROOT/020-xorriso-user.hook.chroot" "$HOOK_DEST/020-xorriso-user.hook.chroot"
 cp "$ROOT/README.md" config/includes.chroot/usr/local/share/xorriso/MIGRATION.md
 mkdir -p config/includes.chroot/usr/local/bin
+# Node.js 22 is what the Debian 12 reference environment runs. Debian 13's
+# nodejs package is 20.x, and its npm package is a separate module tree.
+NODE_VERSION=22.23.3
+NODE_TARBALL="node-v${NODE_VERSION}-linux-x64.tar.xz"
+NODE_URL="https://nodejs.org/dist/v${NODE_VERSION}/${NODE_TARBALL}"
+NODE_SHA256=df450af89261115ef9f9e3830c3eeb2cc9213b63c720b1af623cb5dcbe2e02de
+curl -fsSL "$NODE_URL" -o "$OUT/${NODE_TARBALL}"
+echo "${NODE_SHA256}  $OUT/${NODE_TARBALL}" | sha256sum -c -
+tar -xJf "$OUT/${NODE_TARBALL}" -C config/includes.chroot/usr/local --strip-components=1
+test -x config/includes.chroot/usr/local/bin/node
+test -x config/includes.chroot/usr/local/bin/npm
+rm -f "$OUT/${NODE_TARBALL}"
+
+# aichat talks to the existing llama-server. It shows the command and waits.
+AICHAT_VERSION=0.30.0
+AICHAT_TARBALL="aichat-v${AICHAT_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+AICHAT_URL="https://github.com/sigoden/aichat/releases/download/v${AICHAT_VERSION}/${AICHAT_TARBALL}"
+AICHAT_SHA256=6b0cc08c5ceb551dc52bfac2221752f82215be5908c70605d655e9b91ab1557c
+curl -fsSL "$AICHAT_URL" -o "$OUT/${AICHAT_TARBALL}"
+echo "${AICHAT_SHA256}  $OUT/${AICHAT_TARBALL}" | sha256sum -c -
+tar --no-same-owner -xzf "$OUT/${AICHAT_TARBALL}" -C "$OUT" aichat
+install -m 755 "$OUT/aichat" config/includes.chroot/usr/local/bin/aichat
+rm -f "$OUT/${AICHAT_TARBALL}" "$OUT/aichat"
+test -x config/includes.chroot/usr/local/bin/aichat
+install -D -m 644 "$ROOT/aichat-config.yaml" config/includes.chroot/usr/local/share/xorriso/aichat/config.yaml
+install -D -m 755 "$ROOT/xorriso-aichat.sh" config/includes.chroot/usr/local/bin/xorriso-aichat
+install -D -m 755 "$ROOT/xorriso-aichat.sh" config/includes.chroot/usr/local/bin/ia
+install -m 755 "$ROOT/025-xorriso-brand.hook.chroot" "$HOOK_DEST/025-xorriso-brand.hook.chroot"
+install -D -m 644 "$ROOT/branding/logo.png" config/includes.chroot/usr/share/xorriso/logo.png
+install -D -m 644 "$ROOT/branding/wallpaper.png" config/includes.chroot/usr/share/xorriso/wallpaper.png
+install -D -m 644 "$ROOT/branding/xorriso.plymouth" config/includes.chroot/usr/share/plymouth/themes/xorriso/xorriso.plymouth
+install -D -m 644 "$ROOT/branding/xorriso.script" config/includes.chroot/usr/share/plymouth/themes/xorriso/xorriso.script
+install -D -m 644 "$ROOT/branding/wallpaper.png" config/includes.chroot/usr/share/plymouth/themes/xorriso/wallpaper.png
+CHROME_DEB="$OUT/google-chrome-stable_current_amd64.deb"
+curl -fL --retry 3 -o "$CHROME_DEB" https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+test "$(stat -c %s "$CHROME_DEB")" -gt 50000000
+install -D -m 644 "$CHROME_DEB" config/includes.chroot/usr/local/share/xorriso/google-chrome.deb
+rm -f "$CHROME_DEB"
 install -m 755 "$ROOT/xorriso-ui.py" config/includes.chroot/usr/local/bin/xorriso-ui.py
 install -m 755 "$ROOT/xorriso-agent.py" config/includes.chroot/usr/local/bin/xorriso-agent.py
 install -m 755 "$ROOT/xorriso_terminal.py" config/includes.chroot/usr/local/bin/xorriso_terminal.py
@@ -64,7 +102,7 @@ mkdir -p config/includes.chroot/usr/lib/sysusers.d config/includes.chroot/opt/xo
 install -m 644 "$ROOT/xorriso-model-sysusers.conf" config/includes.chroot/usr/lib/sysusers.d/xorriso-model.conf
 # llama-server must actually be in the ISO: source built at pinned revision by CI.
 test -x "$ROOT/runtime-dist/llama-server" || {
-  echo 'LFM2.5 runtime missing. Build first: bash debian-lxqt/build-llama-runtime.sh' >&2; exit 8;
+  echo 'MiniCPM runtime missing. Build first: bash debian-lxqt/build-llama-runtime.sh' >&2; exit 8;
 }
 install -m 755 "$ROOT/runtime-dist/llama-server" config/includes.chroot/opt/xorriso/llama-server
 python3 "$ROOT/xorriso-model-provision.py" --bundle config/includes.chroot/usr/share/xorriso/models
@@ -117,7 +155,9 @@ if [ -f config/bootloaders/isolinux/splash.svg ]; then
   test -s config/bootloaders/isolinux/splash.png || exit 4
   rm config/bootloaders/isolinux/splash.svg
 fi
-echo "Building Debian LXQt live ISO in $OUT"
+cp "$ROOT/branding/isolinux-splash.png" config/bootloaders/isolinux/splash.png
+find config/bootloaders -type f -exec grep -Iq . {} \; -print0 | xargs -0 sed -i 's/Debian GNU\/Linux/xorriso/g; s/Debian Live/xorriso/g'
+echo "Building xorriso live ISO in $OUT"
 sudo lb build
 sh "$ROOT/check-grub-media.sh" "$OUT/binary" grub-pc grub-efi grub-efi-amd64
 # live-build deletes its temporary chroot during lb build. Inspect the actual
@@ -127,14 +167,25 @@ test -s "$SQUASHFS" || {
   echo "Built ISO is missing its Live root filesystem: $SQUASHFS" >&2; exit 6;
 }
 for expected in \
-  etc/skel/Desktop/xorriso.desktop \
-  etc/skel/Desktop/arquivos.desktop \
+  etc/skel/Desktop/chrome.desktop \
+  etc/skel/Desktop/configuracoes.desktop \
+  etc/skel/Desktop/terminal.desktop \
   etc/skel/.config/lxqt/session.conf \
-  etc/skel/.config/autostart/xorriso-ui.desktop \
-  etc/xdg/autostart/xorriso-ui.desktop \
+  etc/os-release \
+  usr/bin/qterminal \
+  opt/google/chrome/chrome \
+  usr/local/bin/ia \
+  usr/share/xorriso/logo.png \
+  usr/share/xorriso/wallpaper.png \
+  usr/share/plymouth/themes/xorriso/xorriso.plymouth \
   etc/skel/.config/autostart/xorriso-trust-launchers.desktop \
   usr/local/bin/xorriso-desktop-ready \
   usr/local/bin/xorriso_terminal.py \
+  usr/local/bin/node \
+  usr/local/bin/npm \
+  usr/local/bin/aichat \
+  usr/local/bin/xorriso-aichat \
+  usr/local/share/xorriso/aichat/config.yaml \
   usr/local/bin/xorriso-install \
   usr/local/libexec/xorriso/calamares-root \
   usr/share/polkit-1/actions/org.xorriso.install.policy \
@@ -157,7 +208,7 @@ for expected in \
   usr/share/grub/default/grub \
   usr/local/libexec/xorriso/check-grub-media \
   usr/local/bin/xorriso-trust-launchers \
-  usr/share/plymouth/themes/tribar/tribar.plymouth \
+  usr/share/plymouth/themes/xorriso/xorriso.script \
   usr/sbin/update-cracklib \
   var/cache/cracklib/cracklib_dict.pwd \
   var/cache/cracklib/cracklib_dict.pwi \
@@ -174,11 +225,14 @@ fi
 if ! unsquashfs -cat "$SQUASHFS" usr/share/calamares/helpers/calamares-sources-media | cmp - "$ROOT/calamares-sources-media.sh"; then
   echo 'Incorrect Calamares media helper in the final ISO' >&2; exit 6
 fi
-model_path=usr/share/xorriso/models/LFM2.5-350M-Q4_K_M.gguf
-if ! unsquashfs -cat "$SQUASHFS" "$model_path" | cmp - "config/includes.chroot/$model_path"; then
-  echo 'Bundled GGUF differs from the verified download' >&2; exit 6
-fi
-echo "PASS: ISO SquashFS contains the verified LFM2.5-350M GGUF."
+model_path=usr/share/xorriso/models/MiniCPM-V-4_7-1B-Q4_K_M.gguf
+projector_path=usr/share/xorriso/models/mmproj-model-f16-4x.gguf
+for bundled in "$model_path" "$projector_path"; do
+  if ! unsquashfs -cat "$SQUASHFS" "$bundled" | cmp - "config/includes.chroot/$bundled"; then
+    echo 'Bundled GGUF differs from the verified download' >&2; exit 6
+  fi
+done
+echo "PASS: ISO SquashFS contains the verified MiniCPM-V 4.7 1B."
 printf '%s\\n' 'PASS: xorriso desktop customization verified in ISO SquashFS.'
 # Validate actual installed Debian packages, not just package-list intentions.
 # A missing theme or a recursive Plasma dependency is a failed minimal image.
@@ -192,7 +246,8 @@ for needed in sddm sddm-theme-maui lxqt-core lxqt-session xfwm4 xdg-user-dirs pc
   calamares calamares-settings-debian squashfs-tools grub2-common grub-pc-bin grub-efi-amd64-bin efibootmgr \
   qterminal gvfs live-boot live-config user-setup xorg \
   xserver-xorg-video-all xserver-xorg-input-all python3-tk \
-  plymouth plymouth-themes polkitd pkexec \
+  plymouth plymouth-themes polkitd pkexec google-chrome-stable \
+  git build-essential unzip xz-utils python3-pip python3-venv python3-numpy python3-pil \
   libpam-pwquality cracklib-runtime wamerican; do
   grep -Fxq "$needed" "$MANIFEST" || {
     echo "Required package missing in built ISO: $needed" >&2; exit 7;

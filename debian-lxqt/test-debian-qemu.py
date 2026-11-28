@@ -44,7 +44,9 @@ def image_has_content(path):
             return False
         nonblack = sum(max(r, g, b) > 35 for r, g, b in pix)
         palette = len({(r // 24, g // 24, b // 24) for r, g, b in pix})
-        return nonblack / len(pix) > 0.15 and palette >= 10
+        # The xorriso wallpaper is near-black. A dead framebuffer stays under 1%.
+        # The logo, icons and panel clear 4% and keep a real palette.
+        return nonblack / len(pix) > 0.04 and palette >= 10
 
 
 def capture(sock, folder, name):
@@ -78,7 +80,7 @@ def main():
         sock = tmp / "monitor.sock"
         serial = tmp / "serial.log"
         command = [
-            "qemu-system-x86_64", "-machine", "accel=kvm:tcg", "-m", "3072", "-smp", "2", "-no-reboot",
+            "qemu-system-x86_64", "-machine", "accel=kvm:tcg", "-m", "4096", "-smp", "2", "-no-reboot",
             "-boot", "d", "-cdrom", str(iso), "-display", "none",
             "-vga", "std", "-nic", "none", "-serial", "file:" + str(serial),
             "-monitor", "unix:" + str(sock) + ",server,nowait",

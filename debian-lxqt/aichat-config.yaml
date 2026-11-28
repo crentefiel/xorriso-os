@@ -1,0 +1,13 @@
+model: xorriso:MiniCPM-V-4.7-1B
+temperature: 0.4
+stream: true
+save: false
+function_calling: false
+clients:
+  - type: openai-compatible
+    name: xorriso
+    api_base: http://127.0.0.1:8080/v1
+    api_key: local
+    models:
+      - name: MiniCPM-V-4.7-1B
+        max_input_tokens: 2048

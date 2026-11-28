@@ -35,6 +35,10 @@ keyboard-configuration
 procps
 python3
 python3-tk
+python3-pip
+python3-venv
+python3-numpy
+python3-pil
 polkitd
 pkexec
 lxqt-policykit
@@ -54,3 +58,9 @@ grub2-common
 grub-pc-bin
 grub-efi-amd64-bin
 efibootmgr
+# Public builder tools present on the Debian 12 reference environment.
+git
+build-essential
+unzip
+xz-utils
+less

@@ -60,9 +60,9 @@ from urllib.request import Request, urlopen
 
 mode = sys.argv[1]
 assert {p.name for p in Path("/sys/class/net").iterdir()} == {"lo"}
-model = "LFM2.5-350M"
+model = "MiniCPM-V-4.7-1B"
 base = "http://127.0.0.1:8080/v1/"
-deadline = time.monotonic() + 240
+deadline = time.monotonic() + 420
 while True:
     try:
         with urlopen(base + "models", timeout=5) as reply:

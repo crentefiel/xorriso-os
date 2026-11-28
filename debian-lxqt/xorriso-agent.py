@@ -8,10 +8,10 @@ import shutil
 import subprocess
 import time
 import xorriso_terminal
-from urllib import request
+from urllib import request, error
 from urllib.parse import urlsplit
 
-MODEL = os.environ.get("XORRISO_MODEL", "LFM2.5-350M")
+MODEL = os.environ.get("XORRISO_MODEL", "MiniCPM-V-4.7-1B")
 API = os.environ.get("XORRISO_API_URL", "http://127.0.0.1:8080/v1")
 DOCUMENTS = pathlib.Path.home() / "Documentos"
 MAX_STEPS = 6
@@ -43,7 +43,7 @@ TOOLS = {
     "finish": "Conclui a tarefa em portugues, sem afirmar resultados nao observados",
 }
 SYSTEM = (
-    "Voce e o agente administrador do xorriso OS, Debian LXQt. O usuario fala portugues do Brasil. "
+    "Voce e o agente administrador do xorriso. O usuario fala portugues do Brasil. "
     "Planeje UMA proxima ferramenta por vez, com base nas observacoes reais que receber. "
     "Responda SOMENTE JSON puro no formato "
     "{\"tool\":\"finish\",\"args\":{},\"message\":\"resposta\"}. "
@@ -275,26 +275,78 @@ def local_api_url(base):
         raise ValueError("Base da API deve terminar em /v1")
     return "http://" + parsed.netloc + "/v1/chat/completions"
 
-def next_plan(messages, endpoint=API, model=MODEL):
-    # llama-server supports JSON-constrained decoding. The lightweight model must
-    # produce machine-readable tool plans, never raw shell or plain guesses.
-    payload = json.dumps({"model": model, "temperature": 0, "stream": False,
-                          "response_format": {"type": "json_object"},
-                          "messages": messages}, ensure_ascii=False).encode("utf-8")
-    req = request.Request(local_api_url(endpoint), data=payload,
-                          headers={"Content-Type": "application/json"}, method="POST")
-    with request.urlopen(req, timeout=100) as result:
-        data = result.read(150000)
-    raw = json.loads(data)["choices"][0]["message"]["content"]
-    if not isinstance(raw, str) or len(raw) > MAX_RESPONSE:
+def visible_model_text(message):
+    """LFM2.5 often parks the reply in reasoning_content and leaves content empty."""
+    if not isinstance(message, dict):
+        return ""
+    def cleaned(value):
+        if not isinstance(value, str):
+            return ""
+        text = re.sub(r"<think>.*?</think>", " ", value, flags=re.S | re.I)
+        text = text.replace("<think>", " ").replace("</think>", " ")
+        return text.strip()
+    content = cleaned(message.get("content"))
+    reasoning = cleaned(message.get("reasoning_content"))
+    if content:
+        try:
+            plan = json.loads(content)
+        except ValueError:
+            plan = None
+        if isinstance(plan, dict) and plan.get("tool") in TOOLS:
+            reply = plan.get("message", "")
+            if plan.get("tool") != "finish" or (isinstance(reply, str) and reply.strip()):
+                return content
+        if not reasoning:
+            return content
+    return reasoning or content
+
+def plan_from_model_text(raw):
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("MiniCPM-V 4.7 1B devolveu texto vazio")
+    if len(raw) > MAX_RESPONSE:
         raise ValueError("Resposta invalida ou extensa demais")
     try:
         plan = json.loads(raw)
-    except ValueError as exc:
-        raise ValueError("LFM2.5-350M nao forneceu JSON valido") from exc
-    if not isinstance(plan, dict) or plan.get("tool") not in TOOLS:
-        raise ValueError("Ferramenta da IA nao reconhecida")
-    return plan
+    except ValueError:
+        # Plain Portuguese is still a reply. Never hide it behind a JSON error.
+        return {"tool": "finish", "args": {}, "message": raw[:4000]}
+    if isinstance(plan, dict) and plan.get("tool") in TOOLS:
+        if plan.get("tool") == "finish":
+            reply = plan.get("message", "")
+            if not isinstance(reply, str) or not reply.strip():
+                plan = dict(plan)
+                plan["message"] = "Ola. Pode repetir com uma frase completa."
+        return plan
+    if isinstance(plan, dict) and isinstance(plan.get("message"), str) and plan["message"].strip():
+        return {"tool": "finish", "args": {}, "message": plan["message"].strip()[:4000]}
+    return {"tool": "finish", "args": {}, "message": raw[:4000]}
+
+def next_plan(messages, endpoint=API, model=MODEL):
+    # Official LFM2.5-350M sampling. JSON mode stays, but an empty bubble is not
+    # an acceptable result: plain text and reasoning_content are shown instead.
+    payload = json.dumps({"model": model, "temperature": 0.1, "top_k": 50,
+                          "repeat_penalty": 1.05, "max_tokens": 384, "stream": False,
+                          "response_format": {"type": "json_object"},
+                          "chat_template_kwargs": {"enable_thinking": False},
+                          "messages": messages}, ensure_ascii=False).encode("utf-8")
+    req = request.Request(local_api_url(endpoint), data=payload,
+                          headers={"Content-Type": "application/json"}, method="POST")
+    # First request after boot can take longer while the model loads into RAM.
+    last_exc = None
+    for attempt in range(3):
+        try:
+            with request.urlopen(req, timeout=180) as result:
+                data = result.read(150000)
+            body = json.loads(data)
+            raw = visible_model_text(body["choices"][0]["message"])
+            return plan_from_model_text(raw)
+        except (error.URLError, TimeoutError, OSError) as exc:
+            last_exc = exc
+            if attempt < 2:
+                time.sleep(5)
+                continue
+            raise TimeoutError("Servidor local demorou demais para responder (3 tentativas)") from last_exc
+    raise TimeoutError("Servidor local nao respondeu") from last_exc
 
 def solve(prompt, approve, planner=next_plan, execute=action):
     if not isinstance(prompt, str) or not prompt.strip():

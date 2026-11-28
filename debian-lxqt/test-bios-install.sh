@@ -56,7 +56,7 @@ truncate -s %4 "$tmp/ci-initrd.img"
 cp "$here/test-bios-guest.sh" "$tmp/check.raw"
 printf '%*s' "$(( (512 - $(stat -c %s "$tmp/check.raw") % 512) % 512 ))" '' >> "$tmp/check.raw"
 
-vm=(qemu-system-x86_64 -machine accel=kvm:tcg -m 3072 -smp 2 -display none
+vm=(qemu-system-x86_64 -machine accel=kvm:tcg -m 4096 -smp 2 -display none
     -monitor none -no-reboot -nic none
     -drive "if=none,id=target,file=$disk,format=raw"
     -device virtio-blk-pci,drive=target,serial=XOS015TARGET)
