@@ -21,11 +21,14 @@ fi
 if [ "$#" -gt 0 ]; then
   exec /usr/local/bin/aichat "$@"
 fi
-echo "Terminal IA. Descreva a tarefa. O comando aparece e so roda se voce confirmar."
-echo "Ctrl+C sai."
+echo "xorriso IA. Escreva sua mensagem. A resposta aparece abaixo."
+echo "A primeira frase pode demorar. Ctrl+C sai."
 while true; do
-  printf 'tarefa> '
+  printf 'voce> '
   IFS= read -r task || exit 0
   [ -n "$task" ] || continue
-  /usr/local/bin/aichat -e "$task" || true
+  /usr/local/bin/aichat "Responda em portugues, curto e direto. Nao repita letras. Nao invente comando de terminal.
+
+Pessoa: $task" || echo "A IA nao respondeu. Espere um pouco e tente de novo." >&2
+  printf '\n'
 done

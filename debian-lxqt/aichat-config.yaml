@@ -1,5 +1,5 @@
 model: xorriso:MiniCPM-V-4.7-1B
-temperature: 0.1
+temperature: 0.4
 stream: true
 save: false
 function_calling: false

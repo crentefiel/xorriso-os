@@ -67,9 +67,9 @@ def main():
               "--mmproj",str(projector),
               "--host","127.0.0.1","--port","8080",
               "--alias","MiniCPM-V-4.7-1B","--ctx-size","2048",
-              "-t",threads,"-ngl","0",
+              "-t",threads,"-ngl","0","-n","160",
               "--jinja","--reasoning","off",
-              "--temp","0.1","--top-k","50","--repeat-penalty","1.05"])
+              "--temp","0.4","--top-k","40","--repeat-penalty","1.2"])
 
 if __name__=="__main__":
     try:
